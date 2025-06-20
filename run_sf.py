@@ -62,7 +62,7 @@ def main() -> None:
     v_x = slice_data["v_x"]; v_y = slice_data["v_y"]; v_z = slice_data["v_z"]
 
     vA_x, vA_y, vA_z = compute_vA(B_x, B_y, B_z, rho)
-    # z plus/minus arrays computed if needed later
+    (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z) = compute_z_plus_minus(v_x, v_y, v_z, vA_x, vA_y, vA_z)
 
     # ---------------------------------------------------------------------
     # Displacements --------------------------------------------------------
