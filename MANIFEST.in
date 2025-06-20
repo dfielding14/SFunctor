@@ -1,0 +1,17 @@
+include README.md
+include requirements.txt
+include pyproject.toml
+
+# Include the standalone scripts that users might want to run directly
+include run_sf.py
+include run_extract_slice.py
+include extract_2d_slice.py
+include structure_function_2D_slices.py
+include bin_convert_new.py
+
+# Exclude old/development files
+exclude Structure_Function_2D_slices_old.py
+
+# Exclude any test data
+global-exclude *.npz
+global-exclude slices.txt 

@@ -115,4 +115,4 @@ def load_slice_npz(file_path: str | Path, *, stride: int = 1) -> Dict[str, np.nd
                 arr = np.full((ny, nx), np.nan, dtype=float)
             out[canon_key] = arr.astype(float, copy=False)
 
-    return out 
+    return out

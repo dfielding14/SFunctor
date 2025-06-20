@@ -1,8 +1,10 @@
 """Utility functions for generating displacement vectors used in SF histograms."""
+
 from __future__ import annotations
 
-import numpy as np
 from typing import Tuple
+
+import numpy as np
 
 __all__ = [
     "find_ell_bin_edges",
@@ -73,5 +75,7 @@ def build_displacement_list(
     unique_canonical = np.unique(canonical, axis=0)
 
     # Sort by absolute length
-    idx_sort = np.argsort(np.sqrt(unique_canonical[:, 0] ** 2 + unique_canonical[:, 1] ** 2))
-    return unique_canonical[idx_sort] 
+    idx_sort = np.argsort(
+        np.sqrt(unique_canonical[:, 0] ** 2 + unique_canonical[:, 1] ** 2)
+    )
+    return unique_canonical[idx_sort]

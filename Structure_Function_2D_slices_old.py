@@ -1,28 +1,28 @@
-import numpy as np
-from numba import njit, jit
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 import cmasher as cmr
-
-
 import matplotlib
-matplotlib.rc('font', family='sans-serif', size=12)
-matplotlib.rcParams['xtick.direction'] = 'in'
-matplotlib.rcParams['ytick.direction'] = 'in'
-matplotlib.rcParams['xtick.top'] = True
-matplotlib.rcParams['ytick.right'] = True
-matplotlib.rcParams['xtick.minor.visible'] = True
-matplotlib.rcParams['ytick.minor.visible'] = True
-matplotlib.rcParams['lines.dash_capstyle'] = 'round'
-matplotlib.rcParams['figure.dpi'] = 200
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LogNorm
+from numba import jit, njit
 
+matplotlib.rc("font", family="sans-serif", size=12)
+matplotlib.rcParams["xtick.direction"] = "in"
+matplotlib.rcParams["ytick.direction"] = "in"
+matplotlib.rcParams["xtick.top"] = True
+matplotlib.rcParams["ytick.right"] = True
+matplotlib.rcParams["xtick.minor.visible"] = True
+matplotlib.rcParams["ytick.minor.visible"] = True
+matplotlib.rcParams["lines.dash_capstyle"] = "round"
+matplotlib.rcParams["figure.dpi"] = 200
 
 
 import multiprocess as mulitp
+
 PoolProcesses = mulitp.cpu_count() - 4
 print(PoolProcesses)
 
 import argparse
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--stride", type=int, default=1)
 parser.add_argument("--file_name", type=str, default="")
@@ -37,23 +37,21 @@ N_random_subsamples = args.N_random_subsamples
 n_ell_bins = args.n_ell_bins
 
 
-
 data = np.load(file_name)
 
-rho = data['dens'][::stride,::stride]
-B_x = data['bcc1'][::stride,::stride]
-B_y = data['bcc2'][::stride,::stride]
-B_z = data['bcc3'][::stride,::stride]
-v_x = data['velx'][::stride,::stride]
-v_y = data['vely'][::stride,::stride]
-v_z = data['velz'][::stride,::stride]
+rho = data["dens"][::stride, ::stride]
+B_x = data["bcc1"][::stride, ::stride]
+B_y = data["bcc2"][::stride, ::stride]
+B_z = data["bcc3"][::stride, ::stride]
+v_x = data["velx"][::stride, ::stride]
+v_y = data["vely"][::stride, ::stride]
+v_z = data["velz"][::stride, ::stride]
 
 del data
 
-#get axis from file name
-axis = int(file_name.split('_')[2][-1])
-beta = int(file_name.split('_')[6][4:])
-
+# get axis from file name
+axis = int(file_name.split("_")[2][-1])
+beta = int(file_name.split("_")[6][4:])
 
 
 def find_ell_bin_edges(r_min, r_max, n_ell_bins):
@@ -63,7 +61,9 @@ def find_ell_bin_edges(r_min, r_max, n_ell_bins):
 
     while n_points_low <= n_points_high:
         n_points_mid = (n_points_low + n_points_high) // 2
-        ell_bin_edges = np.unique(np.around(np.geomspace(r_min, r_max, n_points_mid)).astype(int))
+        ell_bin_edges = np.unique(
+            np.around(np.geomspace(r_min, r_max, n_points_mid)).astype(int)
+        )
 
         if len(ell_bin_edges) < n_ell_bins + 1:
             n_points_low = n_points_mid + 1
@@ -76,18 +76,17 @@ def find_ell_bin_edges(r_min, r_max, n_ell_bins):
     # If we exited the loop without finding exactly n_ell_bins + 1 points,
     # take the closest result (should be rare)
     if len(ell_bin_edges) != n_ell_bins + 1:
-        print(f"Warning: Could not find exactly {n_ell_bins + 1} unique bin edges. Using {len(ell_bin_edges)} instead.")
+        print(
+            f"Warning: Could not find exactly {n_ell_bins + 1} unique bin edges. Using {len(ell_bin_edges)} instead."
+        )
     return ell_bin_edges
 
 
-
-N_res = rho.shape[0]   # size of the grid (e.g., 10240 later)
+N_res = rho.shape[0]  # size of the grid (e.g., 10240 later)
 r_min = 1.0
 r_max = N_res // 4
 ell_bin_edges = find_ell_bin_edges(r_min, r_max, n_ell_bins)
 ell_bin_edges = np.array(ell_bin_edges, dtype=np.float64)
-
-
 
 
 # Calculate how many displacements per ell-bin
@@ -98,7 +97,7 @@ disp_list = []
 for i in range(n_ell_bins):
     # Get the lower and upper edge for the current bin
     r_low = ell_bin_edges[i]
-    r_high = ell_bin_edges[i+1]
+    r_high = ell_bin_edges[i + 1]
 
     # Generate n_per_bin radii logarithmically spaced between the bin edges.
     r_values = np.geomspace(r_low, r_high, n_per_bin)
@@ -127,13 +126,17 @@ displacements = np.vstack(disp_list)
 # -------------------------------
 # Define a canonical representation:
 # If the first element is negative, or if it is zero and the second element is negative, use the negated vector.
-mask = (displacements[:, 0] < 0) | ((displacements[:, 0] == 0) & (displacements[:, 1] < 0))
+mask = (displacements[:, 0] < 0) | (
+    (displacements[:, 0] == 0) & (displacements[:, 1] < 0)
+)
 canonical = np.where(mask[:, None], -displacements, displacements)
 
 # Remove duplicates based on canonical representation.
 unique_canonical = np.unique(canonical, axis=0)
 
-displacements = unique_canonical[np.argsort(np.sqrt(unique_canonical[:,0]**2 + unique_canonical[:,1]**2))]
+displacements = unique_canonical[
+    np.argsort(np.sqrt(unique_canonical[:, 0] ** 2 + unique_canonical[:, 1] ** 2))
+]
 n_disp = displacements.shape[0]
 
 # -------------------------------
@@ -143,7 +146,7 @@ ell_bin_centers = (ell_bin_edges[:-1] + ell_bin_edges[1:]) / 2.0
 
 # θ bins: here we choose 18 bins covering 0 to π.
 n_theta_bins = 18
-theta_bin_edges = np.linspace(0, np.pi/2, n_theta_bins + 1)
+theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
 theta_bin_centers = (theta_bin_edges[:-1] + theta_bin_edges[1:]) / 2.0
 
 # ϕ bins: here we choose 18 bins covering 0 to π.
@@ -162,7 +165,9 @@ sf_bin_centers = (sf_bin_edges[:-1] + sf_bin_edges[1:]) / 2.0
 product_min = 1e-10
 product_max = 1e1
 n_product_bins = 500
-product_bin_edges = np.logspace(np.log10(product_min), np.log10(product_max), n_product_bins + 1)
+product_bin_edges = np.logspace(
+    np.log10(product_min), np.log10(product_max), n_product_bins + 1
+)
 product_bin_centers = (product_bin_edges[:-1] + product_bin_edges[1:]) / 2.0
 
 
@@ -179,6 +184,7 @@ def find_bin_index_binary(value, bin_edges):
             left = mid + 1
     return -1
 
+
 # -------------------------------
 # Step 3: Numba-accelerated function for a single displacement.
 # This function computes the SF2 for each spatial point for the given displacement,
@@ -187,17 +193,30 @@ def find_bin_index_binary(value, bin_edges):
 # (For a given displacement, the ℓ bin is fixed.)
 # -------------------------------
 @njit
-def compute_histogram_for_disp_2D(v_x, v_y, v_z, B_x, B_y, B_z, rho,
-                                  delta_i, delta_j, slice_axis,
-                                  N_random_subsamples,
-                                  ell_bin_edges, theta_bin_edges, phi_bin_edges,
-                                  sf_bin_edges, product_bin_edges,
-                                  stencil_width=2):
-    N, M            = v_x.shape
-    n_ell_bins      = ell_bin_edges.shape[0] - 1
-    n_theta_bins    = theta_bin_edges.shape[0] - 1
-    n_phi_bins      = phi_bin_edges.shape[0] - 1
-    n_sf_bins       = sf_bin_edges.shape[0] - 1
+def compute_histogram_for_disp_2D(
+    v_x,
+    v_y,
+    v_z,
+    B_x,
+    B_y,
+    B_z,
+    rho,
+    delta_i,
+    delta_j,
+    slice_axis,
+    N_random_subsamples,
+    ell_bin_edges,
+    theta_bin_edges,
+    phi_bin_edges,
+    sf_bin_edges,
+    product_bin_edges,
+    stencil_width=2,
+):
+    N, M = v_x.shape
+    n_ell_bins = ell_bin_edges.shape[0] - 1
+    n_theta_bins = theta_bin_edges.shape[0] - 1
+    n_phi_bins = phi_bin_edges.shape[0] - 1
+    n_sf_bins = sf_bin_edges.shape[0] - 1
 
     if slice_axis == 1:
         dx = 0
@@ -219,25 +238,28 @@ def compute_histogram_for_disp_2D(v_x, v_y, v_z, B_x, B_y, B_z, rho,
     n_hist_elements = 4
 
     # Create an empty histogram with shape: (quantity being averaged, ℓ bins, θ bins, quantity bins, number of p orders)
-    hist = np.zeros((n_hist_elements, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
+    hist = np.zeros(
+        (n_hist_elements, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins),
+        dtype=np.int64,
+    )
 
     # Compute displacement magnitude r.
-    r = (delta_i*delta_i + delta_j*delta_j) ** 0.5
+    r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
     # Determine ℓ bin index (for this displacement) using the provided edges.
     ell_idx = -1
     for i in range(n_ell_bins):
-        if ell_bin_edges[i] <= r < ell_bin_edges[i+1]:
+        if ell_bin_edges[i] <= r < ell_bin_edges[i + 1]:
             ell_idx = i
             break
     if ell_idx == -1:
         return hist
 
     # Sample unique flat indices from the grid
-    flat_indices = np.random.choice(M*N, size=N_random_subsamples, replace=False)
+    flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
 
     # Convert flat indices to 2D coordinates
     random_points_y = flat_indices // N  # row indices
-    random_points_x = flat_indices % N   # column indices
+    random_points_x = flat_indices % N  # column indices
 
     # Loop over every spatial position (with periodic boundary conditions)
     for i in random_points_x:
@@ -278,7 +300,7 @@ def compute_histogram_for_disp_2D(v_x, v_y, v_z, B_x, B_y, B_z, rho,
                 Bmy = (B_y[jp, ip] + B_y[j, i]) / 2.0
                 Bmz = (B_z[jp, ip] + B_z[j, i]) / 2.0
 
-            Bmean_mag = (Bmx*Bmx + Bmy*Bmy + Bmz*Bmz) ** 0.5
+            Bmean_mag = (Bmx * Bmx + Bmy * Bmy + Bmz * Bmz) ** 0.5
             if Bmean_mag == 0.0:
                 continue
 
@@ -287,20 +309,43 @@ def compute_histogram_for_disp_2D(v_x, v_y, v_z, B_x, B_y, B_z, rho,
 
             # calculate the angle between the component of dB perpendicular to mean local B and the component of the displacement perpendicular to mean local B
             # then find the index
-            dB_perp = np.array([dBz, dBy, dBx]) - (dBz*Bmz + dBy*Bmy + dBx*Bmx) * np.array([Bmz, Bmy, Bmx]) / Bmean_mag**2
-            dB_perp_mag = np.sqrt(dB_perp[0]**2 + dB_perp[1]**2 + dB_perp[2]**2)
+            dB_perp = (
+                np.array([dBz, dBy, dBx])
+                - (dBz * Bmz + dBy * Bmy + dBx * Bmx)
+                * np.array([Bmz, Bmy, Bmx])
+                / Bmean_mag**2
+            )
+            dB_perp_mag = np.sqrt(dB_perp[0] ** 2 + dB_perp[1] ** 2 + dB_perp[2] ** 2)
 
-            dv_perp = np.array([dvz, dvy, dvx]) - (dvz*Bmz + dvy*Bmy + dvx*Bmx) * np.array([Bmz, Bmy, Bmx]) / Bmean_mag**2
-            dv_perp_mag = np.sqrt(dv_perp[0]**2 + dv_perp[1]**2 + dv_perp[2]**2)
+            dv_perp = (
+                np.array([dvz, dvy, dvx])
+                - (dvz * Bmz + dvy * Bmy + dvx * Bmx)
+                * np.array([Bmz, Bmy, Bmx])
+                / Bmean_mag**2
+            )
+            dv_perp_mag = np.sqrt(dv_perp[0] ** 2 + dv_perp[1] ** 2 + dv_perp[2] ** 2)
 
-            displacement_perp = np.array([dz, dy, dx]) - (dz*Bmz + dy*Bmy + dx*Bmx) * np.array([Bmz, Bmy, Bmx]) / Bmean_mag**2
-            displacement_perp_mag = np.sqrt(displacement_perp[0]**2 + displacement_perp[1]**2 + displacement_perp[2]**2)
+            displacement_perp = (
+                np.array([dz, dy, dx])
+                - (dz * Bmz + dy * Bmy + dx * Bmx)
+                * np.array([Bmz, Bmy, Bmx])
+                / Bmean_mag**2
+            )
+            displacement_perp_mag = np.sqrt(
+                displacement_perp[0] ** 2
+                + displacement_perp[1] ** 2
+                + displacement_perp[2] ** 2
+            )
 
-            cos_phi = (displacement_perp[0] * dB_perp[0] + displacement_perp[1] * dB_perp[1] + displacement_perp[2] * dB_perp[2]) / (displacement_perp_mag * dB_perp_mag)
+            cos_phi = (
+                displacement_perp[0] * dB_perp[0]
+                + displacement_perp[1] * dB_perp[1]
+                + displacement_perp[2] * dB_perp[2]
+            ) / (displacement_perp_mag * dB_perp_mag)
             phi_val = np.arccos(cos_phi)
 
             # Compute vperp_cross_bperp and vperp_bperp
-            vperp_cross_bperp = np.sqrt(np.sum(np.cross(dv_perp, dB_perp)**2))
+            vperp_cross_bperp = np.sqrt(np.sum(np.cross(dv_perp, dB_perp) ** 2))
             vperp_bperp = dv_perp_mag * dB_perp_mag
 
             # Compute magnitude of velocity and magnetic field fluctuations
@@ -320,7 +365,9 @@ def compute_histogram_for_disp_2D(v_x, v_y, v_z, B_x, B_y, B_z, rho,
             b_idx = find_bin_index_binary(dB, sf_bin_edges)
             hist[1, ell_idx, theta_idx, phi_idx, b_idx] += 1
 
-            vperp_cross_bperp_idx = find_bin_index_binary(vperp_cross_bperp, product_bin_edges)
+            vperp_cross_bperp_idx = find_bin_index_binary(
+                vperp_cross_bperp, product_bin_edges
+            )
             hist[2, ell_idx, theta_idx, phi_idx, vperp_cross_bperp_idx] += 1
 
             vperp_bperp_idx = find_bin_index_binary(vperp_bperp, product_bin_edges)
@@ -351,10 +398,26 @@ def compute_histogram_for_disp_2D(v_x, v_y, v_z, B_x, B_y, B_z, rho,
 @njit
 def process_displacement_3(i_disp):
     dx, dy = displacements[i_disp]
-    return compute_histogram_for_disp_2D(v_x, v_y, v_z, B_x, B_y, B_z, rho,
-                                      dx, dy, axis,
-                                      N_random_subsamples,
-                                      ell_bin_edges, theta_bin_edges, phi_bin_edges, sf_bin_edges, product_bin_edges,3)
+    return compute_histogram_for_disp_2D(
+        v_x,
+        v_y,
+        v_z,
+        B_x,
+        B_y,
+        B_z,
+        rho,
+        dx,
+        dy,
+        axis,
+        N_random_subsamples,
+        ell_bin_edges,
+        theta_bin_edges,
+        phi_bin_edges,
+        sf_bin_edges,
+        product_bin_edges,
+        3,
+    )
+
 
 # For testing, try one displacement:
 hist_single = process_displacement_3(0)
@@ -367,16 +430,18 @@ print("Histogram shape for a single displacement:", hist_single.shape)
 #         result += process_displacement_2(i)
 #     return result
 
+
 def process_batch_3(batch_indices):
     result = process_displacement_3(batch_indices[0])
     for i in batch_indices[1:]:
         result += process_displacement_3(i)
     return result
 
+
 # Create batches (fewer, larger batches)
 batch_size = max(1, n_disp // PoolProcesses)  # Aim for ~4 batches per process
-batches = [range(i, min(i+batch_size, n_disp)) for i in range(0, n_disp, batch_size)]
-print(batch_size,batches[0],batches[-1])
+batches = [range(i, min(i + batch_size, n_disp)) for i in range(0, n_disp, batch_size)]
+print(batch_size, batches[0], batches[-1])
 
 pool = mulitp.Pool(processes=PoolProcesses)
 batch_results = pool.map(process_batch_3, batches)
@@ -385,37 +450,55 @@ pool.join()
 
 # Flatten results
 hist_3 = np.sum(np.array(batch_results), axis=0)
-np.savez(f'slice_data/hist_3_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.npz',
-            hist_3=hist_3,
-            ell_bin_edges=ell_bin_edges,
-            theta_bin_edges=theta_bin_edges,
-            phi_bin_edges=phi_bin_edges,
-            sf_bin_edges=sf_bin_edges,
-            product_bin_edges=product_bin_edges,
-            # save the centers too
-            ell_bin_centers=ell_bin_centers,
-            theta_bin_centers=theta_bin_centers,
-            phi_bin_centers=phi_bin_centers,
-            sf_bin_centers=sf_bin_centers,
-            product_bin_centers=product_bin_centers)
+np.savez(
+    f'slice_data/hist_3_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.npz',
+    hist_3=hist_3,
+    ell_bin_edges=ell_bin_edges,
+    theta_bin_edges=theta_bin_edges,
+    phi_bin_edges=phi_bin_edges,
+    sf_bin_edges=sf_bin_edges,
+    product_bin_edges=product_bin_edges,
+    # save the centers too
+    ell_bin_centers=ell_bin_centers,
+    theta_bin_centers=theta_bin_centers,
+    phi_bin_centers=phi_bin_centers,
+    sf_bin_centers=sf_bin_centers,
+    product_bin_centers=product_bin_centers,
+)
 
 
-hist_3 = hist_3[:,:,:,:,:-1]
+hist_3 = hist_3[:, :, :, :, :-1]
 sf_bin_centers = sf_bin_centers[:-1]
 product_bin_centers = product_bin_centers[:-1]
 
-# some test plots 
-bsf_theta_ell = (np.sum(np.sum(hist_3[1], axis=(2))*sf_bin_centers**2, axis=-1) / np.sum(hist_3[1], axis=(2,3)))**(1/2)
-vsf_theta_ell = (np.sum(np.sum(hist_3[0], axis=(2))*sf_bin_centers**2, axis=-1) / np.sum(hist_3[0], axis=(2,3)))**(1/2)
+# some test plots
+bsf_theta_ell = (
+    np.sum(np.sum(hist_3[1], axis=(2)) * sf_bin_centers**2, axis=-1)
+    / np.sum(hist_3[1], axis=(2, 3))
+) ** (1 / 2)
+vsf_theta_ell = (
+    np.sum(np.sum(hist_3[0], axis=(2)) * sf_bin_centers**2, axis=-1)
+    / np.sum(hist_3[0], axis=(2, 3))
+) ** (1 / 2)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.5, 4), sharey=True, sharex=True)
-plot = ax1.contourf(theta_bin_centers *180/np.pi, ell_bin_centers, bsf_theta_ell, levels=np.linspace(0,2,21))
-cb = fig.colorbar(plot, ax=ax1, location='top', shrink=0.8)
+plot = ax1.contourf(
+    theta_bin_centers * 180 / np.pi,
+    ell_bin_centers,
+    bsf_theta_ell,
+    levels=np.linspace(0, 2, 21),
+)
+cb = fig.colorbar(plot, ax=ax1, location="top", shrink=0.8)
 cb.set_label(r"$\langle|\delta B (\ell)|^2 : \theta \rangle^{1/2}$")
 ax1.semilogy()
 
-plot = ax2.contourf(theta_bin_centers *180/np.pi, ell_bin_centers, vsf_theta_ell, levels=np.linspace(0,2,21))
-cb = fig.colorbar(plot, ax=ax2, location='top', shrink=0.8)
+plot = ax2.contourf(
+    theta_bin_centers * 180 / np.pi,
+    ell_bin_centers,
+    vsf_theta_ell,
+    levels=np.linspace(0, 2, 21),
+)
+cb = fig.colorbar(plot, ax=ax2, location="top", shrink=0.8)
 cb.set_label(r"$\langle|\delta v (\ell)|^2 : \theta \rangle^{1/2}$")
 ax2.semilogy()
 
@@ -425,67 +508,124 @@ ax1.set_ylabel(r"$\ell$")
 
 fig.tight_layout()
 
-plt.savefig(f'slice_data/SF_theta_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png', dpi=200)
+plt.savefig(
+    f'slice_data/SF_theta_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png',
+    dpi=200,
+)
 plt.clf()
 
 
+p_orders = np.arange(1, 11, 1)
+vsfp = np.array(
+    [
+        (
+            np.sum(np.sum(hist_3[1], axis=(1, 2)) * sf_bin_centers**p, axis=1)
+            / np.sum(hist_3[1], axis=(1, 2, 3))
+        )
+        ** (1 / p)
+        for p in p_orders
+    ]
+)
 
-p_orders = np.arange(1,11,1)
-vsfp = np.array([ (np.sum(np.sum(hist_3[1], axis=(1,2))*sf_bin_centers**p, axis=1) / np.sum(hist_3[1], axis=(1,2,3)))**(1/p) for p in p_orders])
-
-plot = plt.pcolormesh(ell_bin_centers, sf_bin_centers, np.sum(hist_3[1], axis=(1,2)).T/np.sum(np.sum(hist_3[1], axis=(1,2)).T,axis=0), norm=LogNorm(), cmap=cmr.arctic_r)
+plot = plt.pcolormesh(
+    ell_bin_centers,
+    sf_bin_centers,
+    np.sum(hist_3[1], axis=(1, 2)).T / np.sum(np.sum(hist_3[1], axis=(1, 2)).T, axis=0),
+    norm=LogNorm(),
+    cmap=cmr.arctic_r,
+)
 cb = plt.colorbar(plot)
 cb.set_label(r"$N(\delta v|\ell)$")
 plt.grid()
-plt.axhline(1, color='magenta', linestyle='--', lw=1)
+plt.axhline(1, color="magenta", linestyle="--", lw=1)
 for i, line in enumerate(vsfp):
-    plt.loglog(ell_bin_centers, line, color='0.7', linewidth=1.5-i*0.1, alpha=1-i*0.1)
-plt.ylabel(r'$|\delta v|$')
-plt.xlabel(r'$\ell$')
-plt.ylim(bottom = 1e-3)
-plt.savefig(f'slice_data/SF_v_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png', dpi=200)
+    plt.loglog(
+        ell_bin_centers, line, color="0.7", linewidth=1.5 - i * 0.1, alpha=1 - i * 0.1
+    )
+plt.ylabel(r"$|\delta v|$")
+plt.xlabel(r"$\ell$")
+plt.ylim(bottom=1e-3)
+plt.savefig(
+    f'slice_data/SF_v_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png',
+    dpi=200,
+)
 plt.clf()
 
 
+B0 = np.sqrt(2 / beta)
 
-
-B0 = np.sqrt(2/beta)
-
-p_orders = np.arange(1,11,1)
-vsfp = np.array([ (np.sum(np.sum(hist_3[0], axis=(1,2))*sf_bin_centers**p, axis=1) / np.sum(hist_3[0], axis=(1,2,3)))**(1/p) for p in p_orders])
-plot = plt.pcolormesh(ell_bin_centers, sf_bin_centers, np.sum(hist_3[0], axis=(1,2)).T/np.sum(np.sum(hist_3[0], axis=(1,2)).T,axis=0), norm=LogNorm(), cmap=cmr.amethyst_r)
+p_orders = np.arange(1, 11, 1)
+vsfp = np.array(
+    [
+        (
+            np.sum(np.sum(hist_3[0], axis=(1, 2)) * sf_bin_centers**p, axis=1)
+            / np.sum(hist_3[0], axis=(1, 2, 3))
+        )
+        ** (1 / p)
+        for p in p_orders
+    ]
+)
+plot = plt.pcolormesh(
+    ell_bin_centers,
+    sf_bin_centers,
+    np.sum(hist_3[0], axis=(1, 2)).T / np.sum(np.sum(hist_3[0], axis=(1, 2)).T, axis=0),
+    norm=LogNorm(),
+    cmap=cmr.amethyst_r,
+)
 cb = plt.colorbar(plot)
 cb.set_label(r"$N(\delta B|\ell)$")
 plt.grid()
-plt.axhline(B0, color='cyan', linestyle='--', lw=1)
+plt.axhline(B0, color="cyan", linestyle="--", lw=1)
 for i, line in enumerate(vsfp):
-    plt.loglog(ell_bin_centers, line, color='0.7', linewidth=1.5-i*0.1, alpha=1-i*0.1)
-plt.ylabel(r'$|\delta B|$')
-plt.xlabel(r'$\ell$')
-plt.ylim(bottom = 1e-3)
+    plt.loglog(
+        ell_bin_centers, line, color="0.7", linewidth=1.5 - i * 0.1, alpha=1 - i * 0.1
+    )
+plt.ylabel(r"$|\delta B|$")
+plt.xlabel(r"$\ell$")
+plt.ylim(bottom=1e-3)
 
-plt.savefig(f'slice_data/SF_b_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png', dpi=200)
+plt.savefig(
+    f'slice_data/SF_b_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png',
+    dpi=200,
+)
 plt.clf()
 
 
-
-
-
-
-
-average_vperp_cross_bperp = np.sum(np.sum(hist_3[2], axis=(1,2))*product_bin_centers, axis=1) / np.sum(hist_3[2], axis=(1,2,3))
-average_vperp_bperp = np.sum(np.sum(hist_3[3], axis=(1,2))*product_bin_centers, axis=1) / np.sum(hist_3[3], axis=(1,2,3))
+average_vperp_cross_bperp = np.sum(
+    np.sum(hist_3[2], axis=(1, 2)) * product_bin_centers, axis=1
+) / np.sum(hist_3[2], axis=(1, 2, 3))
+average_vperp_bperp = np.sum(
+    np.sum(hist_3[3], axis=(1, 2)) * product_bin_centers, axis=1
+) / np.sum(hist_3[3], axis=(1, 2, 3))
 
 # plt.loglog(ell_bin_centers,average_vperp_cross_bperp, label=r"$\langle|\delta v_\perp \times \delta B_\perp|\rangle$")
 # plt.loglog(ell_bin_centers,average_vperp_bperp, label=r"$\langle |\delta v_\perp| |\delta B_\perp| \rangle$")
-plt.loglog(ell_bin_centers,average_vperp_cross_bperp/average_vperp_bperp, label=r"$\frac{\langle|\delta v_\perp \times \delta B_\perp|\rangle}{\langle |\delta v_\perp| |\delta B_\perp| \rangle}$")
-plt.loglog(ell_bin_centers,0.1*ell_bin_centers**(1/4), color='black', label=r"$\ell^{1/4}$")
-plt.loglog(ell_bin_centers,0.2*ell_bin_centers**(1/8), color='grey', label=r"$\ell^{1/8}$")
-plt.loglog(ell_bin_centers,0.2*ell_bin_centers**(1/16), color='0.25', label=r"$\ell^{1/16}$")
+plt.loglog(
+    ell_bin_centers,
+    average_vperp_cross_bperp / average_vperp_bperp,
+    label=r"$\frac{\langle|\delta v_\perp \times \delta B_\perp|\rangle}{\langle |\delta v_\perp| |\delta B_\perp| \rangle}$",
+)
+plt.loglog(
+    ell_bin_centers,
+    0.1 * ell_bin_centers ** (1 / 4),
+    color="black",
+    label=r"$\ell^{1/4}$",
+)
+plt.loglog(
+    ell_bin_centers,
+    0.2 * ell_bin_centers ** (1 / 8),
+    color="grey",
+    label=r"$\ell^{1/8}$",
+)
+plt.loglog(
+    ell_bin_centers,
+    0.2 * ell_bin_centers ** (1 / 16),
+    color="0.25",
+    label=r"$\ell^{1/16}$",
+)
 plt.legend()
-plt.savefig(f'slice_data/theta_vb_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png', dpi=200)
+plt.savefig(
+    f'slice_data/theta_vb_ell_{file_name[:-4].split("/")[-1]}_ndisps_{n_disp_total}_Nsubsamples_{N_random_subsamples}.png',
+    dpi=200,
+)
 plt.clf()
-
-
-
-

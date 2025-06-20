@@ -1,0 +1,5 @@
+numpy>=1.23
+numba>=0.58
+matplotlib>=3.8
+cmasher>=1.7
+# mpi4py>=3.1  # Optional: install with pip install sfunctor[mpi] 
