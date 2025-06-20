@@ -13,7 +13,12 @@ from typing import Dict, Sequence, Tuple
 
 import numpy as np
 
-from sf_histograms import compute_histogram_for_disp_2D, N_CHANNELS
+from sf_histograms import (
+    compute_histogram_for_disp_2D,
+    N_CHANNELS,
+    N_MAG_CHANNELS,
+    N_OTHER_CHANNELS,
+)
 
 __all__ = [
     "compute_histograms_shared",
@@ -52,7 +57,7 @@ def _process_batch(
     n_ell_bins: int,
     n_theta_bins: int,
     n_phi_bins: int,
-) -> np.ndarray:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Compute histogram for a batch of displacement indices using globals."""
     vx = _GLOBAL_FIELDS["v_x"]
     vy = _GLOBAL_FIELDS["v_y"]
@@ -82,9 +87,9 @@ def _process_batch(
     jy = _GLOBAL_FIELDS["j_y"]
     jz = _GLOBAL_FIELDS["j_z"]
 
-    hist = np.zeros(
+    hist_mag = np.zeros(
         (
-            N_CHANNELS,
+            N_MAG_CHANNELS,
             n_ell_bins,
             n_theta_bins,
             n_phi_bins,
@@ -93,9 +98,18 @@ def _process_batch(
         dtype=np.int64,
     )
 
+    hist_other = np.zeros(
+        (
+            N_OTHER_CHANNELS,
+            n_ell_bins,
+            sf_bin_edges.shape[0] - 1,
+        ),
+        dtype=np.int64,
+    )
+
     for idx in batch_indices:
         dx, dy = displacements[idx]
-        hist += compute_histogram_for_disp_2D(
+        hm_part, ho_part = compute_histogram_for_disp_2D(
             vx,
             vy,
             vz,
@@ -119,7 +133,11 @@ def _process_batch(
             product_bin_edges,
             stencil_width,
         )
-    return hist
+
+        hist_mag += hm_part
+        hist_other += ho_part
+
+    return hist_mag, hist_other
 
 
 # -----------------------------------------------------------------------------
@@ -139,7 +157,7 @@ def compute_histograms_shared(
     product_bin_edges: np.ndarray,
     stencil_width: int = 2,
     n_processes: int | None = None,
-) -> np.ndarray:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Compute histograms using shared-memory Pool.
 
     Parameters
@@ -215,7 +233,32 @@ def compute_histograms_shared(
                 ],
             )
 
-        return np.sum(np.array(results), axis=0)
+        # Aggregate results -------------------------------------------------
+        hist_mag_total = np.zeros(
+            (
+                N_MAG_CHANNELS,
+                n_ell_bins,
+                n_theta_bins,
+                n_phi_bins,
+                sf_bin_edges.shape[0] - 1,
+            ),
+            dtype=np.int64,
+        )
+
+        hist_other_total = np.zeros(
+            (
+                N_OTHER_CHANNELS,
+                n_ell_bins,
+                sf_bin_edges.shape[0] - 1,
+            ),
+            dtype=np.int64,
+        )
+
+        for hm, ho in results:
+            hist_mag_total += hm
+            hist_other_total += ho
+
+        return hist_mag_total, hist_other_total
     finally:
         # Cleanup shared memory -------------------------------------------
         for shm in shm_objects.values():

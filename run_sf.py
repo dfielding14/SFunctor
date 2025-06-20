@@ -20,7 +20,11 @@ from sf_cli import parse_cli
 from sf_io import load_slice_npz, parse_slice_metadata
 from sf_physics import compute_vA, compute_z_plus_minus
 from sf_displacements import find_ell_bin_edges, build_displacement_list
-from sf_histograms import N_CHANNELS
+from sf_histograms import (
+    Channel,
+    MAG_CHANNELS,
+    OTHER_CHANNELS,
+)
 from sf_parallel import compute_histograms_shared
 
 comm = MPI.COMM_WORLD
@@ -68,7 +72,15 @@ def main() -> None:
     # Displacements --------------------------------------------------------
     # ---------------------------------------------------------------------
     N_res = rho.shape[0]
-    ell_bin_edges = find_ell_bin_edges(1.0, N_res // 4, cfg.n_ell_bins)
+    # Adjust ℓ-max depending on stencil width -----------------------------
+    if cfg.stencil_width == 2:
+        ell_max = N_res // 2
+    elif cfg.stencil_width == 3:
+        ell_max = N_res // 4
+    else:  # 5-point
+        ell_max = N_res // 8
+
+    ell_bin_edges = find_ell_bin_edges(1.0, ell_max, cfg.n_ell_bins)
     displacements = build_displacement_list(ell_bin_edges, cfg.n_disp_total)
 
     # Histogram bin definitions (reuse from legacy script) -----------------
@@ -105,7 +117,7 @@ def main() -> None:
         omega_z=slice_data["omega_z"],
     )
 
-    local_hist = compute_histograms_shared(
+    local_mag, local_other = compute_histograms_shared(
         fields_for_parallel,
         displacements,
         axis=axis,
@@ -115,20 +127,30 @@ def main() -> None:
         phi_bin_edges=phi_bin_edges,
         sf_bin_edges=sf_bin_edges,
         product_bin_edges=product_bin_edges,
-        stencil_width=2,
+        stencil_width=cfg.stencil_width,
         n_processes=cfg.n_processes,
     )
 
     # MPI reduce -----------------------------------------------------------
-    global_hist = np.zeros_like(local_hist)
-    comm.Reduce(local_hist, global_hist, op=MPI.SUM, root=0)
+    global_mag = np.zeros_like(local_mag)
+    global_other = np.zeros_like(local_other)
+    comm.Reduce(local_mag, global_mag, op=MPI.SUM, root=0)
+    comm.Reduce(local_other, global_other, op=MPI.SUM, root=0)
 
     if rank == 0:
-        out_name = Path("slice_data") / f"hist_ALL_{slice_path.stem}_ndisp{cfg.n_disp_total}_Nsub{cfg.N_random_subsamples}.npz"
+        out_name = Path("slice_data") / f"hist_st{cfg.stencil_width}_{slice_path.stem}_ndisp{cfg.n_disp_total}_Nsub{cfg.N_random_subsamples}.npz"
         out_name.parent.mkdir(parents=True, exist_ok=True)
+
+        # Build dict combining mag (θ-φ resolved) and other (θ-φ collapsed) --
+        hist_dict = {}
+        for idx, ch in enumerate(MAG_CHANNELS):
+            hist_dict[ch.name] = global_mag[idx]
+        for idx, ch in enumerate(OTHER_CHANNELS):
+            hist_dict[ch.name] = global_other[idx]
+
         np.savez(
             out_name,
-            hist=global_hist,
+            **hist_dict,
             ell_bin_edges=ell_bin_edges,
             theta_bin_edges=theta_bin_edges,
             phi_bin_edges=phi_bin_edges,
@@ -139,6 +161,7 @@ def main() -> None:
                 axis=axis,
                 beta=beta,
                 stride=cfg.stride,
+                stencil_width=cfg.stencil_width,
                 date=datetime.utcnow().isoformat(),
             ),
         )

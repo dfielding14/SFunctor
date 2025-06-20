@@ -1,7 +1,7 @@
 """bin_convert_new.py
-Utility helpers for working with Athena++ binary output files.
+Utility helpers for working with AthenaK binary output files.
 
-This module offers a high-performance pure-Python reader for Athena++ *.bin
+This module offers a high-performance pure-Python reader for AthenaK *.bin
 snapshots, supporting:
   • Mesh-refined outputs (multiple AMR levels).
   • Coarsened (on-the-fly averaged) outputs.
@@ -72,7 +72,7 @@ def _get_from_header(header: List[str], blockname: str, keyname: str) -> str:
     raise KeyError(f"no parameter called {blockname}/{keyname}")
 
 def read_binary(filename: str) -> Dict[str, Any]:
-    """Parse an Athena++ ``*.bin`` file produced **without** on-the-fly
+    """Parse an AthenaK ``*.bin`` file produced **without** on-the-fly
     coarsening and return a dictionary identical to what `athdf` would
     contain on disk.
     """
@@ -80,7 +80,7 @@ def read_binary(filename: str) -> Dict[str, Any]:
     return _read_binary_impl(filename, coarsened=False)
 
 def read_coarsened_binary(filename: str) -> Dict[str, Any]:
-    """Parse a *coarsened* Athena++ ``*.bin`` snapshot produced with
+    """Parse a *coarsened* AthenaK ``*.bin`` snapshot produced with
     ``output_coarsening`` enabled."""
     return _read_binary_impl(filename, coarsened=True)
 
@@ -1376,7 +1376,7 @@ def athinput(filename: str) -> Dict[str, Dict[str, Any]]:
 # --------------------------------------------------------------------------------------
 
 def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, Any]:
-    """Parse a single Athena++ ``*.bin`` dump.
+    """Parse a single AthenaK ``*.bin`` dump.
 
     This consolidates the duplicated logic previously found in
     ``read_binary`` and ``read_coarsened_binary``.  Both public wrappers now
@@ -1393,12 +1393,12 @@ def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, An
     # ----------------------------- Header tokens -----------------------------
     tokens = fp.readline().split()
     if not tokens or tokens[0] != CODE_HEADER_EXPECTED:
-        raise TypeError("Not an Athena++ binary dump (missing magic header)")
+        raise TypeError("Not an AthenaK binary dump (missing magic header)")
 
     version = tokens[-1].split(b"=")[-1]
     if version != SUPPORTED_VERSION:
         raise TypeError(
-            f"Unsupported Athena++ binary version {version.decode()} (expected {SUPPORTED_VERSION.decode()})"
+            f"Unsupported AthenaK binary version {version.decode()} (expected {SUPPORTED_VERSION.decode()})"
         )
 
     # Parameter header lines

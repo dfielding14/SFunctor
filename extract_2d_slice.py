@@ -219,7 +219,7 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     # neighbouring slices (±1 index).  We therefore re-extract those two planes for the
     # velocity and magnetic-field components only.
     #
-    # NOTE: throughout we follow the Athena++ convention of k,j,i → z,y,x indexing.
+    # NOTE: throughout we follow the AthenaK convention of k,j,i → z,y,x indexing.
     # The orientation of the in-plane axes depends on the slice orientation:
     #   axis==1  →  slice data shape (k=z, j=y)
     #   axis==2  →  slice data shape (k=z, i=x)

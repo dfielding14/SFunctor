@@ -18,13 +18,8 @@ def compute_vA(B_x: np.ndarray, B_y: np.ndarray, B_z: np.ndarray, rho: np.ndarra
         Magnetic-field components on the slice.
     rho
         Mass density on the slice.
-
-    Notes
-    -----
-    A small floor of ``rho = 1e-30`` is applied to avoid division by zero.
     """
-    rho_safe = np.maximum(rho, 1e-30)
-    inv_sqrt_rho = 1.0 / np.sqrt(rho_safe)
+    inv_sqrt_rho = 1.0 / np.sqrt(rho)
     vA_x = B_x * inv_sqrt_rho
     vA_y = B_y * inv_sqrt_rho
     vA_z = B_z * inv_sqrt_rho

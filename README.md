@@ -1,8 +1,10 @@
 # Frontier Turbulence Structure-Function Analysis
 
-This repository contains a high-performance, GPU-free Python pipeline for
-computing anisotropic, angle–resolved structure functions (SFs) from 2-D
-slices of large 3-D MHD simulations run with Athena++.
+This repository contains a moderately high-performance Python pipeline for
+computing anisotropic, angle–resolved structure functions (SFs) from 2D
+slices of large 3D MHD simulations run with AthenaK. We use 2D slices so 
+that we can make the most of the periodic boundary conditions by rolling 
+the arrays, and so that we can do >2 point stencils with ease.
 
 Key features
 ------------
@@ -11,8 +13,7 @@ Key features
   vorticity and current.
 * **MPI + shared-memory multiprocessing** – embarrassingly parallel across
   slices / nodes while avoiding in-node RAM duplication.
-* **Numba-accelerated kernels** (see `sf_histograms.py`) reaching >10⁸ samples/s
-  on a single 32-core AMD Rome socket.
+* **Numba-accelerated kernels** (see `sf_histograms.py`) 
 * **Self-describing outputs** (`.npz`) with edges, centres and provenance meta.
 * Quick-look contour/heat-map plots for slice sanity checks.
 

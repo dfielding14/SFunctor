@@ -27,6 +27,7 @@ class RunConfig:
     N_random_subsamples: int
     n_ell_bins: int
     n_processes: int  # per-rank shared-memory pool size
+    stencil_width: int  # 2, 3, or 5
 
 
 # ----------------------------------------------------------------------------
@@ -55,6 +56,7 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
     parser.add_argument("--N_random_subsamples", type=_positive_int, default=1000, help="Number of random spatial points per displacement.")
     parser.add_argument("--n_ell_bins", type=_positive_int, default=128, help="Number of logarithmic ℓ-bins.")
     parser.add_argument("--n_processes", type=int, default=0, help="Processes per node (0 → auto: cpu_count() − 2).")
+    parser.add_argument("--stencil_width", type=int, choices=[2,3,5], default=2, help="Structure-function stencil width (2, 3, or 5).")
 
     args = parser.parse_args(argv)
 
@@ -72,4 +74,5 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
         N_random_subsamples=args.N_random_subsamples,
         n_ell_bins=args.n_ell_bins,
         n_processes=args.n_processes,
+        stencil_width=args.stencil_width,
     ) 

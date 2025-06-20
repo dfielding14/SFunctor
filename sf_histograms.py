@@ -59,6 +59,35 @@ class Channel(IntEnum):
 
 N_CHANNELS = len(Channel)
 
+# Channel groupings -----------------------------------------------------------
+# First 8 channels correspond to structure-function magnitudes which require
+# θ and φ binning.  The remaining channels are angle numerators/denominators
+# that only need ℓ and SF magnitude bins.
+
+MAG_CHANNELS = (
+    Channel.D_V,
+    Channel.D_B,
+    Channel.D_RHO,
+    Channel.D_VA,
+    Channel.D_ZPLUS,
+    Channel.D_ZMINUS,
+    Channel.D_OMEGA,
+    Channel.D_J,
+)
+
+OTHER_CHANNELS = tuple(ch for ch in Channel if ch not in MAG_CHANNELS)
+
+N_MAG_CHANNELS = len(MAG_CHANNELS)
+N_OTHER_CHANNELS = len(OTHER_CHANNELS)
+
+# Offset of first OTHER channel so we can map global Channel.value → local
+# index inside ``hist_other`` arrays (θ/φ collapsed).
+OFFSET_OTHER = OTHER_CHANNELS[0].value  # 8
+
+# Mapping from global Channel → local index inside the split histograms ------
+MAG_IDX = {ch: i for i, ch in enumerate(MAG_CHANNELS)}
+OTHER_IDX = {ch: i for i, ch in enumerate(OTHER_CHANNELS)}
+
 
 @njit(cache=True)
 def find_bin_index_binary(value: float, bin_edges: np.ndarray) -> int:
@@ -113,7 +142,7 @@ def compute_histogram_for_disp_2D(
     sf_bin_edges: np.ndarray,
     product_bin_edges: np.ndarray,
     stencil_width: int = 2,
-) -> np.ndarray:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Return 5-D histogram for a single displacement.
 
     Helper inline functions are used to minimise repeated code and keep the
@@ -125,17 +154,25 @@ def compute_histogram_for_disp_2D(
     # ------------------------------------------------------------------
 
     @njit(inline="always")
-    def _diff(arr, jp, ip, j, i, jm, im):
-        """First-order difference (2-pt) or second-order (3-pt) depending on stencil."""
-        if stencil_width == 3:
-            return arr[jp, ip] - 2.0 * arr[j, i] + arr[jm, im]
-        else:
+    def _diff(arr, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2):
+        """Return δq for 2/3/5-point stencils (inline)."""
+        if stencil_width == 2:
             return arr[jp, ip] - arr[j, i]
+        elif stencil_width == 3:
+            return arr[jp, ip] - 2.0 * arr[j, i] + arr[jm, im]
+        else:  # 5-point
+            return (
+                -arr[jp2, ip2] + 16.0 * arr[jp, ip]
+                - 30.0 * arr[j, i]
+                + 16.0 * arr[jm, im] - arr[jm2, im2]
+            )
 
     @njit(inline="always")
     def _mean_B(B_arr):
         """Local mean B component according to stencil width."""
-        if stencil_width == 3:
+        if stencil_width == 5:
+            return (B_arr[0] + B_arr[1] + B_arr[2] + B_arr[3] + B_arr[4]) / 5.0
+        elif stencil_width == 3:
             return (B_arr[0] + B_arr[1] + B_arr[2]) / 3.0
         else:
             return (B_arr[0] + B_arr[1]) / 2.0
@@ -164,8 +201,9 @@ def compute_histogram_for_disp_2D(
         dy = delta_j
         dz = 0
 
-    # Allocate histogram
-    hist = np.zeros((N_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
+    # Allocate histograms -------------------------------------------------
+    hist_mag = np.zeros((N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
+    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_sf_bins), dtype=np.int64)
 
     # Magnitude of displacement r and ℓ-bin index
     r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
@@ -175,7 +213,7 @@ def compute_histogram_for_disp_2D(
             ell_idx = i
             break
     if ell_idx == -1:
-        return hist  # displacement outside requested ℓ range
+        return hist_mag, hist_other  # displacement outside requested ℓ range
 
     # Random spatial samples (flat indexing)
     flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
@@ -190,18 +228,33 @@ def compute_histogram_for_disp_2D(
         im = (i - delta_i) % M
         jm = (j - delta_j) % N
 
+        # Secondary neighbours for 5-pt stencil -------------------------
+        ip2 = (i + 2 * delta_i) % M
+        jp2 = (j + 2 * delta_j) % N
+        im2 = (i - 2 * delta_i) % M
+        jm2 = (j - 2 * delta_j) % N
+
         # Vectorised diff calls -------------------------------------
-        dvx = _diff(v_x, jp, ip, j, i, jm, im)
-        dvy = _diff(v_y, jp, ip, j, i, jm, im)
-        dvz = _diff(v_z, jp, ip, j, i, jm, im)
+        dvx = _diff(v_x, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dvy = _diff(v_y, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dvz = _diff(v_z, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
 
-        dBx = _diff(B_x, jp, ip, j, i, jm, im)
-        dBy = _diff(B_y, jp, ip, j, i, jm, im)
-        dBz = _diff(B_z, jp, ip, j, i, jm, im)
+        dBx = _diff(B_x, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dBy = _diff(B_y, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dBz = _diff(B_z, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
 
-        Bmx = _mean_B((B_x[jp, ip], B_x[j, i], B_x[jm, im]))
-        Bmy = _mean_B((B_y[jp, ip], B_y[j, i], B_y[jm, im]))
-        Bmz = _mean_B((B_z[jp, ip], B_z[j, i], B_z[jm, im]))
+        if stencil_width == 5:
+            Bmx = _mean_B((B_x[jp2, ip2], B_x[jp, ip], B_x[j, i], B_x[jm, im], B_x[jm2, im2]))
+            Bmy = _mean_B((B_y[jp2, ip2], B_y[jp, ip], B_y[j, i], B_y[jm, im], B_y[jm2, im2]))
+            Bmz = _mean_B((B_z[jp2, ip2], B_z[jp, ip], B_z[j, i], B_z[jm, im], B_z[jm2, im2]))
+        elif stencil_width == 3:
+            Bmx = _mean_B((B_x[jp, ip], B_x[j, i], B_x[jm, im]))
+            Bmy = _mean_B((B_y[jp, ip], B_y[j, i], B_y[jm, im]))
+            Bmz = _mean_B((B_z[jp, ip], B_z[j, i], B_z[jm, im]))
+        else:
+            Bmx = _mean_B((B_x[jp, ip], B_x[j, i]))
+            Bmy = _mean_B((B_y[jp, ip], B_y[j, i]))
+            Bmz = _mean_B((B_z[jp, ip], B_z[j, i]))
 
         Bmean_mag = (Bmx * Bmx + Bmy * Bmy + Bmz * Bmz) ** 0.5
         if Bmean_mag == 0.0:
@@ -239,29 +292,29 @@ def compute_histogram_for_disp_2D(
         dv = np.sqrt(dvx * dvx + dvy * dvy + dvz * dvz)
         dB = np.sqrt(dBx * dBx + dBy * dBy + dBz * dBz)
 
-        drho = _diff(rho, jp, ip, j, i, jm, im)
+        drho = _diff(rho, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
         drho = abs(drho)
 
         # Alfvén, Elsasser, vorticity, and current fluctuations ---------
-        dvAx = _diff(vA_x, jp, ip, j, i, jm, im)
-        dvAy = _diff(vA_y, jp, ip, j, i, jm, im)
-        dvAz = _diff(vA_z, jp, ip, j, i, jm, im)
+        dvAx = _diff(vA_x, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dvAy = _diff(vA_y, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dvAz = _diff(vA_z, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
 
-        dzpx = _diff(zp_x, jp, ip, j, i, jm, im)
-        dzpy = _diff(zp_y, jp, ip, j, i, jm, im)
-        dzpz = _diff(zp_z, jp, ip, j, i, jm, im)
+        dzpx = _diff(zp_x, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dzpy = _diff(zp_y, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dzpz = _diff(zp_z, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
 
-        dzmx = _diff(zm_x, jp, ip, j, i, jm, im)
-        dzmy = _diff(zm_y, jp, ip, j, i, jm, im)
-        dzmz = _diff(zm_z, jp, ip, j, i, jm, im)
+        dzmx = _diff(zm_x, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dzmy = _diff(zm_y, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dzmz = _diff(zm_z, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
 
-        domegax = _diff(omega_x, jp, ip, j, i, jm, im)
-        domegay = _diff(omega_y, jp, ip, j, i, jm, im)
-        domegaz = _diff(omega_z, jp, ip, j, i, jm, im)
+        domegax = _diff(omega_x, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        domegay = _diff(omega_y, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        domegaz = _diff(omega_z, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
 
-        dJx = _diff(J_x, jp, ip, j, i, jm, im)
-        dJy = _diff(J_y, jp, ip, j, i, jm, im)
-        dJz = _diff(J_z, jp, ip, j, i, jm, im)
+        dJx = _diff(J_x, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dJy = _diff(J_y, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
+        dJz = _diff(J_z, jp, ip, j, i, jm, im, jp2, ip2, jm2, im2)
 
         dVA = np.sqrt(dvAx*dvAx + dvAy*dvAy + dvAz*dvAz)
         dZp = np.sqrt(dzpx*dzpx + dzpy*dzpy + dzpz*dzpz)
@@ -277,46 +330,46 @@ def compute_histogram_for_disp_2D(
 
         v_idx = find_bin_index_binary(dv, sf_bin_edges)
         if v_idx >= 0:
-            hist[Channel.D_V, ell_idx, theta_idx, phi_idx, v_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_V], ell_idx, theta_idx, phi_idx, v_idx] += 1
 
         b_idx = find_bin_index_binary(dB, sf_bin_edges)
         if b_idx >= 0:
-            hist[Channel.D_B, ell_idx, theta_idx, phi_idx, b_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_B], ell_idx, theta_idx, phi_idx, b_idx] += 1
 
         x_idx = find_bin_index_binary(vperp_cross_bperp, product_bin_edges)
         if x_idx >= 0:
-            hist[Channel.D_Vperp_CROSS_Bperp, ell_idx, theta_idx, phi_idx, x_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Vperp_CROSS_Bperp], ell_idx, x_idx] += 1
 
         p_idx = find_bin_index_binary(vperp_bperp, product_bin_edges)
         if p_idx >= 0:
-            hist[Channel.D_Vperp_D_Bperp_MAG, ell_idx, theta_idx, phi_idx, p_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Vperp_D_Bperp_MAG], ell_idx, p_idx] += 1
 
         rho_idx = find_bin_index_binary(drho, sf_bin_edges)
         if rho_idx >= 0:
-            hist[Channel.D_RHO, ell_idx, theta_idx, phi_idx, rho_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_RHO], ell_idx, theta_idx, phi_idx, rho_idx] += 1
 
         j_idx = find_bin_index_binary(dJ, sf_bin_edges)
         if j_idx >= 0:
-            hist[Channel.D_J, ell_idx, theta_idx, phi_idx, j_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_J], ell_idx, theta_idx, phi_idx, j_idx] += 1
 
         # Bin Alfvén speed
         va_idx = find_bin_index_binary(dVA, sf_bin_edges)
         if va_idx >= 0:
-            hist[Channel.D_VA, ell_idx, theta_idx, phi_idx, va_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_VA], ell_idx, theta_idx, phi_idx, va_idx] += 1
 
         # Bin Elsasser magnitudes
         zp_idx = find_bin_index_binary(dZp, sf_bin_edges)
         if zp_idx >= 0:
-            hist[Channel.D_ZPLUS, ell_idx, theta_idx, phi_idx, zp_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_ZPLUS], ell_idx, theta_idx, phi_idx, zp_idx] += 1
 
         zm_idx = find_bin_index_binary(dZm, sf_bin_edges)
         if zm_idx >= 0:
-            hist[Channel.D_ZMINUS, ell_idx, theta_idx, phi_idx, zm_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_ZMINUS], ell_idx, theta_idx, phi_idx, zm_idx] += 1
 
         # Bin vorticity
         om_idx = find_bin_index_binary(dOmega, sf_bin_edges)
         if om_idx >= 0:
-            hist[Channel.D_OMEGA, ell_idx, theta_idx, phi_idx, om_idx] += 1
+            hist_mag[MAG_IDX[Channel.D_OMEGA], ell_idx, theta_idx, phi_idx, om_idx] += 1
 
         # Compute perpendicular components relative to mean B ---------
         dVA_vec = np.array([dvAz, dvAy, dvAx])
@@ -337,15 +390,15 @@ def compute_histogram_for_disp_2D(
 
         c_idx = find_bin_index_binary(cross_v_va, product_bin_edges)
         if c_idx >= 0:
-            hist[Channel.D_Vperp_CROSS_VAperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Vperp_CROSS_VAperp], ell_idx, c_idx] += 1
 
         c_idx = find_bin_index_binary(cross_v_omega, product_bin_edges)
         if c_idx >= 0:
-            hist[Channel.D_Vperp_CROSS_Omegaperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Vperp_CROSS_Omegaperp], ell_idx, c_idx] += 1
 
         c_idx = find_bin_index_binary(cross_B_j, product_bin_edges)
         if c_idx >= 0:
-            hist[Channel.D_Bperp_CROSS_Jperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Bperp_CROSS_Jperp], ell_idx, c_idx] += 1
 
         # MAG (product magnitude) using perp magnitudes -----------------
         MAG_v_va = dv_perp_mag * dVA_perp_mag
@@ -354,15 +407,15 @@ def compute_histogram_for_disp_2D(
 
         d_idx = find_bin_index_binary(MAG_v_va, product_bin_edges)
         if d_idx >= 0:
-            hist[Channel.D_Vperp_D_VAperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Vperp_D_VAperp_MAG], ell_idx, d_idx] += 1
 
         d_idx = find_bin_index_binary(MAG_v_omega, product_bin_edges)
         if d_idx >= 0:
-            hist[Channel.D_Vperp_D_Omegaperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Vperp_D_Omegaperp_MAG], ell_idx, d_idx] += 1
 
         d_idx = find_bin_index_binary(MAG_B_j, product_bin_edges)
         if d_idx >= 0:
-            hist[Channel.D_Bperp_D_Jperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
+            hist_other[OTHER_IDX[Channel.D_Bperp_D_Jperp_MAG], ell_idx, d_idx] += 1
 
         # Full (non-perp) vectors --------------------------------------
         dv_vec = np.array([dvz, dvy, dvx])
@@ -376,21 +429,21 @@ def compute_histogram_for_disp_2D(
         cross_v_Omega_full = np.sqrt((np.cross(dv_vec, dOmega_vec)**2).sum())
         cross_B_J_full = np.sqrt((np.cross(dB_vec, dJ_vec_full)**2).sum())
 
-        c_idx = find_bin_index_binary(cross_v_B_full, product_bin_edges)
-        if c_idx >= 0:
-            hist[Channel.D_V_CROSS_B, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        f_idx = find_bin_index_binary(cross_v_B_full, product_bin_edges)
+        if f_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_V_CROSS_B], ell_idx, f_idx] += 1
 
-        c_idx = find_bin_index_binary(cross_v_VA_full, product_bin_edges)
-        if c_idx >= 0:
-            hist[Channel.D_V_CROSS_VA, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        f_idx = find_bin_index_binary(cross_v_VA_full, product_bin_edges)
+        if f_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_V_CROSS_VA], ell_idx, f_idx] += 1
 
-        c_idx = find_bin_index_binary(cross_v_Omega_full, product_bin_edges)
-        if c_idx >= 0:
-            hist[Channel.D_V_CROSS_OMEGA, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        f_idx = find_bin_index_binary(cross_v_Omega_full, product_bin_edges)
+        if f_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_V_CROSS_OMEGA], ell_idx, f_idx] += 1
 
-        c_idx = find_bin_index_binary(cross_B_J_full, product_bin_edges)
-        if c_idx >= 0:
-            hist[Channel.D_B_CROSS_J, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        f_idx = find_bin_index_binary(cross_B_J_full, product_bin_edges)
+        if f_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_B_CROSS_J], ell_idx, f_idx] += 1
 
         # Full magnitudes ---------------------------------------------
         mag_v_B_full = dv * dB
@@ -398,20 +451,20 @@ def compute_histogram_for_disp_2D(
         mag_v_Omega_full = dv * dOmega
         mag_B_J_full = dB * dJ
 
-        m_idx = find_bin_index_binary(mag_v_B_full, product_bin_edges)
-        if m_idx >= 0:
-            hist[Channel.D_V_D_B_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        g_idx = find_bin_index_binary(mag_v_B_full, product_bin_edges)
+        if g_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_V_D_B_MAG], ell_idx, g_idx] += 1
 
-        m_idx = find_bin_index_binary(mag_v_VA_full, product_bin_edges)
-        if m_idx >= 0:
-            hist[Channel.D_V_D_VA_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        g_idx = find_bin_index_binary(mag_v_VA_full, product_bin_edges)
+        if g_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_V_D_VA_MAG], ell_idx, g_idx] += 1
 
-        m_idx = find_bin_index_binary(mag_v_Omega_full, product_bin_edges)
-        if m_idx >= 0:
-            hist[Channel.D_V_D_OMEGA_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        g_idx = find_bin_index_binary(mag_v_Omega_full, product_bin_edges)
+        if g_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_V_D_OMEGA_MAG], ell_idx, g_idx] += 1
 
-        m_idx = find_bin_index_binary(mag_B_J_full, product_bin_edges)
-        if m_idx >= 0:
-            hist[Channel.D_B_D_J_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        g_idx = find_bin_index_binary(mag_B_J_full, product_bin_edges)
+        if g_idx >= 0:
+            hist_other[OTHER_IDX[Channel.D_B_D_J_MAG], ell_idx, g_idx] += 1
 
-    return hist 
+    return hist_mag, hist_other 
