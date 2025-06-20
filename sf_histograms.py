@@ -179,238 +179,239 @@ def compute_histogram_for_disp_2D(
 
     # Random spatial samples (flat indexing)
     flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
-    random_points_y = flat_indices // N  # row (j)
-    random_points_x = flat_indices % N   # col (i)
+    random_points_y = flat_indices // M  # row (j)
+    random_points_x = flat_indices % M   # col (i)
 
-    for i in random_points_x:
-        for j in random_points_y:
-            ip = (i + delta_i) % N
-            jp = (j + delta_j) % M
-            im = (i - delta_i) % N
-            jm = (j - delta_j) % M
+    for idx in range(N_random_subsamples):
+        i = random_points_x[idx]
+        j = random_points_y[idx]
+        ip = (i + delta_i) % M
+        jp = (j + delta_j) % N
+        im = (i - delta_i) % M
+        jm = (j - delta_j) % N
 
-            # Vectorised diff calls -------------------------------------
-            dvx = _diff(v_x, jp, ip, j, i, jm, im)
-            dvy = _diff(v_y, jp, ip, j, i, jm, im)
-            dvz = _diff(v_z, jp, ip, j, i, jm, im)
+        # Vectorised diff calls -------------------------------------
+        dvx = _diff(v_x, jp, ip, j, i, jm, im)
+        dvy = _diff(v_y, jp, ip, j, i, jm, im)
+        dvz = _diff(v_z, jp, ip, j, i, jm, im)
 
-            dBx = _diff(B_x, jp, ip, j, i, jm, im)
-            dBy = _diff(B_y, jp, ip, j, i, jm, im)
-            dBz = _diff(B_z, jp, ip, j, i, jm, im)
+        dBx = _diff(B_x, jp, ip, j, i, jm, im)
+        dBy = _diff(B_y, jp, ip, j, i, jm, im)
+        dBz = _diff(B_z, jp, ip, j, i, jm, im)
 
-            Bmx = _mean_B((B_x[jp, ip], B_x[j, i], B_x[jm, im]))
-            Bmy = _mean_B((B_y[jp, ip], B_y[j, i], B_y[jm, im]))
-            Bmz = _mean_B((B_z[jp, ip], B_z[j, i], B_z[jm, im]))
+        Bmx = _mean_B((B_x[jp, ip], B_x[j, i], B_x[jm, im]))
+        Bmy = _mean_B((B_y[jp, ip], B_y[j, i], B_y[jm, im]))
+        Bmz = _mean_B((B_z[jp, ip], B_z[j, i], B_z[jm, im]))
 
-            Bmean_mag = (Bmx * Bmx + Bmy * Bmy + Bmz * Bmz) ** 0.5
-            if Bmean_mag == 0.0:
-                continue
+        Bmean_mag = (Bmx * Bmx + Bmy * Bmy + Bmz * Bmz) ** 0.5
+        if Bmean_mag == 0.0:
+            continue
 
-            cos_theta = abs(dx * Bmx + dy * Bmy + dz * Bmz) / (r * Bmean_mag)
-            theta_val = np.arccos(cos_theta)
+        cos_theta = abs(dx * Bmx + dy * Bmy + dz * Bmz) / (r * Bmean_mag)
+        theta_val = np.arccos(cos_theta)
 
-            # Pre-compute B_unit and reuse for all perpendicular projections
-            B_unit = np.array([Bmz, Bmy, Bmx]) / Bmean_mag
+        # Pre-compute B_unit and reuse for all perpendicular projections
+        B_unit = np.array([Bmz, Bmy, Bmx]) / Bmean_mag
 
-            dB_vec = np.array([dBz, dBy, dBx])
-            dv_vec = np.array([dvz, dvy, dvx])
+        dB_vec = np.array([dBz, dBy, dBx])
+        dv_vec = np.array([dvz, dvy, dvx])
 
-            dB_perp = _perp(dB_vec, B_unit)
-            dB_perp_mag = np.sqrt((dB_perp ** 2).sum())
+        dB_perp = _perp(dB_vec, B_unit)
+        dB_perp_mag = np.sqrt((dB_perp ** 2).sum())
 
-            dv_perp = _perp(dv_vec, B_unit)
-            dv_perp_mag = np.sqrt((dv_perp ** 2).sum())
+        dv_perp = _perp(dv_vec, B_unit)
+        dv_perp_mag = np.sqrt((dv_perp ** 2).sum())
 
-            displacement_perp = np.array([dz, dy, dx]) - (
-                (dz * Bmz + dy * Bmy + dx * Bmx) / (Bmean_mag ** 2)
-            ) * np.array([Bmz, Bmy, Bmx])
-            displacement_perp_mag = np.sqrt((displacement_perp ** 2).sum())
+        displacement_perp = np.array([dz, dy, dx]) - (
+            (dz * Bmz + dy * Bmy + dx * Bmx) / (Bmean_mag ** 2)
+        ) * np.array([Bmz, Bmy, Bmx])
+        displacement_perp_mag = np.sqrt((displacement_perp ** 2).sum())
 
-            cos_phi = (
-                (displacement_perp * dB_perp).sum()
-                / (displacement_perp_mag * dB_perp_mag)
-            )
-            phi_val = np.arccos(cos_phi)
+        cos_phi = (
+            (displacement_perp * dB_perp).sum()
+            / (displacement_perp_mag * dB_perp_mag)
+        )
+        phi_val = np.arccos(cos_phi)
 
-            vperp_cross_bperp = np.sqrt((np.cross(dv_perp, dB_perp) ** 2).sum())
-            vperp_bperp = dv_perp_mag * dB_perp_mag
+        vperp_cross_bperp = np.sqrt((np.cross(dv_perp, dB_perp) ** 2).sum())
+        vperp_bperp = dv_perp_mag * dB_perp_mag
 
-            dv = np.sqrt(dvx * dvx + dvy * dvy + dvz * dvz)
-            dB = np.sqrt(dBx * dBx + dBy * dBy + dBz * dBz)
+        dv = np.sqrt(dvx * dvx + dvy * dvy + dvz * dvz)
+        dB = np.sqrt(dBx * dBx + dBy * dBy + dBz * dBz)
 
-            drho = _diff(rho, jp, ip, j, i, jm, im)
-            drho = abs(drho)
+        drho = _diff(rho, jp, ip, j, i, jm, im)
+        drho = abs(drho)
 
-            # Alfvén, Elsasser, vorticity, and current fluctuations ---------
-            dvAx = _diff(vA_x, jp, ip, j, i, jm, im)
-            dvAy = _diff(vA_y, jp, ip, j, i, jm, im)
-            dvAz = _diff(vA_z, jp, ip, j, i, jm, im)
+        # Alfvén, Elsasser, vorticity, and current fluctuations ---------
+        dvAx = _diff(vA_x, jp, ip, j, i, jm, im)
+        dvAy = _diff(vA_y, jp, ip, j, i, jm, im)
+        dvAz = _diff(vA_z, jp, ip, j, i, jm, im)
 
-            dzpx = _diff(zp_x, jp, ip, j, i, jm, im)
-            dzpy = _diff(zp_y, jp, ip, j, i, jm, im)
-            dzpz = _diff(zp_z, jp, ip, j, i, jm, im)
+        dzpx = _diff(zp_x, jp, ip, j, i, jm, im)
+        dzpy = _diff(zp_y, jp, ip, j, i, jm, im)
+        dzpz = _diff(zp_z, jp, ip, j, i, jm, im)
 
-            dzmx = _diff(zm_x, jp, ip, j, i, jm, im)
-            dzmy = _diff(zm_y, jp, ip, j, i, jm, im)
-            dzmz = _diff(zm_z, jp, ip, j, i, jm, im)
+        dzmx = _diff(zm_x, jp, ip, j, i, jm, im)
+        dzmy = _diff(zm_y, jp, ip, j, i, jm, im)
+        dzmz = _diff(zm_z, jp, ip, j, i, jm, im)
 
-            domegax = _diff(omega_x, jp, ip, j, i, jm, im)
-            domegay = _diff(omega_y, jp, ip, j, i, jm, im)
-            domegaz = _diff(omega_z, jp, ip, j, i, jm, im)
+        domegax = _diff(omega_x, jp, ip, j, i, jm, im)
+        domegay = _diff(omega_y, jp, ip, j, i, jm, im)
+        domegaz = _diff(omega_z, jp, ip, j, i, jm, im)
 
-            dJx = _diff(J_x, jp, ip, j, i, jm, im)
-            dJy = _diff(J_y, jp, ip, j, i, jm, im)
-            dJz = _diff(J_z, jp, ip, j, i, jm, im)
+        dJx = _diff(J_x, jp, ip, j, i, jm, im)
+        dJy = _diff(J_y, jp, ip, j, i, jm, im)
+        dJz = _diff(J_z, jp, ip, j, i, jm, im)
 
-            dVA = np.sqrt(dvAx*dvAx + dvAy*dvAy + dvAz*dvAz)
-            dZp = np.sqrt(dzpx*dzpx + dzpy*dzpy + dzpz*dzpz)
-            dZm = np.sqrt(dzmx*dzmx + dzmy*dzmy + dzmz*dzmz)
-            dOmega = np.sqrt(domegax*domegax + domegay*domegay + domegaz*domegaz)
+        dVA = np.sqrt(dvAx*dvAx + dvAy*dvAy + dvAz*dvAz)
+        dZp = np.sqrt(dzpx*dzpx + dzpy*dzpy + dzpz*dzpz)
+        dZm = np.sqrt(dzmx*dzmx + dzmy*dzmy + dzmz*dzmz)
+        dOmega = np.sqrt(domegax*domegax + domegay*domegay + domegaz*domegaz)
 
-            # Current fluctuation
-            dJ = np.sqrt(dJx*dJx + dJy*dJy + dJz*dJz)
+        # Current fluctuation
+        dJ = np.sqrt(dJx*dJx + dJy*dJy + dJz*dJz)
 
-            # Bin indices ------------------------------------------------------
-            theta_idx = find_bin_index_binary(theta_val, theta_bin_edges)
-            phi_idx = find_bin_index_binary(phi_val, phi_bin_edges)
+        # Bin indices ------------------------------------------------------
+        theta_idx = find_bin_index_binary(theta_val, theta_bin_edges)
+        phi_idx = find_bin_index_binary(phi_val, phi_bin_edges)
 
-            v_idx = find_bin_index_binary(dv, sf_bin_edges)
-            if v_idx >= 0:
-                hist[Channel.D_V, ell_idx, theta_idx, phi_idx, v_idx] += 1
+        v_idx = find_bin_index_binary(dv, sf_bin_edges)
+        if v_idx >= 0:
+            hist[Channel.D_V, ell_idx, theta_idx, phi_idx, v_idx] += 1
 
-            b_idx = find_bin_index_binary(dB, sf_bin_edges)
-            if b_idx >= 0:
-                hist[Channel.D_B, ell_idx, theta_idx, phi_idx, b_idx] += 1
+        b_idx = find_bin_index_binary(dB, sf_bin_edges)
+        if b_idx >= 0:
+            hist[Channel.D_B, ell_idx, theta_idx, phi_idx, b_idx] += 1
 
-            x_idx = find_bin_index_binary(vperp_cross_bperp, product_bin_edges)
-            if x_idx >= 0:
-                hist[Channel.D_Vperp_CROSS_Bperp, ell_idx, theta_idx, phi_idx, x_idx] += 1
+        x_idx = find_bin_index_binary(vperp_cross_bperp, product_bin_edges)
+        if x_idx >= 0:
+            hist[Channel.D_Vperp_CROSS_Bperp, ell_idx, theta_idx, phi_idx, x_idx] += 1
 
-            p_idx = find_bin_index_binary(vperp_bperp, product_bin_edges)
-            if p_idx >= 0:
-                hist[Channel.D_Vperp_D_Bperp_MAG, ell_idx, theta_idx, phi_idx, p_idx] += 1
+        p_idx = find_bin_index_binary(vperp_bperp, product_bin_edges)
+        if p_idx >= 0:
+            hist[Channel.D_Vperp_D_Bperp_MAG, ell_idx, theta_idx, phi_idx, p_idx] += 1
 
-            rho_idx = find_bin_index_binary(drho, sf_bin_edges)
-            if rho_idx >= 0:
-                hist[Channel.D_RHO, ell_idx, theta_idx, phi_idx, rho_idx] += 1
+        rho_idx = find_bin_index_binary(drho, sf_bin_edges)
+        if rho_idx >= 0:
+            hist[Channel.D_RHO, ell_idx, theta_idx, phi_idx, rho_idx] += 1
 
-            j_idx = find_bin_index_binary(dJ, sf_bin_edges)
-            if j_idx >= 0:
-                hist[Channel.D_J, ell_idx, theta_idx, phi_idx, j_idx] += 1
+        j_idx = find_bin_index_binary(dJ, sf_bin_edges)
+        if j_idx >= 0:
+            hist[Channel.D_J, ell_idx, theta_idx, phi_idx, j_idx] += 1
 
-            # Bin Alfvén speed
-            va_idx = find_bin_index_binary(dVA, sf_bin_edges)
-            if va_idx >= 0:
-                hist[Channel.D_VA, ell_idx, theta_idx, phi_idx, va_idx] += 1
+        # Bin Alfvén speed
+        va_idx = find_bin_index_binary(dVA, sf_bin_edges)
+        if va_idx >= 0:
+            hist[Channel.D_VA, ell_idx, theta_idx, phi_idx, va_idx] += 1
 
-            # Bin Elsasser magnitudes
-            zp_idx = find_bin_index_binary(dZp, sf_bin_edges)
-            if zp_idx >= 0:
-                hist[Channel.D_ZPLUS, ell_idx, theta_idx, phi_idx, zp_idx] += 1
+        # Bin Elsasser magnitudes
+        zp_idx = find_bin_index_binary(dZp, sf_bin_edges)
+        if zp_idx >= 0:
+            hist[Channel.D_ZPLUS, ell_idx, theta_idx, phi_idx, zp_idx] += 1
 
-            zm_idx = find_bin_index_binary(dZm, sf_bin_edges)
-            if zm_idx >= 0:
-                hist[Channel.D_ZMINUS, ell_idx, theta_idx, phi_idx, zm_idx] += 1
+        zm_idx = find_bin_index_binary(dZm, sf_bin_edges)
+        if zm_idx >= 0:
+            hist[Channel.D_ZMINUS, ell_idx, theta_idx, phi_idx, zm_idx] += 1
 
-            # Bin vorticity
-            om_idx = find_bin_index_binary(dOmega, sf_bin_edges)
-            if om_idx >= 0:
-                hist[Channel.D_OMEGA, ell_idx, theta_idx, phi_idx, om_idx] += 1
+        # Bin vorticity
+        om_idx = find_bin_index_binary(dOmega, sf_bin_edges)
+        if om_idx >= 0:
+            hist[Channel.D_OMEGA, ell_idx, theta_idx, phi_idx, om_idx] += 1
 
-            # Compute perpendicular components relative to mean B ---------
-            dVA_vec = np.array([dvAz, dvAy, dvAx])
-            dOmega_vec = np.array([domegaz, domegay, domegax])
-            dJ_vec = np.array([dJz, dJy, dJx])
+        # Compute perpendicular components relative to mean B ---------
+        dVA_vec = np.array([dvAz, dvAy, dvAx])
+        dOmega_vec = np.array([domegaz, domegay, domegax])
+        dJ_vec = np.array([dJz, dJy, dJx])
 
-            dVA_perp = dVA_vec - (dVA_vec @ np.array([Bmz, Bmy, Bmx])) / (Bmean_mag**2) * np.array([Bmz, Bmy, Bmx])
-            dOmega_perp = dOmega_vec - (dOmega_vec @ np.array([Bmz, Bmy, Bmx])) / (Bmean_mag**2) * np.array([Bmz, Bmy, Bmx])
-            dJ_perp = dJ_vec - (dJ_vec @ np.array([Bmz, Bmy, Bmx])) / (Bmean_mag**2) * np.array([Bmz, Bmy, Bmx])
+        dVA_perp = dVA_vec - (dVA_vec @ np.array([Bmz, Bmy, Bmx])) / (Bmean_mag**2) * np.array([Bmz, Bmy, Bmx])
+        dOmega_perp = dOmega_vec - (dOmega_vec @ np.array([Bmz, Bmy, Bmx])) / (Bmean_mag**2) * np.array([Bmz, Bmy, Bmx])
+        dJ_perp = dJ_vec - (dJ_vec @ np.array([Bmz, Bmy, Bmx])) / (Bmean_mag**2) * np.array([Bmz, Bmy, Bmx])
 
-            dVA_perp_mag = np.sqrt((dVA_perp**2).sum())
-            dOmega_perp_mag = np.sqrt((dOmega_perp**2).sum())
-            dJ_perp_mag = np.sqrt((dJ_perp**2).sum())
+        dVA_perp_mag = np.sqrt((dVA_perp**2).sum())
+        dOmega_perp_mag = np.sqrt((dOmega_perp**2).sum())
+        dJ_perp_mag = np.sqrt((dJ_perp**2).sum())
 
-            cross_v_va = np.sqrt((np.cross(dv_perp, dVA_perp)**2).sum())
-            cross_v_omega = np.sqrt((np.cross(dv_perp, dOmega_perp)**2).sum())
-            cross_B_j = np.sqrt((np.cross(dB_perp, dJ_perp)**2).sum())
+        cross_v_va = np.sqrt((np.cross(dv_perp, dVA_perp)**2).sum())
+        cross_v_omega = np.sqrt((np.cross(dv_perp, dOmega_perp)**2).sum())
+        cross_B_j = np.sqrt((np.cross(dB_perp, dJ_perp)**2).sum())
 
-            c_idx = find_bin_index_binary(cross_v_va, product_bin_edges)
-            if c_idx >= 0:
-                hist[Channel.D_Vperp_CROSS_VAperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        c_idx = find_bin_index_binary(cross_v_va, product_bin_edges)
+        if c_idx >= 0:
+            hist[Channel.D_Vperp_CROSS_VAperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
 
-            c_idx = find_bin_index_binary(cross_v_omega, product_bin_edges)
-            if c_idx >= 0:
-                hist[Channel.D_Vperp_CROSS_Omegaperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        c_idx = find_bin_index_binary(cross_v_omega, product_bin_edges)
+        if c_idx >= 0:
+            hist[Channel.D_Vperp_CROSS_Omegaperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
 
-            c_idx = find_bin_index_binary(cross_B_j, product_bin_edges)
-            if c_idx >= 0:
-                hist[Channel.D_Bperp_CROSS_Jperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        c_idx = find_bin_index_binary(cross_B_j, product_bin_edges)
+        if c_idx >= 0:
+            hist[Channel.D_Bperp_CROSS_Jperp, ell_idx, theta_idx, phi_idx, c_idx] += 1
 
-            # MAG (product magnitude) using perp magnitudes -----------------
-            MAG_v_va = dv_perp_mag * dVA_perp_mag
-            MAG_v_omega = dv_perp_mag * dOmega_perp_mag
-            MAG_B_j = dB_perp_mag * dJ_perp_mag
+        # MAG (product magnitude) using perp magnitudes -----------------
+        MAG_v_va = dv_perp_mag * dVA_perp_mag
+        MAG_v_omega = dv_perp_mag * dOmega_perp_mag
+        MAG_B_j = dB_perp_mag * dJ_perp_mag
 
-            d_idx = find_bin_index_binary(MAG_v_va, product_bin_edges)
-            if d_idx >= 0:
-                hist[Channel.D_Vperp_D_VAperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
+        d_idx = find_bin_index_binary(MAG_v_va, product_bin_edges)
+        if d_idx >= 0:
+            hist[Channel.D_Vperp_D_VAperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
 
-            d_idx = find_bin_index_binary(MAG_v_omega, product_bin_edges)
-            if d_idx >= 0:
-                hist[Channel.D_Vperp_D_Omegaperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
+        d_idx = find_bin_index_binary(MAG_v_omega, product_bin_edges)
+        if d_idx >= 0:
+            hist[Channel.D_Vperp_D_Omegaperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
 
-            d_idx = find_bin_index_binary(MAG_B_j, product_bin_edges)
-            if d_idx >= 0:
-                hist[Channel.D_Bperp_D_Jperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
+        d_idx = find_bin_index_binary(MAG_B_j, product_bin_edges)
+        if d_idx >= 0:
+            hist[Channel.D_Bperp_D_Jperp_MAG, ell_idx, theta_idx, phi_idx, d_idx] += 1
 
-            # Full (non-perp) vectors --------------------------------------
-            dv_vec = np.array([dvz, dvy, dvx])
-            dB_vec = np.array([dBz, dBy, dBx])
-            dVA_vec = np.array([dvAz, dvAy, dvAx])
-            dOmega_vec = np.array([domegaz, domegay, domegax])
-            dJ_vec_full = np.array([dJz, dJy, dJx])
+        # Full (non-perp) vectors --------------------------------------
+        dv_vec = np.array([dvz, dvy, dvx])
+        dB_vec = np.array([dBz, dBy, dBx])
+        dVA_vec = np.array([dvAz, dvAy, dvAx])
+        dOmega_vec = np.array([domegaz, domegay, domegax])
+        dJ_vec_full = np.array([dJz, dJy, dJx])
 
-            cross_v_B_full = np.sqrt((np.cross(dv_vec, dB_vec)**2).sum())
-            cross_v_VA_full = np.sqrt((np.cross(dv_vec, dVA_vec)**2).sum())
-            cross_v_Omega_full = np.sqrt((np.cross(dv_vec, dOmega_vec)**2).sum())
-            cross_B_J_full = np.sqrt((np.cross(dB_vec, dJ_vec_full)**2).sum())
+        cross_v_B_full = np.sqrt((np.cross(dv_vec, dB_vec)**2).sum())
+        cross_v_VA_full = np.sqrt((np.cross(dv_vec, dVA_vec)**2).sum())
+        cross_v_Omega_full = np.sqrt((np.cross(dv_vec, dOmega_vec)**2).sum())
+        cross_B_J_full = np.sqrt((np.cross(dB_vec, dJ_vec_full)**2).sum())
 
-            c_idx = find_bin_index_binary(cross_v_B_full, product_bin_edges)
-            if c_idx >= 0:
-                hist[Channel.D_V_CROSS_B, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        c_idx = find_bin_index_binary(cross_v_B_full, product_bin_edges)
+        if c_idx >= 0:
+            hist[Channel.D_V_CROSS_B, ell_idx, theta_idx, phi_idx, c_idx] += 1
 
-            c_idx = find_bin_index_binary(cross_v_VA_full, product_bin_edges)
-            if c_idx >= 0:
-                hist[Channel.D_V_CROSS_VA, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        c_idx = find_bin_index_binary(cross_v_VA_full, product_bin_edges)
+        if c_idx >= 0:
+            hist[Channel.D_V_CROSS_VA, ell_idx, theta_idx, phi_idx, c_idx] += 1
 
-            c_idx = find_bin_index_binary(cross_v_Omega_full, product_bin_edges)
-            if c_idx >= 0:
-                hist[Channel.D_V_CROSS_OMEGA, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        c_idx = find_bin_index_binary(cross_v_Omega_full, product_bin_edges)
+        if c_idx >= 0:
+            hist[Channel.D_V_CROSS_OMEGA, ell_idx, theta_idx, phi_idx, c_idx] += 1
 
-            c_idx = find_bin_index_binary(cross_B_J_full, product_bin_edges)
-            if c_idx >= 0:
-                hist[Channel.D_B_CROSS_J, ell_idx, theta_idx, phi_idx, c_idx] += 1
+        c_idx = find_bin_index_binary(cross_B_J_full, product_bin_edges)
+        if c_idx >= 0:
+            hist[Channel.D_B_CROSS_J, ell_idx, theta_idx, phi_idx, c_idx] += 1
 
-            # Full magnitudes ---------------------------------------------
-            mag_v_B_full = dv * dB
-            mag_v_VA_full = dv * dVA
-            mag_v_Omega_full = dv * dOmega
-            mag_B_J_full = dB * dJ
+        # Full magnitudes ---------------------------------------------
+        mag_v_B_full = dv * dB
+        mag_v_VA_full = dv * dVA
+        mag_v_Omega_full = dv * dOmega
+        mag_B_J_full = dB * dJ
 
-            m_idx = find_bin_index_binary(mag_v_B_full, product_bin_edges)
-            if m_idx >= 0:
-                hist[Channel.D_V_D_B_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        m_idx = find_bin_index_binary(mag_v_B_full, product_bin_edges)
+        if m_idx >= 0:
+            hist[Channel.D_V_D_B_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
 
-            m_idx = find_bin_index_binary(mag_v_VA_full, product_bin_edges)
-            if m_idx >= 0:
-                hist[Channel.D_V_D_VA_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        m_idx = find_bin_index_binary(mag_v_VA_full, product_bin_edges)
+        if m_idx >= 0:
+            hist[Channel.D_V_D_VA_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
 
-            m_idx = find_bin_index_binary(mag_v_Omega_full, product_bin_edges)
-            if m_idx >= 0:
-                hist[Channel.D_V_D_OMEGA_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        m_idx = find_bin_index_binary(mag_v_Omega_full, product_bin_edges)
+        if m_idx >= 0:
+            hist[Channel.D_V_D_OMEGA_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
 
-            m_idx = find_bin_index_binary(mag_B_J_full, product_bin_edges)
-            if m_idx >= 0:
-                hist[Channel.D_B_D_J_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
+        m_idx = find_bin_index_binary(mag_B_J_full, product_bin_edges)
+        if m_idx >= 0:
+            hist[Channel.D_B_D_J_MAG, ell_idx, theta_idx, phi_idx, m_idx] += 1
 
     return hist 
