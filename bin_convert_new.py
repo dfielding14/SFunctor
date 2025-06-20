@@ -16,11 +16,13 @@ clarity, bring the file closer to PEP-8 compliance, and document the public
 API.  Down-stream code should rely only on the symbols exposed via ``__all__``
 (defined at the bottom of the file).
 """
-import numpy as np
-import os
+
 import glob
 import io
+import os
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+import numpy as np
 
 # --------------------------------------------------------------------------------------
 # Module-level constants ----------------------------------------------------------------
@@ -33,6 +35,7 @@ COORD_CARTESIAN: str = "cartesian"
 # --------------------------------------------------------------------------------------
 # Private utility helpers ---------------------------------------------------------------
 # --------------------------------------------------------------------------------------
+
 
 def _get_from_header(header: List[str], blockname: str, keyname: str) -> str:
     """Return the value for *keyname* inside *blockname* from a parsed Athena header.
@@ -71,6 +74,7 @@ def _get_from_header(header: List[str], blockname: str, keyname: str) -> str:
             return value
     raise KeyError(f"no parameter called {blockname}/{keyname}")
 
+
 def read_binary(filename: str) -> Dict[str, Any]:
     """Parse an AthenaK ``*.bin`` file produced **without** on-the-fly
     coarsening and return a dictionary identical to what `athdf` would
@@ -79,10 +83,12 @@ def read_binary(filename: str) -> Dict[str, Any]:
     # New fast-path implementation
     return _read_binary_impl(filename, coarsened=False)
 
+
 def read_coarsened_binary(filename: str) -> Dict[str, Any]:
     """Parse a *coarsened* AthenaK ``*.bin`` snapshot produced with
     ``output_coarsening`` enabled."""
     return _read_binary_impl(filename, coarsened=True)
+
 
 def read_all_ranks_binary(rank0_filename: str) -> Dict[str, Any]:
     """
@@ -101,15 +107,27 @@ def read_all_ranks_binary(rank0_filename: str) -> Dict[str, Any]:
     # rank0_base = os.path.basename(rank0_filename).replace("rank_00000000", "rank_*")
 
     # Find all rank files
-    rank_files = sorted(glob.glob(os.path.dirname(rank0_filename).replace("rank_00000000", "rank_*") + "/" + os.path.basename(rank0_filename)))
+    rank_files = sorted(
+        glob.glob(
+            os.path.dirname(rank0_filename).replace("rank_00000000", "rank_*")
+            + "/"
+            + os.path.basename(rank0_filename)
+        )
+    )
     # print(rank_files)
 
     file_sizes = np.array([os.path.getsize(file) for file in rank_files])
     if len(np.unique(file_sizes)) > 1:
-        print("Files are not the same size! you are probably trying to read a slice written with single_file_per_rank=True")
+        print(
+            "Files are not the same size! you are probably trying to read a slice written with single_file_per_rank=True"
+        )
         unique_file_sizes = np.unique(file_sizes)
         larger_file_size = max(unique_file_sizes)
-        rank_files = [file for file, size in zip(rank_files, file_sizes) if size == larger_file_size]
+        rank_files = [
+            file
+            for file, size in zip(rank_files, file_sizes)
+            if size == larger_file_size
+        ]
 
     # Read the rank 0 file to get the metadata
     rank0_filedata = read_binary(rank_files[0])
@@ -165,6 +183,7 @@ def read_all_ranks_binary(rank0_filename: str) -> Dict[str, Any]:
 
     return combined_filedata
 
+
 def read_all_ranks_coarsened_binary(rank0_filename: str) -> Dict[str, Any]:
     """
     Reads binary files from all ranks and combines them into a single dictionary.
@@ -182,7 +201,13 @@ def read_all_ranks_coarsened_binary(rank0_filename: str) -> Dict[str, Any]:
     # rank0_base = os.path.basename(rank0_filename).replace("rank_00000000", "rank_*")
 
     # Find all rank files
-    rank_files = sorted(glob.glob(os.path.dirname(rank0_filename).replace("rank_00000000", "rank_*") + "/" + os.path.basename(rank0_filename)))
+    rank_files = sorted(
+        glob.glob(
+            os.path.dirname(rank0_filename).replace("rank_00000000", "rank_*")
+            + "/"
+            + os.path.basename(rank0_filename)
+        )
+    )
     # print(rank_files)
 
     # Read the rank 0 file to get the metadata
@@ -239,12 +264,33 @@ def read_all_ranks_coarsened_binary(rank0_filename: str) -> Dict[str, Any]:
 
     return combined_filedata
 
-def read_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=None, level=None,
-                         return_levels=False, subsample=False, fast_restrict=False, x1_min=None,
-                         x1_max=None, x2_min=None, x2_max=None, x3_min=None, x3_max=None,
-                         vol_func=None, vol_params=None, face_func_1=None, face_func_2=None,
-                         face_func_3=None, center_func_1=None, center_func_2=None,
-                         center_func_3=None, num_ghost=0):
+
+def read_binary_as_athdf(
+    filename,
+    raw=False,
+    data=None,
+    quantities=None,
+    dtype=None,
+    level=None,
+    return_levels=False,
+    subsample=False,
+    fast_restrict=False,
+    x1_min=None,
+    x1_max=None,
+    x2_min=None,
+    x2_max=None,
+    x3_min=None,
+    x3_max=None,
+    vol_func=None,
+    vol_params=None,
+    face_func_1=None,
+    face_func_2=None,
+    face_func_3=None,
+    center_func_1=None,
+    center_func_2=None,
+    center_func_3=None,
+    num_ghost=0,
+):
     """
     Reads a bin file and organizes data similar to athdf format without writing to file.
     """
@@ -263,13 +309,17 @@ def read_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=
         new_data = False
 
     # Extract size information
-    max_level = max(filedata['mb_logical'][:, 3])
+    max_level = max(filedata["mb_logical"][:, 3])
     if level is None:
         level = max_level
-    block_size = [filedata['nx1_out_mb'], filedata['nx2_out_mb'], filedata['nx3_out_mb']]
-    root_grid_size = [filedata['Nx1'], filedata['Nx2'], filedata['Nx3']]
-    levels = filedata['mb_logical'][:, 3]
-    logical_locations = filedata['mb_logical'][:, :3]
+    block_size = [
+        filedata["nx1_out_mb"],
+        filedata["nx2_out_mb"],
+        filedata["nx3_out_mb"],
+    ]
+    root_grid_size = [filedata["Nx1"], filedata["Nx2"], filedata["Nx3"]]
+    levels = filedata["mb_logical"][:, 3]
+    logical_locations = filedata["mb_logical"][:, :3]
     if dtype is None:
         dtype = np.float32
 
@@ -277,21 +327,30 @@ def read_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=
     nx_vals = []
     for d in range(3):
         if block_size[d] == 1 and root_grid_size[d] > 1:  # sum or slice
-            other_locations = [location
-                                for location in zip(levels,
-                                                    logical_locations[:, (d+1) % 3],
-                                                    logical_locations[:, (d+2) % 3])]
+            other_locations = [
+                location
+                for location in zip(
+                    levels,
+                    logical_locations[:, (d + 1) % 3],
+                    logical_locations[:, (d + 2) % 3],
+                )
+            ]
             if len(set(other_locations)) == len(other_locations):  # effective slice
                 nx_vals.append(1)
             else:  # nontrivial sum
                 num_blocks_this_dim = 0
-                for level_this_dim, loc_this_dim in zip(levels,
-                                                        logical_locations[:, d]):
+                for level_this_dim, loc_this_dim in zip(
+                    levels, logical_locations[:, d]
+                ):
                     if level_this_dim <= level:
-                        possible_max = (loc_this_dim+1) * 2**(level-level_this_dim)
+                        possible_max = (loc_this_dim + 1) * 2 ** (
+                            level - level_this_dim
+                        )
                         num_blocks_this_dim = max(num_blocks_this_dim, possible_max)
                     else:
-                        possible_max = (loc_this_dim+1) // 2**(level_this_dim-level)
+                        possible_max = (loc_this_dim + 1) // 2 ** (
+                            level_this_dim - level
+                        )
                         num_blocks_this_dim = max(num_blocks_this_dim, possible_max)
                 nx_vals.append(num_blocks_this_dim)
         elif block_size[d] == 1:  # singleton dimension
@@ -302,66 +361,77 @@ def read_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=
     lx1, lx2, lx3 = [nx // bs for nx, bs in zip(nx_vals, block_size)]
 
     # Set coordinate system and related functions
-    coord = 'cartesian'  # Adjust based on your data
+    coord = "cartesian"  # Adjust based on your data
     if vol_func is None:
+
         def vol_func(xm, xp, ym, yp, zm, zp):
-            return (xp-xm) * (yp-ym) * (zp-zm)
+            return (xp - xm) * (yp - ym) * (zp - zm)
+
     # Define center functions if not provided
     if center_func_1 is None:
+
         def center_func_1(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_2 is None:
+
         def center_func_2(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_3 is None:
+
         def center_func_3(xm, xp):
             return 0.5 * (xm + xp)
 
     # Populate coordinate arrays
     center_funcs = [center_func_1, center_func_2, center_func_3]
     for d in range(1, 4):
-        xf = f'x{d}f'
-        xv = f'x{d}v'
-        nx = nx_vals[d-1]
+        xf = f"x{d}f"
+        xv = f"x{d}v"
+        nx = nx_vals[d - 1]
         if nx == 1:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.array([xmin, xmax], dtype=dtype)
         else:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.linspace(xmin, xmax, nx + 1, dtype=dtype)
         data[xv] = np.empty(nx, dtype=dtype)
         for i in range(nx):
-            data[xv][i] = center_funcs[d-1](data[xf][i], data[xf][i+1])
+            data[xv][i] = center_funcs[d - 1](data[xf][i], data[xf][i + 1])
 
     # Create list of quantities
     if quantities is None:
-        quantities = filedata['var_names']
+        quantities = filedata["var_names"]
 
     # Account for selection
     i_min, i_max = 0, nx1
     j_min, j_max = 0, nx2
     k_min, k_max = 0, nx3
     if x1_min is not None:
-        i_min = max(i_min, np.searchsorted(data['x1f'], x1_min))
+        i_min = max(i_min, np.searchsorted(data["x1f"], x1_min))
     if x1_max is not None:
-        i_max = min(i_max, np.searchsorted(data['x1f'], x1_max))
+        i_max = min(i_max, np.searchsorted(data["x1f"], x1_max))
     if x2_min is not None:
-        j_min = max(j_min, np.searchsorted(data['x2f'], x2_min))
+        j_min = max(j_min, np.searchsorted(data["x2f"], x2_min))
     if x2_max is not None:
-        j_max = min(j_max, np.searchsorted(data['x2f'], x2_max))
+        j_max = min(j_max, np.searchsorted(data["x2f"], x2_max))
     if x3_min is not None:
-        k_min = max(k_min, np.searchsorted(data['x3f'], x3_min))
+        k_min = max(k_min, np.searchsorted(data["x3f"], x3_min))
     if x3_max is not None:
-        k_max = min(k_max, np.searchsorted(data['x3f'], x3_max))
+        k_max = min(k_max, np.searchsorted(data["x3f"], x3_max))
 
     # Prepare arrays for data and bookkeeping
     if new_data:
         for q in quantities:
-            data[q] = np.zeros((k_max-k_min, j_max-j_min, i_max-i_min), dtype=dtype)
+            data[q] = np.zeros(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=dtype
+            )
         if return_levels:
-            data['Levels'] = np.empty((k_max-k_min, j_max-j_min, i_max-i_min), dtype=np.int32)
+            data["Levels"] = np.empty(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=np.int32
+            )
     else:
         for q in quantities:
             data[q].fill(0.0)
@@ -369,7 +439,7 @@ def read_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=
         restricted_data = np.zeros((lx3, lx2, lx1), dtype=bool)
 
     # Step 3: Process each block
-    for block_num in range(filedata['n_mbs']):
+    for block_num in range(filedata["n_mbs"]):
         block_level = levels[block_num]
         block_location = logical_locations[block_num]
 
@@ -401,16 +471,22 @@ def read_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=
             ku_d = min(ku_d, k_max) - k_min
 
             for q in quantities:
-                block_data = filedata['mb_data'][q][block_num]
+                block_data = filedata["mb_data"][q][block_num]
                 if s > 1:
-                    block_data = np.repeat(np.repeat(np.repeat(block_data, s, axis=2), s, axis=1), s, axis=0)
-                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[kl_s:ku_s, jl_s:ju_s, il_s:iu_s]
+                    block_data = np.repeat(
+                        np.repeat(np.repeat(block_data, s, axis=2), s, axis=1),
+                        s,
+                        axis=0,
+                    )
+                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[
+                    kl_s:ku_s, jl_s:ju_s, il_s:iu_s
+                ]
         else:
             # Implement restriction logic here (similar to athdf function)
             pass
 
         if return_levels:
-            data['Levels'][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
+            data["Levels"][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
 
     # Step 4: Finalize data
     if level < max_level and not subsample and not fast_restrict:
@@ -434,26 +510,47 @@ def read_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=
                         for k in range(kl, ku):
                             for j in range(jl, ju):
                                 for i in range(il, iu):
-                                    x1m, x1p = data['x1f'][i], data['x1f'][i+1]
-                                    x2m, x2p = data['x2f'][j], data['x2f'][j+1]
-                                    x3m, x3p = data['x3f'][k], data['x3f'][k+1]
+                                    x1m, x1p = data["x1f"][i], data["x1f"][i + 1]
+                                    x2m, x2p = data["x2f"][j], data["x2f"][j + 1]
+                                    x3m, x3p = data["x3f"][k], data["x3f"][k + 1]
                                     vol = vol_func(x1m, x1p, x2m, x2p, x3m, x3p)
                                     for q in quantities:
                                         data[q][k, j, i] /= vol
 
     # Add metadata
-    data['Time'] = filedata['time']
-    data['NumCycles'] = filedata['cycle']
-    data['MaxLevel'] = max_level
+    data["Time"] = filedata["time"]
+    data["NumCycles"] = filedata["cycle"]
+    data["MaxLevel"] = max_level
 
     return data
 
-def read_all_ranks_binary_as_athdf(rank0_filename, raw=False, data=None, quantities=None, dtype=None, level=None,
-                         return_levels=False, subsample=False, fast_restrict=False, x1_min=None,
-                         x1_max=None, x2_min=None, x2_max=None, x3_min=None, x3_max=None,
-                         vol_func=None, vol_params=None, face_func_1=None, face_func_2=None,
-                         face_func_3=None, center_func_1=None, center_func_2=None,
-                         center_func_3=None, num_ghost=0):
+
+def read_all_ranks_binary_as_athdf(
+    rank0_filename,
+    raw=False,
+    data=None,
+    quantities=None,
+    dtype=None,
+    level=None,
+    return_levels=False,
+    subsample=False,
+    fast_restrict=False,
+    x1_min=None,
+    x1_max=None,
+    x2_min=None,
+    x2_max=None,
+    x3_min=None,
+    x3_max=None,
+    vol_func=None,
+    vol_params=None,
+    face_func_1=None,
+    face_func_2=None,
+    face_func_3=None,
+    center_func_1=None,
+    center_func_2=None,
+    center_func_3=None,
+    num_ghost=0,
+):
     """
     Reads a bin file and organizes data similar to athdf format without writing to file.
     """
@@ -472,13 +569,17 @@ def read_all_ranks_binary_as_athdf(rank0_filename, raw=False, data=None, quantit
         new_data = False
 
     # Extract size information
-    max_level = max(filedata['mb_logical'][:, 3])
+    max_level = max(filedata["mb_logical"][:, 3])
     if level is None:
         level = max_level
-    block_size = [filedata['nx1_out_mb'], filedata['nx2_out_mb'], filedata['nx3_out_mb']]
-    root_grid_size = [filedata['Nx1'], filedata['Nx2'], filedata['Nx3']]
-    levels = filedata['mb_logical'][:, 3]
-    logical_locations = filedata['mb_logical'][:, :3]
+    block_size = [
+        filedata["nx1_out_mb"],
+        filedata["nx2_out_mb"],
+        filedata["nx3_out_mb"],
+    ]
+    root_grid_size = [filedata["Nx1"], filedata["Nx2"], filedata["Nx3"]]
+    levels = filedata["mb_logical"][:, 3]
+    logical_locations = filedata["mb_logical"][:, :3]
     if dtype is None:
         dtype = np.float32
 
@@ -486,21 +587,30 @@ def read_all_ranks_binary_as_athdf(rank0_filename, raw=False, data=None, quantit
     nx_vals = []
     for d in range(3):
         if block_size[d] == 1 and root_grid_size[d] > 1:  # sum or slice
-            other_locations = [location
-                                for location in zip(levels,
-                                                    logical_locations[:, (d+1) % 3],
-                                                    logical_locations[:, (d+2) % 3])]
+            other_locations = [
+                location
+                for location in zip(
+                    levels,
+                    logical_locations[:, (d + 1) % 3],
+                    logical_locations[:, (d + 2) % 3],
+                )
+            ]
             if len(set(other_locations)) == len(other_locations):  # effective slice
                 nx_vals.append(1)
             else:  # nontrivial sum
                 num_blocks_this_dim = 0
-                for level_this_dim, loc_this_dim in zip(levels,
-                                                        logical_locations[:, d]):
+                for level_this_dim, loc_this_dim in zip(
+                    levels, logical_locations[:, d]
+                ):
                     if level_this_dim <= level:
-                        possible_max = (loc_this_dim+1) * 2**(level-level_this_dim)
+                        possible_max = (loc_this_dim + 1) * 2 ** (
+                            level - level_this_dim
+                        )
                         num_blocks_this_dim = max(num_blocks_this_dim, possible_max)
                     else:
-                        possible_max = (loc_this_dim+1) // 2**(level_this_dim-level)
+                        possible_max = (loc_this_dim + 1) // 2 ** (
+                            level_this_dim - level
+                        )
                         num_blocks_this_dim = max(num_blocks_this_dim, possible_max)
                 nx_vals.append(num_blocks_this_dim)
         elif block_size[d] == 1:  # singleton dimension
@@ -510,66 +620,77 @@ def read_all_ranks_binary_as_athdf(rank0_filename, raw=False, data=None, quantit
     nx1, nx2, nx3 = nx_vals
     lx1, lx2, lx3 = [nx // bs for nx, bs in zip(nx_vals, block_size)]
     # Set coordinate system and related functions
-    coord = 'cartesian'  # Adjust based on your data
+    coord = "cartesian"  # Adjust based on your data
     if vol_func is None:
+
         def vol_func(xm, xp, ym, yp, zm, zp):
-            return (xp-xm) * (yp-ym) * (zp-zm)
+            return (xp - xm) * (yp - ym) * (zp - zm)
+
     # Define center functions if not provided
     if center_func_1 is None:
+
         def center_func_1(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_2 is None:
+
         def center_func_2(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_3 is None:
+
         def center_func_3(xm, xp):
             return 0.5 * (xm + xp)
 
     # Populate coordinate arrays
     center_funcs = [center_func_1, center_func_2, center_func_3]
     for d in range(1, 4):
-        xf = f'x{d}f'
-        xv = f'x{d}v'
-        nx = nx_vals[d-1]
+        xf = f"x{d}f"
+        xv = f"x{d}v"
+        nx = nx_vals[d - 1]
         if nx == 1:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.array([xmin, xmax], dtype=dtype)
         else:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.linspace(xmin, xmax, nx + 1, dtype=dtype)
         data[xv] = np.empty(nx, dtype=dtype)
         for i in range(nx):
-            data[xv][i] = center_funcs[d-1](data[xf][i], data[xf][i+1])
+            data[xv][i] = center_funcs[d - 1](data[xf][i], data[xf][i + 1])
 
     # Create list of quantities
     if quantities is None:
-        quantities = filedata['var_names']
+        quantities = filedata["var_names"]
 
     # Account for selection
     i_min, i_max = 0, nx1
     j_min, j_max = 0, nx2
     k_min, k_max = 0, nx3
     if x1_min is not None:
-        i_min = max(i_min, np.searchsorted(data['x1f'], x1_min))
+        i_min = max(i_min, np.searchsorted(data["x1f"], x1_min))
     if x1_max is not None:
-        i_max = min(i_max, np.searchsorted(data['x1f'], x1_max))
+        i_max = min(i_max, np.searchsorted(data["x1f"], x1_max))
     if x2_min is not None:
-        j_min = max(j_min, np.searchsorted(data['x2f'], x2_min))
+        j_min = max(j_min, np.searchsorted(data["x2f"], x2_min))
     if x2_max is not None:
-        j_max = min(j_max, np.searchsorted(data['x2f'], x2_max))
+        j_max = min(j_max, np.searchsorted(data["x2f"], x2_max))
     if x3_min is not None:
-        k_min = max(k_min, np.searchsorted(data['x3f'], x3_min))
+        k_min = max(k_min, np.searchsorted(data["x3f"], x3_min))
     if x3_max is not None:
-        k_max = min(k_max, np.searchsorted(data['x3f'], x3_max))
+        k_max = min(k_max, np.searchsorted(data["x3f"], x3_max))
 
     # Prepare arrays for data and bookkeeping
     if new_data:
         for q in quantities:
-            data[q] = np.zeros((k_max-k_min, j_max-j_min, i_max-i_min), dtype=dtype)
+            data[q] = np.zeros(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=dtype
+            )
         if return_levels:
-            data['Levels'] = np.empty((k_max-k_min, j_max-j_min, i_max-i_min), dtype=np.int32)
+            data["Levels"] = np.empty(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=np.int32
+            )
     else:
         for q in quantities:
             data[q].fill(0.0)
@@ -577,7 +698,7 @@ def read_all_ranks_binary_as_athdf(rank0_filename, raw=False, data=None, quantit
         restricted_data = np.zeros((lx3, lx2, lx1), dtype=bool)
 
     # Step 3: Process each block
-    for block_num in range(filedata['n_mbs']):
+    for block_num in range(filedata["n_mbs"]):
         block_level = levels[block_num]
         block_location = logical_locations[block_num]
 
@@ -609,16 +730,22 @@ def read_all_ranks_binary_as_athdf(rank0_filename, raw=False, data=None, quantit
             ku_d = min(ku_d, k_max) - k_min
 
             for q in quantities:
-                block_data = filedata['mb_data'][q][block_num]
+                block_data = filedata["mb_data"][q][block_num]
                 if s > 1:
-                    block_data = np.repeat(np.repeat(np.repeat(block_data, s, axis=2), s, axis=1), s, axis=0)
-                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[kl_s:ku_s, jl_s:ju_s, il_s:iu_s]
+                    block_data = np.repeat(
+                        np.repeat(np.repeat(block_data, s, axis=2), s, axis=1),
+                        s,
+                        axis=0,
+                    )
+                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[
+                    kl_s:ku_s, jl_s:ju_s, il_s:iu_s
+                ]
         else:
             # Implement restriction logic here (similar to athdf function)
             pass
 
         if return_levels:
-            data['Levels'][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
+            data["Levels"][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
 
     # Step 4: Finalize data
     if level < max_level and not subsample and not fast_restrict:
@@ -642,26 +769,47 @@ def read_all_ranks_binary_as_athdf(rank0_filename, raw=False, data=None, quantit
                         for k in range(kl, ku):
                             for j in range(jl, ju):
                                 for i in range(il, iu):
-                                    x1m, x1p = data['x1f'][i], data['x1f'][i+1]
-                                    x2m, x2p = data['x2f'][j], data['x2f'][j+1]
-                                    x3m, x3p = data['x3f'][k], data['x3f'][k+1]
+                                    x1m, x1p = data["x1f"][i], data["x1f"][i + 1]
+                                    x2m, x2p = data["x2f"][j], data["x2f"][j + 1]
+                                    x3m, x3p = data["x3f"][k], data["x3f"][k + 1]
                                     vol = vol_func(x1m, x1p, x2m, x2p, x3m, x3p)
                                     for q in quantities:
                                         data[q][k, j, i] /= vol
 
     # Add metadata
-    data['Time'] = filedata['time']
-    data['NumCycles'] = filedata['cycle']
-    data['MaxLevel'] = max_level
+    data["Time"] = filedata["time"]
+    data["NumCycles"] = filedata["cycle"]
+    data["MaxLevel"] = max_level
 
     return data
 
-def read_all_ranks_coarsened_binary_as_athdf(rank0_filename, raw=False, data=None, quantities=None, dtype=None, level=None,
-                         return_levels=False, subsample=False, fast_restrict=False, x1_min=None,
-                         x1_max=None, x2_min=None, x2_max=None, x3_min=None, x3_max=None,
-                         vol_func=None, vol_params=None, face_func_1=None, face_func_2=None,
-                         face_func_3=None, center_func_1=None, center_func_2=None,
-                         center_func_3=None, num_ghost=0):
+
+def read_all_ranks_coarsened_binary_as_athdf(
+    rank0_filename,
+    raw=False,
+    data=None,
+    quantities=None,
+    dtype=None,
+    level=None,
+    return_levels=False,
+    subsample=False,
+    fast_restrict=False,
+    x1_min=None,
+    x1_max=None,
+    x2_min=None,
+    x2_max=None,
+    x3_min=None,
+    x3_max=None,
+    vol_func=None,
+    vol_params=None,
+    face_func_1=None,
+    face_func_2=None,
+    face_func_3=None,
+    center_func_1=None,
+    center_func_2=None,
+    center_func_3=None,
+    num_ghost=0,
+):
     """
     Reads a bin file and organizes data similar to athdf format without writing to file.
     """
@@ -680,13 +828,13 @@ def read_all_ranks_coarsened_binary_as_athdf(rank0_filename, raw=False, data=Non
         new_data = False
 
     # Extract size information
-    max_level = max(filedata['mb_logical'][:, 3])
+    max_level = max(filedata["mb_logical"][:, 3])
     if level is None:
         level = max_level
-    block_size = [filedata['nx1_mb'], filedata['nx2_mb'], filedata['nx3_mb']]
-    root_grid_size = [filedata['Nx1'], filedata['Nx2'], filedata['Nx3']]
-    levels = filedata['mb_logical'][:, 3]
-    logical_locations = filedata['mb_logical'][:, :3]
+    block_size = [filedata["nx1_mb"], filedata["nx2_mb"], filedata["nx3_mb"]]
+    root_grid_size = [filedata["Nx1"], filedata["Nx2"], filedata["Nx3"]]
+    levels = filedata["mb_logical"][:, 3]
+    logical_locations = filedata["mb_logical"][:, :3]
     if dtype is None:
         dtype = np.float32
 
@@ -704,66 +852,77 @@ def read_all_ranks_coarsened_binary_as_athdf(rank0_filename, raw=False, data=Non
     lx1, lx2, lx3 = [nx // bs for nx, bs in zip(nx_vals, block_size)]
 
     # Set coordinate system and related functions
-    coord = 'cartesian'  # Adjust based on your data
+    coord = "cartesian"  # Adjust based on your data
     if vol_func is None:
+
         def vol_func(xm, xp, ym, yp, zm, zp):
-            return (xp-xm) * (yp-ym) * (zp-zm)
+            return (xp - xm) * (yp - ym) * (zp - zm)
+
     # Define center functions if not provided
     if center_func_1 is None:
+
         def center_func_1(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_2 is None:
+
         def center_func_2(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_3 is None:
+
         def center_func_3(xm, xp):
             return 0.5 * (xm + xp)
 
     # Populate coordinate arrays
     center_funcs = [center_func_1, center_func_2, center_func_3]
     for d in range(1, 4):
-        xf = f'x{d}f'
-        xv = f'x{d}v'
-        nx = nx_vals[d-1]
+        xf = f"x{d}f"
+        xv = f"x{d}v"
+        nx = nx_vals[d - 1]
         if nx == 1:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.array([xmin, xmax], dtype=dtype)
         else:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.linspace(xmin, xmax, nx + 1, dtype=dtype)
         data[xv] = np.empty(nx, dtype=dtype)
         for i in range(nx):
-            data[xv][i] = center_funcs[d-1](data[xf][i], data[xf][i+1])
+            data[xv][i] = center_funcs[d - 1](data[xf][i], data[xf][i + 1])
 
     # Create list of quantities
     if quantities is None:
-        quantities = filedata['var_names']
+        quantities = filedata["var_names"]
 
     # Account for selection
     i_min, i_max = 0, nx1
     j_min, j_max = 0, nx2
     k_min, k_max = 0, nx3
     if x1_min is not None:
-        i_min = max(i_min, np.searchsorted(data['x1f'], x1_min))
+        i_min = max(i_min, np.searchsorted(data["x1f"], x1_min))
     if x1_max is not None:
-        i_max = min(i_max, np.searchsorted(data['x1f'], x1_max))
+        i_max = min(i_max, np.searchsorted(data["x1f"], x1_max))
     if x2_min is not None:
-        j_min = max(j_min, np.searchsorted(data['x2f'], x2_min))
+        j_min = max(j_min, np.searchsorted(data["x2f"], x2_min))
     if x2_max is not None:
-        j_max = min(j_max, np.searchsorted(data['x2f'], x2_max))
+        j_max = min(j_max, np.searchsorted(data["x2f"], x2_max))
     if x3_min is not None:
-        k_min = max(k_min, np.searchsorted(data['x3f'], x3_min))
+        k_min = max(k_min, np.searchsorted(data["x3f"], x3_min))
     if x3_max is not None:
-        k_max = min(k_max, np.searchsorted(data['x3f'], x3_max))
+        k_max = min(k_max, np.searchsorted(data["x3f"], x3_max))
 
     # Prepare arrays for data and bookkeeping
     if new_data:
         for q in quantities:
-            data[q] = np.zeros((k_max-k_min, j_max-j_min, i_max-i_min), dtype=dtype)
+            data[q] = np.zeros(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=dtype
+            )
         if return_levels:
-            data['Levels'] = np.empty((k_max-k_min, j_max-j_min, i_max-i_min), dtype=np.int32)
+            data["Levels"] = np.empty(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=np.int32
+            )
     else:
         for q in quantities:
             data[q].fill(0.0)
@@ -771,7 +930,7 @@ def read_all_ranks_coarsened_binary_as_athdf(rank0_filename, raw=False, data=Non
         restricted_data = np.zeros((lx3, lx2, lx1), dtype=bool)
 
     # Step 3: Process each block
-    for block_num in range(filedata['n_mbs']):
+    for block_num in range(filedata["n_mbs"]):
         block_level = levels[block_num]
         block_location = logical_locations[block_num]
 
@@ -803,16 +962,22 @@ def read_all_ranks_coarsened_binary_as_athdf(rank0_filename, raw=False, data=Non
             ku_d = min(ku_d, k_max) - k_min
 
             for q in quantities:
-                block_data = filedata['mb_data'][q][block_num]
+                block_data = filedata["mb_data"][q][block_num]
                 if s > 1:
-                    block_data = np.repeat(np.repeat(np.repeat(block_data, s, axis=2), s, axis=1), s, axis=0)
-                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[kl_s:ku_s, jl_s:ju_s, il_s:iu_s]
+                    block_data = np.repeat(
+                        np.repeat(np.repeat(block_data, s, axis=2), s, axis=1),
+                        s,
+                        axis=0,
+                    )
+                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[
+                    kl_s:ku_s, jl_s:ju_s, il_s:iu_s
+                ]
         else:
             # Implement restriction logic here (similar to athdf function)
             pass
 
         if return_levels:
-            data['Levels'][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
+            data["Levels"][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
 
     # Step 4: Finalize data
     if level < max_level and not subsample and not fast_restrict:
@@ -836,24 +1001,40 @@ def read_all_ranks_coarsened_binary_as_athdf(rank0_filename, raw=False, data=Non
                         for k in range(kl, ku):
                             for j in range(jl, ju):
                                 for i in range(il, iu):
-                                    x1m, x1p = data['x1f'][i], data['x1f'][i+1]
-                                    x2m, x2p = data['x2f'][j], data['x2f'][j+1]
-                                    x3m, x3p = data['x3f'][k], data['x3f'][k+1]
+                                    x1m, x1p = data["x1f"][i], data["x1f"][i + 1]
+                                    x2m, x2p = data["x2f"][j], data["x2f"][j + 1]
+                                    x3m, x3p = data["x3f"][k], data["x3f"][k + 1]
                                     vol = vol_func(x1m, x1p, x2m, x2p, x3m, x3p)
                                     for q in quantities:
                                         data[q][k, j, i] /= vol
 
     # Add metadata
-    data['Time'] = filedata['time']
-    data['NumCycles'] = filedata['cycle']
-    data['MaxLevel'] = max_level
+    data["Time"] = filedata["time"]
+    data["NumCycles"] = filedata["cycle"]
+    data["MaxLevel"] = max_level
 
     return data
 
-def read_single_rank_binary_as_athdf(filename, meshblock_index_in_file, raw=False, data=None, quantities=None, dtype=None,
-                                     return_levels=False, x1_min=None, x1_max=None, x2_min=None,
-                                     x2_max=None, x3_min=None, x3_max=None, vol_func=None,
-                                     center_func_1=None, center_func_2=None, center_func_3=None):
+
+def read_single_rank_binary_as_athdf(
+    filename,
+    meshblock_index_in_file,
+    raw=False,
+    data=None,
+    quantities=None,
+    dtype=None,
+    return_levels=False,
+    x1_min=None,
+    x1_max=None,
+    x2_min=None,
+    x2_max=None,
+    x3_min=None,
+    x3_max=None,
+    vol_func=None,
+    center_func_1=None,
+    center_func_2=None,
+    center_func_3=None,
+):
     """
     Reads a single rank binary file and organizes data similar to athdf format without writing to file.
     """
@@ -871,92 +1052,128 @@ def read_single_rank_binary_as_athdf(filename, meshblock_index_in_file, raw=Fals
         new_data = False
 
     # Extract size information
-    block_size = [filedata['nx1_mb'], filedata['nx2_mb'], filedata['nx3_mb']]
+    block_size = [filedata["nx1_mb"], filedata["nx2_mb"], filedata["nx3_mb"]]
     if dtype is None:
         dtype = np.float32
 
     # Set coordinate system and related functions
     if vol_func is None:
+
         def vol_func(xm, xp, ym, yp, zm, zp):
-            return (xp-xm) * (yp-ym) * (zp-zm)
+            return (xp - xm) * (yp - ym) * (zp - zm)
+
     if center_func_1 is None:
+
         def center_func_1(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_2 is None:
+
         def center_func_2(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_3 is None:
+
         def center_func_3(xm, xp):
             return 0.5 * (xm + xp)
 
     # Populate coordinate arrays
     center_funcs = [center_func_1, center_func_2, center_func_3]
     for d in range(1, 4):
-        xf = f'x{d}f'
-        xv = f'x{d}v'
-        nx = block_size[d-1]
+        xf = f"x{d}f"
+        xv = f"x{d}v"
+        nx = block_size[d - 1]
 
         # Use the meshblock geometry for local min and max
-        xmin = filedata['mb_geometry'][meshblock_index_in_file, (d-1)*2]
-        xmax = filedata['mb_geometry'][meshblock_index_in_file, (d-1)*2 + 1]
+        xmin = filedata["mb_geometry"][meshblock_index_in_file, (d - 1) * 2]
+        xmax = filedata["mb_geometry"][meshblock_index_in_file, (d - 1) * 2 + 1]
 
         data[xf] = np.linspace(xmin, xmax, nx + 1, dtype=dtype)
         data[xv] = np.empty(nx, dtype=dtype)
         for i in range(nx):
-            data[xv][i] = center_funcs[d-1](data[xf][i], data[xf][i+1])
+            data[xv][i] = center_funcs[d - 1](data[xf][i], data[xf][i + 1])
 
     # Create list of quantities
     if quantities is None:
-        quantities = filedata['var_names']
+        quantities = filedata["var_names"]
 
     # Account for selection
     i_min, i_max = 0, block_size[0]
     j_min, j_max = 0, block_size[1]
     k_min, k_max = 0, block_size[2]
     if x1_min is not None:
-        i_min = max(i_min, np.searchsorted(data['x1f'], x1_min))
+        i_min = max(i_min, np.searchsorted(data["x1f"], x1_min))
     if x1_max is not None:
-        i_max = min(i_max, np.searchsorted(data['x1f'], x1_max))
+        i_max = min(i_max, np.searchsorted(data["x1f"], x1_max))
     if x2_min is not None:
-        j_min = max(j_min, np.searchsorted(data['x2f'], x2_min))
+        j_min = max(j_min, np.searchsorted(data["x2f"], x2_min))
     if x2_max is not None:
-        j_max = min(j_max, np.searchsorted(data['x2f'], x2_max))
+        j_max = min(j_max, np.searchsorted(data["x2f"], x2_max))
     if x3_min is not None:
-        k_min = max(k_min, np.searchsorted(data['x3f'], x3_min))
+        k_min = max(k_min, np.searchsorted(data["x3f"], x3_min))
     if x3_max is not None:
-        k_max = min(k_max, np.searchsorted(data['x3f'], x3_max))
+        k_max = min(k_max, np.searchsorted(data["x3f"], x3_max))
 
     # Prepare arrays for data
     if new_data:
         for q in quantities:
-            data[q] = np.zeros((k_max-k_min, j_max-j_min, i_max-i_min), dtype=dtype)
+            data[q] = np.zeros(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=dtype
+            )
         if return_levels:
-            data['Levels'] = np.empty((k_max-k_min, j_max-j_min, i_max-i_min), dtype=np.int32)
+            data["Levels"] = np.empty(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=np.int32
+            )
     else:
         for q in quantities:
             data[q].fill(0.0)
 
     # Process the single block
     for q in quantities:
-        block_data = filedata['mb_data'][q][meshblock_index_in_file]  # Single rank, so only one block
+        block_data = filedata["mb_data"][q][
+            meshblock_index_in_file
+        ]  # Single rank, so only one block
         data[q] = block_data[k_min:k_max, j_min:j_max, i_min:i_max]
 
     if return_levels:
-        data['Levels'].fill(filedata['mb_logical'][meshblock_index_in_file, 3])  # Level of the single block
+        data["Levels"].fill(
+            filedata["mb_logical"][meshblock_index_in_file, 3]
+        )  # Level of the single block
 
     # Add metadata
-    data['Time'] = filedata['time']
-    data['NumCycles'] = filedata['cycle']
-    data['MaxLevel'] = filedata['mb_logical'][meshblock_index_in_file, 3]
+    data["Time"] = filedata["time"]
+    data["NumCycles"] = filedata["cycle"]
+    data["MaxLevel"] = filedata["mb_logical"][meshblock_index_in_file, 3]
 
     return data
 
-def read_coarsened_binary_as_athdf(filename, raw=False, data=None, quantities=None, dtype=None, level=None,
-                         return_levels=False, subsample=False, fast_restrict=False, x1_min=None,
-                         x1_max=None, x2_min=None, x2_max=None, x3_min=None, x3_max=None,
-                         vol_func=None, vol_params=None, face_func_1=None, face_func_2=None,
-                         face_func_3=None, center_func_1=None, center_func_2=None,
-                         center_func_3=None, num_ghost=0):
+
+def read_coarsened_binary_as_athdf(
+    filename,
+    raw=False,
+    data=None,
+    quantities=None,
+    dtype=None,
+    level=None,
+    return_levels=False,
+    subsample=False,
+    fast_restrict=False,
+    x1_min=None,
+    x1_max=None,
+    x2_min=None,
+    x2_max=None,
+    x3_min=None,
+    x3_max=None,
+    vol_func=None,
+    vol_params=None,
+    face_func_1=None,
+    face_func_2=None,
+    face_func_3=None,
+    center_func_1=None,
+    center_func_2=None,
+    center_func_3=None,
+    num_ghost=0,
+):
     """
     Reads a bin file and organizes data similar to athdf format without writing to file.
     """
@@ -975,13 +1192,13 @@ def read_coarsened_binary_as_athdf(filename, raw=False, data=None, quantities=No
         new_data = False
 
     # Extract size information
-    max_level = max(filedata['mb_logical'][:, 3])
+    max_level = max(filedata["mb_logical"][:, 3])
     if level is None:
         level = max_level
-    block_size = [filedata['nx1_mb'], filedata['nx2_mb'], filedata['nx3_mb']]
-    root_grid_size = [filedata['Nx1'], filedata['Nx2'], filedata['Nx3']]
-    levels = filedata['mb_logical'][:, 3]
-    logical_locations = filedata['mb_logical'][:, :3]
+    block_size = [filedata["nx1_mb"], filedata["nx2_mb"], filedata["nx3_mb"]]
+    root_grid_size = [filedata["Nx1"], filedata["Nx2"], filedata["Nx3"]]
+    levels = filedata["mb_logical"][:, 3]
+    logical_locations = filedata["mb_logical"][:, :3]
     if dtype is None:
         dtype = np.float32
 
@@ -999,66 +1216,77 @@ def read_coarsened_binary_as_athdf(filename, raw=False, data=None, quantities=No
     lx1, lx2, lx3 = [nx // bs for nx, bs in zip(nx_vals, block_size)]
 
     # Set coordinate system and related functions
-    coord = 'cartesian'  # Adjust based on your data
+    coord = "cartesian"  # Adjust based on your data
     if vol_func is None:
+
         def vol_func(xm, xp, ym, yp, zm, zp):
-            return (xp-xm) * (yp-ym) * (zp-zm)
+            return (xp - xm) * (yp - ym) * (zp - zm)
+
     # Define center functions if not provided
     if center_func_1 is None:
+
         def center_func_1(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_2 is None:
+
         def center_func_2(xm, xp):
             return 0.5 * (xm + xp)
+
     if center_func_3 is None:
+
         def center_func_3(xm, xp):
             return 0.5 * (xm + xp)
 
     # Populate coordinate arrays
     center_funcs = [center_func_1, center_func_2, center_func_3]
     for d in range(1, 4):
-        xf = f'x{d}f'
-        xv = f'x{d}v'
-        nx = nx_vals[d-1]
+        xf = f"x{d}f"
+        xv = f"x{d}v"
+        nx = nx_vals[d - 1]
         if nx == 1:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.array([xmin, xmax], dtype=dtype)
         else:
-            xmin = filedata[f'x{d}min']
-            xmax = filedata[f'x{d}max']
+            xmin = filedata[f"x{d}min"]
+            xmax = filedata[f"x{d}max"]
             data[xf] = np.linspace(xmin, xmax, nx + 1, dtype=dtype)
         data[xv] = np.empty(nx, dtype=dtype)
         for i in range(nx):
-            data[xv][i] = center_funcs[d-1](data[xf][i], data[xf][i+1])
+            data[xv][i] = center_funcs[d - 1](data[xf][i], data[xf][i + 1])
 
     # Create list of quantities
     if quantities is None:
-        quantities = filedata['var_names']
+        quantities = filedata["var_names"]
 
     # Account for selection
     i_min, i_max = 0, nx1
     j_min, j_max = 0, nx2
     k_min, k_max = 0, nx3
     if x1_min is not None:
-        i_min = max(i_min, np.searchsorted(data['x1f'], x1_min))
+        i_min = max(i_min, np.searchsorted(data["x1f"], x1_min))
     if x1_max is not None:
-        i_max = min(i_max, np.searchsorted(data['x1f'], x1_max))
+        i_max = min(i_max, np.searchsorted(data["x1f"], x1_max))
     if x2_min is not None:
-        j_min = max(j_min, np.searchsorted(data['x2f'], x2_min))
+        j_min = max(j_min, np.searchsorted(data["x2f"], x2_min))
     if x2_max is not None:
-        j_max = min(j_max, np.searchsorted(data['x2f'], x2_max))
+        j_max = min(j_max, np.searchsorted(data["x2f"], x2_max))
     if x3_min is not None:
-        k_min = max(k_min, np.searchsorted(data['x3f'], x3_min))
+        k_min = max(k_min, np.searchsorted(data["x3f"], x3_min))
     if x3_max is not None:
-        k_max = min(k_max, np.searchsorted(data['x3f'], x3_max))
+        k_max = min(k_max, np.searchsorted(data["x3f"], x3_max))
 
     # Prepare arrays for data and bookkeeping
     if new_data:
         for q in quantities:
-            data[q] = np.zeros((k_max-k_min, j_max-j_min, i_max-i_min), dtype=dtype)
+            data[q] = np.zeros(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=dtype
+            )
         if return_levels:
-            data['Levels'] = np.empty((k_max-k_min, j_max-j_min, i_max-i_min), dtype=np.int32)
+            data["Levels"] = np.empty(
+                (k_max - k_min, j_max - j_min, i_max - i_min), dtype=np.int32
+            )
     else:
         for q in quantities:
             data[q].fill(0.0)
@@ -1066,7 +1294,7 @@ def read_coarsened_binary_as_athdf(filename, raw=False, data=None, quantities=No
         restricted_data = np.zeros((lx3, lx2, lx1), dtype=bool)
 
     # Step 3: Process each block
-    for block_num in range(filedata['n_mbs']):
+    for block_num in range(filedata["n_mbs"]):
         block_level = levels[block_num]
         block_location = logical_locations[block_num]
 
@@ -1098,16 +1326,22 @@ def read_coarsened_binary_as_athdf(filename, raw=False, data=None, quantities=No
             ku_d = min(ku_d, k_max) - k_min
 
             for q in quantities:
-                block_data = filedata['mb_data'][q][block_num]
+                block_data = filedata["mb_data"][q][block_num]
                 if s > 1:
-                    block_data = np.repeat(np.repeat(np.repeat(block_data, s, axis=2), s, axis=1), s, axis=0)
-                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[kl_s:ku_s, jl_s:ju_s, il_s:iu_s]
+                    block_data = np.repeat(
+                        np.repeat(np.repeat(block_data, s, axis=2), s, axis=1),
+                        s,
+                        axis=0,
+                    )
+                data[q][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_data[
+                    kl_s:ku_s, jl_s:ju_s, il_s:iu_s
+                ]
         else:
             # Implement restriction logic here (similar to athdf function)
             pass
 
         if return_levels:
-            data['Levels'][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
+            data["Levels"][kl_d:ku_d, jl_d:ju_d, il_d:iu_d] = block_level
 
     # Step 4: Finalize data
     if level < max_level and not subsample and not fast_restrict:
@@ -1131,21 +1365,24 @@ def read_coarsened_binary_as_athdf(filename, raw=False, data=None, quantities=No
                         for k in range(kl, ku):
                             for j in range(jl, ju):
                                 for i in range(il, iu):
-                                    x1m, x1p = data['x1f'][i], data['x1f'][i+1]
-                                    x2m, x2p = data['x2f'][j], data['x2f'][j+1]
-                                    x3m, x3p = data['x3f'][k], data['x3f'][k+1]
+                                    x1m, x1p = data["x1f"][i], data["x1f"][i + 1]
+                                    x2m, x2p = data["x2f"][j], data["x2f"][j + 1]
+                                    x3m, x3p = data["x3f"][k], data["x3f"][k + 1]
                                     vol = vol_func(x1m, x1p, x2m, x2p, x3m, x3p)
                                     for q in quantities:
                                         data[q][k, j, i] /= vol
 
     # Add metadata
-    data['Time'] = filedata['time']
-    data['NumCycles'] = filedata['cycle']
-    data['MaxLevel'] = max_level
+    data["Time"] = filedata["time"]
+    data["NumCycles"] = filedata["cycle"]
+    data["MaxLevel"] = max_level
 
     return data
 
-def write_xdmf_for(xdmfname: str, dumpname: str, fdata: Dict[str, Any], mode: str = "auto") -> None:
+
+def write_xdmf_for(
+    xdmfname: str, dumpname: str, fdata: Dict[str, Any], mode: str = "auto"
+) -> None:
     """
     Writes an xdmf file for a fluid snapshot file.
 
@@ -1219,6 +1456,7 @@ def write_xdmf_for(xdmfname: str, dumpname: str, fdata: Dict[str, Any], mode: st
         fp.write("""</Domain>\n""")
         fp.write("""</Xdmf>\n""")
 
+
 def convert_file(binary_fname: str) -> None:
     """
     Converts a single file.
@@ -1235,6 +1473,7 @@ def convert_file(binary_fname: str) -> None:
     filedata = read_binary(binary_fname)
     write_athdf(athdf_fname, filedata)
     write_xdmf_for(xdmf_fname, os.path.basename(athdf_fname), filedata)
+
 
 def read_rank_binary_as_athdf(
     filename: str,
@@ -1253,19 +1492,19 @@ def read_rank_binary_as_athdf(
         return filedata
 
     # Determine the full grid extents
-    Nx1 = filedata['Nx1']
-    Nx2 = filedata['Nx2']
-    Nx3 = filedata['Nx3']
-    x1min = filedata['x1min']
-    x1max = filedata['x1max']
-    x2min = filedata['x2min']
-    x2max = filedata['x2max']
-    x3min = filedata['x3min']
-    x3max = filedata['x3max']
-    n_mbs = filedata['n_mbs']
-    nx1_mb = filedata['nx1_mb']
-    nx2_mb = filedata['nx2_mb']
-    nx3_mb = filedata['nx3_mb']
+    Nx1 = filedata["Nx1"]
+    Nx2 = filedata["Nx2"]
+    Nx3 = filedata["Nx3"]
+    x1min = filedata["x1min"]
+    x1max = filedata["x1max"]
+    x2min = filedata["x2min"]
+    x2max = filedata["x2max"]
+    x3min = filedata["x3min"]
+    x3max = filedata["x3max"]
+    n_mbs = filedata["n_mbs"]
+    nx1_mb = filedata["nx1_mb"]
+    nx2_mb = filedata["nx2_mb"]
+    nx3_mb = filedata["nx3_mb"]
 
     if dtype is None:
         dtype = np.float32
@@ -1275,73 +1514,81 @@ def read_rank_binary_as_athdf(
         return 0.5 * (xm + xp)
 
     x1f = np.linspace(x1min, x1max, Nx1 + 1, dtype=dtype)
-    x1v = np.array([center_func(xm, xp) for xm, xp in zip(x1f[:-1], x1f[1:])], dtype=dtype)
+    x1v = np.array(
+        [center_func(xm, xp) for xm, xp in zip(x1f[:-1], x1f[1:])], dtype=dtype
+    )
     x2f = np.linspace(x2min, x2max, Nx2 + 1, dtype=dtype)
-    x2v = np.array([center_func(xm, xp) for xm, xp in zip(x2f[:-1], x2f[1:])], dtype=dtype)
+    x2v = np.array(
+        [center_func(xm, xp) for xm, xp in zip(x2f[:-1], x2f[1:])], dtype=dtype
+    )
     x3f = np.linspace(x3min, x3max, Nx3 + 1, dtype=dtype)
-    x3v = np.array([center_func(xm, xp) for xm, xp in zip(x3f[:-1], x3f[1:])], dtype=dtype)
+    x3v = np.array(
+        [center_func(xm, xp) for xm, xp in zip(x3f[:-1], x3f[1:])], dtype=dtype
+    )
 
     # Create list of quantities
     if quantities is None:
-        quantities = filedata['var_names']
+        quantities = filedata["var_names"]
 
     # Allocate arrays for the full grid
     data = {}
     for q in quantities:
         data[q] = np.zeros((Nx3, Nx2, Nx1), dtype=dtype)
     if return_levels:
-        data['Levels'] = np.zeros((Nx3, Nx2, Nx1), dtype=np.int32)
+        data["Levels"] = np.zeros((Nx3, Nx2, Nx1), dtype=np.int32)
 
     # Insert each meshblock's data into the unified grid
     for mb in range(n_mbs):
-        mb_index = filedata['mb_index'][mb]
+        mb_index = filedata["mb_index"][mb]
         is_, ie, js, je, ks, ke = mb_index
         # Clamp indices to grid bounds
-        is_, ie = max(is_, 0), min(ie, Nx1-1)
-        js, je = max(js, 0), min(je, Nx2-1)
-        ks, ke = max(ks, 0), min(ke, Nx3-1)
+        is_, ie = max(is_, 0), min(ie, Nx1 - 1)
+        js, je = max(js, 0), min(je, Nx2 - 1)
+        ks, ke = max(ks, 0), min(ke, Nx3 - 1)
         # Compute slices
-        i_slice = slice(is_, ie+1)
-        j_slice = slice(js, je+1)
-        k_slice = slice(ks, ke+1)
+        i_slice = slice(is_, ie + 1)
+        j_slice = slice(js, je + 1)
+        k_slice = slice(ks, ke + 1)
         # Insert data for each variable
         for q in quantities:
-            block_data = filedata['mb_data'][q][mb]
-            data[q][k_slice, j_slice, i_slice] = block_data[:ke-ks+1, :je-js+1, :ie-is_+1]
+            block_data = filedata["mb_data"][q][mb]
+            data[q][k_slice, j_slice, i_slice] = block_data[
+                : ke - ks + 1, : je - js + 1, : ie - is_ + 1
+            ]
         if return_levels:
-            level = filedata['mb_logical'][mb][3]
-            data['Levels'][k_slice, j_slice, i_slice] = level
+            level = filedata["mb_logical"][mb][3]
+            data["Levels"][k_slice, j_slice, i_slice] = level
 
     # Add coordinate arrays
-    data['x1f'] = x1f
-    data['x1v'] = x1v
-    data['x2f'] = x2f
-    data['x2v'] = x2v
-    data['x3f'] = x3f
-    data['x3v'] = x3v
-    data['Time'] = filedata['time']
-    data['NumCycles'] = filedata['cycle']
-    data['MaxLevel'] = np.max(filedata['mb_logical'][:, 3])
+    data["x1f"] = x1f
+    data["x1v"] = x1v
+    data["x2f"] = x2f
+    data["x2v"] = x2v
+    data["x3f"] = x3f
+    data["x3v"] = x3v
+    data["Time"] = filedata["time"]
+    data["NumCycles"] = filedata["cycle"]
+    data["MaxLevel"] = np.max(filedata["mb_logical"][:, 3])
     return data
 
 
-
 # ========================================================================================
+
 
 def athinput(filename: str) -> Dict[str, Dict[str, Any]]:
     """Read athinput file and returns a dictionary of dictionaries."""
 
     # Read data
-    with open(filename, 'r') as athinput:
+    with open(filename, "r") as athinput:
         # remove comments, extra whitespace, and empty lines
-        lines = filter(None, [i.split('#')[0].strip() for i in athinput.readlines()])
+        lines = filter(None, [i.split("#")[0].strip() for i in athinput.readlines()])
     data = {}
     # split into blocks, first element will be empty
-    blocks = ('\n'.join(lines)).split('<')[1:]
+    blocks = ("\n".join(lines)).split("<")[1:]
 
     # Function for interpreting strings numerically
     def typecast(x):
-        if '_' in x:
+        if "_" in x:
             return x
         try:
             return int(x)
@@ -1359,21 +1606,23 @@ def athinput(filename: str) -> Dict[str, Dict[str, Any]]:
 
     # Function for parsing assignment based on first '='
     def parse_line(line):
-        out = [i.strip() for i in line.split('=')]
-        out[1] = '='.join(out[1:])
+        out = [i.strip() for i in line.split("=")]
+        out[1] = "=".join(out[1:])
         out[1] = typecast(out[1])
         return out[:2]
 
     # Assign values into dictionaries
     for block in blocks:
-        info = list(filter(None, block.split('\n')))
+        info = list(filter(None, block.split("\n")))
         key = info.pop(0)[:-1]  # last character is '>'
         data[key] = dict(map(parse_line, info))
     return data
 
+
 # --------------------------------------------------------------------------------------
 # Shared low-level binary reader --------------------------------------------------------
 # --------------------------------------------------------------------------------------
+
 
 def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, Any]:
     """Parse a single AthenaK ``*.bin`` dump.
@@ -1416,7 +1665,9 @@ def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, An
     coarsen_factor = int(pheader.get("coarsening factor", "1"))
 
     if coarsened and coarsen_factor == 1:
-        raise ValueError("Reader asked for a coarsened dump but header lacks coarsening factor")
+        raise ValueError(
+            "Reader asked for a coarsened dump but header lacks coarsening factor"
+        )
 
     # Variable list
     nvars = int(fp.readline().split(b"=")[-1])
@@ -1425,7 +1676,9 @@ def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, An
     # Simulation header (ASCII)
     ascii_header_size = int(fp.readline().split(b"=")[-1])
     header_bytes = fp.read(ascii_header_size)
-    header_lines = [ln.decode().split("#")[0].strip() for ln in header_bytes.split(b"\n") if ln]
+    header_lines = [
+        ln.decode().split("#")[0].strip() for ln in header_bytes.split(b"\n") if ln
+    ]
 
     # Validate float sizes
     if locsizebytes not in (4, 8) or varsizebytes not in (4, 8):
@@ -1455,7 +1708,9 @@ def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, An
     mb_data: Dict[str, List[np.ndarray]] = {v: [] for v in var_names}
 
     while fp.tell() < filesize:
-        mb_index.append(np.frombuffer(fp.read(24), dtype=np.int32).astype(np.int64) - nghost)
+        mb_index.append(
+            np.frombuffer(fp.read(24), dtype=np.int32).astype(np.int64) - nghost
+        )
         nx1_out = (mb_index[-1][1] - mb_index[-1][0]) + 1
         nx2_out = (mb_index[-1][3] - mb_index[-1][2]) + 1
         nx3_out = (mb_index[-1][5] - mb_index[-1][4]) + 1
@@ -1468,7 +1723,9 @@ def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, An
         bytes_needed = cells * np.dtype(dtype_var).itemsize
         block_bytes = fp.read(bytes_needed)
         if len(block_bytes) != bytes_needed:
-            raise IOError("Unexpected EOF while reading mesh-block data; binary dump may be corrupted")
+            raise IOError(
+                "Unexpected EOF while reading mesh-block data; binary dump may be corrupted"
+            )
 
         block = np.frombuffer(block_bytes, dtype=dtype_var, count=cells).reshape(
             nvars, nx3_out, nx2_out, nx1_out
@@ -1510,6 +1767,7 @@ def _read_binary_impl(filename: str, *, coarsened: bool = False) -> Dict[str, An
         result["number_of_moments"] = int(pheader["number of moments"])
     return result
 
+
 __all__ = [
     "read_binary",
     "read_coarsened_binary",
@@ -1525,5 +1783,3 @@ __all__ = [
     "read_rank_binary_as_athdf",
     "athinput",
 ]
-
-

@@ -5,6 +5,7 @@ This module avoids duplicate RAM usage by placing large read-only arrays in
 underlying pages.  All top-level functions are pickle-able so they can be used
 with :pyclass:`multiprocessing.Pool`.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -13,11 +14,11 @@ from typing import Dict, Sequence, Tuple
 
 import numpy as np
 
-from sf_histograms import (
-    compute_histogram_for_disp_2D,
+from .sf_histograms import (
     N_CHANNELS,
     N_MAG_CHANNELS,
     N_OTHER_CHANNELS,
+    compute_histogram_for_disp_2D,
 )
 
 __all__ = [
@@ -36,12 +37,15 @@ def _init_worker(shm_meta: Dict[str, Tuple[str, Tuple[int, ...], str]]) -> None:
     global _GLOBAL_FIELDS  # modify module-level dict
     for name, (shm_name, shape, dtype_str) in shm_meta.items():
         shm = shared_memory.SharedMemory(name=shm_name)
-        _GLOBAL_FIELDS[name] = np.ndarray(shape, dtype=np.dtype(dtype_str), buffer=shm.buf)
+        _GLOBAL_FIELDS[name] = np.ndarray(
+            shape, dtype=np.dtype(dtype_str), buffer=shm.buf
+        )
 
 
 # -----------------------------------------------------------------------------
 # Worker function --------------------------------------------------------------
 # -----------------------------------------------------------------------------
+
 
 def _process_batch(
     batch_indices: Sequence[int],
@@ -117,11 +121,21 @@ def _process_batch(
             by,
             bz,
             rho,
-            vAx, vAy, vAz,
-            zpx, zpy, zpz,
-            zmx, zmy, zmz,
-            omegax, omegay, omegaz,
-            jx, jy, jz,
+            vAx,
+            vAy,
+            vAz,
+            zpx,
+            zpy,
+            zpz,
+            zmx,
+            zmy,
+            zmz,
+            omegax,
+            omegay,
+            omegaz,
+            jx,
+            jy,
+            jz,
             int(dx),
             int(dy),
             axis,
@@ -143,6 +157,7 @@ def _process_batch(
 # -----------------------------------------------------------------------------
 # Public helper ----------------------------------------------------------------
 # -----------------------------------------------------------------------------
+
 
 def compute_histograms_shared(
     fields: Dict[str, np.ndarray],
@@ -172,14 +187,28 @@ def compute_histograms_shared(
         Worker count; defaults to *cpu_count() - 2*.
     """
     required = {
-        "v_x", "v_y", "v_z",
-        "B_x", "B_y", "B_z",
+        "v_x",
+        "v_y",
+        "v_z",
+        "B_x",
+        "B_y",
+        "B_z",
         "rho",
-        "vA_x", "vA_y", "vA_z",
-        "zp_x", "zp_y", "zp_z",
-        "zm_x", "zm_y", "zm_z",
-        "omega_x", "omega_y", "omega_z",
-        "j_x", "j_y", "j_z",
+        "vA_x",
+        "vA_y",
+        "vA_z",
+        "zp_x",
+        "zp_y",
+        "zp_z",
+        "zm_x",
+        "zm_y",
+        "zm_z",
+        "omega_x",
+        "omega_y",
+        "omega_z",
+        "j_x",
+        "j_y",
+        "j_z",
     }
     missing = required - fields.keys()
     if missing:
@@ -210,7 +239,9 @@ def compute_histograms_shared(
         n_theta_bins = theta_bin_edges.shape[0] - 1
         n_phi_bins = phi_bin_edges.shape[0] - 1
 
-        with Pool(processes=n_processes, initializer=_init_worker, initargs=(shm_meta,)) as pool:
+        with Pool(
+            processes=n_processes, initializer=_init_worker, initargs=(shm_meta,)
+        ) as pool:
             results = pool.starmap(
                 _process_batch,
                 [
@@ -264,4 +295,4 @@ def compute_histograms_shared(
         for shm in shm_objects.values():
             with contextlib.suppress(FileNotFoundError):
                 shm.close()
-                shm.unlink() 
+                shm.unlink()

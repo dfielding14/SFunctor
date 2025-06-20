@@ -1,28 +1,30 @@
 import h5py
 import matplotlib
-matplotlib.rc('font', family='serif')
-matplotlib.rc('mathtext', fontset='cm')
-matplotlib.rcParams['xtick.direction'] = 'in'
-matplotlib.rcParams['ytick.direction'] = 'in'
-matplotlib.rcParams['xtick.top'] = True
-matplotlib.rcParams['ytick.right'] = True
-matplotlib.rcParams['xtick.minor.visible'] = True
-matplotlib.rcParams['ytick.minor.visible'] = True
-matplotlib.rcParams['lines.dash_capstyle'] = 'round'
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-from matplotlib.colors import SymLogNorm
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+matplotlib.rc("font", family="serif")
+matplotlib.rc("mathtext", fontset="cm")
+matplotlib.rcParams["xtick.direction"] = "in"
+matplotlib.rcParams["ytick.direction"] = "in"
+matplotlib.rcParams["xtick.top"] = True
+matplotlib.rcParams["ytick.right"] = True
+matplotlib.rcParams["xtick.minor.visible"] = True
+matplotlib.rcParams["ytick.minor.visible"] = True
+matplotlib.rcParams["lines.dash_capstyle"] = "round"
 import glob
-import numpy as np
-import cmasher as cmr
-import subprocess
 import os
+import subprocess
 import sys
-import matplotlib.patheffects as patheffects
 import time
 
+import cmasher as cmr
+import matplotlib.patheffects as patheffects
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LogNorm, SymLogNorm
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 import bin_convert_new as bc
+
 
 def Morton_array_to_int(arr):
     """
@@ -46,7 +48,9 @@ def Morton_array_to_int(arr):
     # Check that a, b, and c are in the valid range for 6-bit numbers.
     for coord in (a, b, c):
         if coord < 0 or coord >= 64:
-            raise ValueError("Each coordinate must be in the range 0 to 63 (inclusive).")
+            raise ValueError(
+                "Each coordinate must be in the range 0 to 63 (inclusive)."
+            )
 
     n = 0
     # Each coordinate is a 6-bit number, so we iterate over 6 bits.
@@ -56,6 +60,7 @@ def Morton_array_to_int(arr):
         n |= ((b >> i) & 1) << (3 * i + 1)
         n |= ((c >> i) & 1) << (3 * i + 2)
     return n
+
 
 def Morton_int_to_array(n):
     """
@@ -87,7 +92,10 @@ def Morton_int_to_array(n):
 
     return [c, b, a]
 
-def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True, cache_dir="slice_data"):
+
+def extract_2d_slice(
+    sim_name, axis, slice_value, file_number=None, *, save=True, cache_dir="slice_data"
+):
     """
     Extract a 2D slice from the 3D domain at a given value along the specified axis.
     The function always returns the following variables:
@@ -107,20 +115,20 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     """
     input_file_name = f"inputs/{sim_name}.athinput"
     input_file = bc.athinput(input_file_name)
-    nx1_meshblock = input_file['meshblock']['nx1']
-    nx2_meshblock = input_file['meshblock']['nx2']
-    nx3_meshblock = input_file['meshblock']['nx3']
-    Nres = input_file['mesh']['nx1']
-    N_meshblocks = int(Nres**3 / (nx3_meshblock*nx2_meshblock*nx1_meshblock))
-    Nranks = int(len(glob.glob(f'data/data_{sim_name}/bin/rank_*/')))
+    nx1_meshblock = input_file["meshblock"]["nx1"]
+    nx2_meshblock = input_file["meshblock"]["nx2"]
+    nx3_meshblock = input_file["meshblock"]["nx3"]
+    Nres = input_file["mesh"]["nx1"]
+    N_meshblocks = int(Nres**3 / (nx3_meshblock * nx2_meshblock * nx1_meshblock))
+    Nranks = int(len(glob.glob(f"data/data_{sim_name}/bin/rank_*/")))
 
     # Fixed list of variables we will extract
-    varnames = ['dens', 'velx', 'vely', 'velz', 'bcc1', 'bcc2', 'bcc3']
+    varnames = ["dens", "velx", "vely", "velz", "bcc1", "bcc2", "bcc3"]
 
     # Prepare the global grid for the slice
-    x1f = np.linspace(-0.5, 0.5, Nres+1)
-    x2f = np.linspace(-0.5, 0.5, Nres+1)
-    x3f = np.linspace(-0.5, 0.5, Nres+1)
+    x1f = np.linspace(-0.5, 0.5, Nres + 1)
+    x2f = np.linspace(-0.5, 0.5, Nres + 1)
+    x3f = np.linspace(-0.5, 0.5, Nres + 1)
     if axis == 1:
         slice_axis = x1f
         other_axes = (x2f, x3f)
@@ -167,50 +175,69 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
         remainder_mbs = N_meshblocks % Nranks
         current_gid_start_for_rank = 0
         for r_idx in range(Nranks):
-            num_mbs_for_this_rank = mb_per_rank_base + (1 if r_idx < remainder_mbs else 0)
+            num_mbs_for_this_rank = mb_per_rank_base + (
+                1 if r_idx < remainder_mbs else 0
+            )
             if gid < current_gid_start_for_rank + num_mbs_for_this_rank:
                 i_rank = r_idx
                 local_mb_idx = gid - current_gid_start_for_rank
                 break
             current_gid_start_for_rank += num_mbs_for_this_rank
 
-        files = np.sort(glob.glob(f'data/data_{sim_name}/bin/rank_{i_rank:08d}/Turb.full_mhd_w_bcc.*.bin'))
+        files = np.sort(
+            glob.glob(
+                f"data/data_{sim_name}/bin/rank_{i_rank:08d}/Turb.full_mhd_w_bcc.*.bin"
+            )
+        )
         if len(files) == 0:
             continue
         # Select file based on file_number parameter
         if file_number is not None:
             if file_number < 0 or file_number >= len(files):
-                raise ValueError(f"file_number {file_number} is out of range. Available files: {len(files)}")
+                raise ValueError(
+                    f"file_number {file_number} is out of range. Available files: {len(files)}"
+                )
             selected_file = files[file_number]
         else:
             selected_file = files[-1]
         # Read meshblock data
-        mb_data = bc.read_single_rank_binary_as_athdf(selected_file, meshblock_index_in_file=local_mb_idx)
+        mb_data = bc.read_single_rank_binary_as_athdf(
+            selected_file, meshblock_index_in_file=local_mb_idx
+        )
         # Find the index in the meshblock that matches the slice
         if axis == 1:
-            x1f_mb = mb_data['x1f']
+            x1f_mb = mb_data["x1f"]
             idx = np.searchsorted(x1f_mb, slice_value) - 1
             if 0 <= idx < mb_data[varnames[0]].shape[2]:
                 j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
                 k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
                 for var in varnames:
-                    slice_data[var][k_start:k_start+nx3_meshblock, j_start:j_start+nx2_meshblock] = mb_data[var][:, :, idx]
+                    slice_data[var][
+                        k_start : k_start + nx3_meshblock,
+                        j_start : j_start + nx2_meshblock,
+                    ] = mb_data[var][:, :, idx]
         elif axis == 2:
-            x2f_mb = mb_data['x2f']
+            x2f_mb = mb_data["x2f"]
             idx = np.searchsorted(x2f_mb, slice_value) - 1
             if 0 <= idx < mb_data[varnames[0]].shape[1]:
                 i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
                 k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
                 for var in varnames:
-                    slice_data[var][k_start:k_start+nx3_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][:, idx, :]
+                    slice_data[var][
+                        k_start : k_start + nx3_meshblock,
+                        i_start : i_start + nx1_meshblock,
+                    ] = mb_data[var][:, idx, :]
         elif axis == 3:
-            x3f_mb = mb_data['x3f']
+            x3f_mb = mb_data["x3f"]
             idx = np.searchsorted(x3f_mb, slice_value) - 1
             if 0 <= idx < mb_data[varnames[0]].shape[0]:
                 i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
                 j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
                 for var in varnames:
-                    slice_data[var][j_start:j_start+nx2_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][idx, :, :]
+                    slice_data[var][
+                        j_start : j_start + nx2_meshblock,
+                        i_start : i_start + nx1_meshblock,
+                    ] = mb_data[var][idx, :, :]
 
     # ----------------------------------------------------------------------------------
     # Compute vorticity (omega = curl v) and current (J = curl B) on the extracted slice
@@ -225,7 +252,7 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     #   axis==2  →  slice data shape (k=z, i=x)
     #   axis==3  →  slice data shape (j=y, i=x)
     # ----------------------------------------------------------------------------------
-    needed_vec_vars = ['velx', 'vely', 'velz', 'bcc1', 'bcc2', 'bcc3']
+    needed_vec_vars = ["velx", "vely", "velz", "bcc1", "bcc2", "bcc3"]
 
     # Convenience: ensure we always have the primitive vector variables in the output
     for v in needed_vec_vars:
@@ -258,43 +285,60 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
             remainder_mbs = N_meshblocks % Nranks
             current_gid_start_for_rank = 0
             for r_idx in range(Nranks):
-                num_mbs_for_this_rank = mb_per_rank_base + (1 if r_idx < remainder_mbs else 0)
+                num_mbs_for_this_rank = mb_per_rank_base + (
+                    1 if r_idx < remainder_mbs else 0
+                )
                 if gid < current_gid_start_for_rank + num_mbs_for_this_rank:
                     i_rank = r_idx
                     local_mb_idx = gid - current_gid_start_for_rank
                     break
                 current_gid_start_for_rank += num_mbs_for_this_rank
 
-            files = np.sort(glob.glob(f'data/data_{sim_name}/bin/rank_{i_rank:08d}/Turb.full_mhd_w_bcc.*.bin'))
+            files = np.sort(
+                glob.glob(
+                    f"data/data_{sim_name}/bin/rank_{i_rank:08d}/Turb.full_mhd_w_bcc.*.bin"
+                )
+            )
             if len(files) == 0:
                 continue
             selected_file = files[file_number] if file_number is not None else files[-1]
-            mb_data = bc.read_single_rank_binary_as_athdf(selected_file, meshblock_index_in_file=local_mb_idx)
+            mb_data = bc.read_single_rank_binary_as_athdf(
+                selected_file, meshblock_index_in_file=local_mb_idx
+            )
 
             if axis == 1:
-                x1f_mb = mb_data['x1f']
+                x1f_mb = mb_data["x1f"]
                 idx = np.searchsorted(x1f_mb, target_value) - 1
                 if 0 <= idx < mb_data[needed_vec_vars[0]].shape[2]:
                     j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
                     k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
                     for var in needed_vec_vars:
-                        out[var][k_start:k_start+nx3_meshblock, j_start:j_start+nx2_meshblock] = mb_data[var][:, :, idx]
+                        out[var][
+                            k_start : k_start + nx3_meshblock,
+                            j_start : j_start + nx2_meshblock,
+                        ] = mb_data[var][:, :, idx]
             elif axis == 2:
-                x2f_mb = mb_data['x2f']
+                x2f_mb = mb_data["x2f"]
                 idx = np.searchsorted(x2f_mb, target_value) - 1
                 if 0 <= idx < mb_data[needed_vec_vars[0]].shape[1]:
                     i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
                     k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
                     for var in needed_vec_vars:
-                        out[var][k_start:k_start+nx3_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][:, idx, :]
+                        out[var][
+                            k_start : k_start + nx3_meshblock,
+                            i_start : i_start + nx1_meshblock,
+                        ] = mb_data[var][:, idx, :]
             elif axis == 3:
-                x3f_mb = mb_data['x3f']
+                x3f_mb = mb_data["x3f"]
                 idx = np.searchsorted(x3f_mb, target_value) - 1
                 if 0 <= idx < mb_data[needed_vec_vars[0]].shape[0]:
                     i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
                     j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
                     for var in needed_vec_vars:
-                        out[var][j_start:j_start+nx2_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][idx, :, :]
+                        out[var][
+                            j_start : j_start + nx2_meshblock,
+                            i_start : i_start + nx1_meshblock,
+                        ] = mb_data[var][idx, :, :]
         return out
 
     # Identify neighbouring slice indices with periodic wrapping
@@ -305,12 +349,12 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     }[axis]
     axis_centres = 0.5 * (axis_edges[:-1] + axis_edges[1:])
     slice_idx_minus = (slice_idx - 1) % Nres
-    slice_idx_plus  = (slice_idx + 1) % Nres
+    slice_idx_plus = (slice_idx + 1) % Nres
     slice_val_minus = axis_centres[slice_idx_minus]
-    slice_val_plus  = axis_centres[slice_idx_plus]
+    slice_val_plus = axis_centres[slice_idx_plus]
 
     minus_slice = _fill_single_slice(slice_val_minus)
-    plus_slice  = _fill_single_slice(slice_val_plus)
+    plus_slice = _fill_single_slice(slice_val_plus)
 
     # Grid spacing (assumed uniform but computed from edges)
     dx = x1f[1] - x1f[0]
@@ -318,12 +362,12 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     dz = x3f[1] - x3f[0]
 
     # Short-hands for central & neighbour planes
-    vxc, vyc, vzc = slice_data['velx'], slice_data['vely'], slice_data['velz']
-    vxp, vyp, vzp = plus_slice['velx'], plus_slice['vely'], plus_slice['velz']
-    vxm, vym, vzm = minus_slice['velx'], minus_slice['vely'], minus_slice['velz']
-    bxc, byc, bzc = slice_data['bcc1'], slice_data['bcc2'], slice_data['bcc3']
-    bxp, byp, bzp = plus_slice['bcc1'], plus_slice['bcc2'], plus_slice['bcc3']
-    bxm, bym, bzm = minus_slice['bcc1'], minus_slice['bcc2'], minus_slice['bcc3']
+    vxc, vyc, vzc = slice_data["velx"], slice_data["vely"], slice_data["velz"]
+    vxp, vyp, vzp = plus_slice["velx"], plus_slice["vely"], plus_slice["velz"]
+    vxm, vym, vzm = minus_slice["velx"], minus_slice["vely"], minus_slice["velz"]
+    bxc, byc, bzc = slice_data["bcc1"], slice_data["bcc2"], slice_data["bcc3"]
+    bxp, byp, bzp = plus_slice["bcc1"], plus_slice["bcc2"], plus_slice["bcc3"]
+    bxm, bym, bzm = minus_slice["bcc1"], minus_slice["bcc2"], minus_slice["bcc3"]
 
     # Derivative helpers (periodic via np.roll)
     def d_dy(arr):
@@ -332,13 +376,17 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
         elif axis == 3:
             return (np.roll(arr, -1, axis=0) - np.roll(arr, 1, axis=0)) / (2 * dy)
         else:  # axis == 2 → y is off-plane
-            return (plus_slice[arr_name] - minus_slice[arr_name]) / (2 * dy)  # placeholder, replaced below
+            return (plus_slice[arr_name] - minus_slice[arr_name]) / (
+                2 * dy
+            )  # placeholder, replaced below
 
     def d_dz(arr):
         if axis in (1, 2):  # within plane, k dimension is first axis
             return (np.roll(arr, -1, axis=0) - np.roll(arr, 1, axis=0)) / (2 * dz)
         else:  # axis == 3, z is off-plane
-            return (plus_slice[arr_name] - minus_slice[arr_name]) / (2 * dz)  # placeholder
+            return (plus_slice[arr_name] - minus_slice[arr_name]) / (
+                2 * dz
+            )  # placeholder
 
     # Because the mapping of (x,y,z) derivatives depends on the slice orientation
     # we treat each case explicitly to keep the logic clear.
@@ -408,12 +456,12 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     J_z = db_y_dx - db_x_dy
 
     # Store results
-    slice_data['vortx'] = omega_x
-    slice_data['vorty'] = omega_y
-    slice_data['vortz'] = omega_z
-    slice_data['currx'] = J_x
-    slice_data['curry'] = J_y
-    slice_data['currz'] = J_z
+    slice_data["vortx"] = omega_x
+    slice_data["vorty"] = omega_y
+    slice_data["vortz"] = omega_z
+    slice_data["currx"] = J_x
+    slice_data["curry"] = J_y
+    slice_data["currz"] = J_z
 
     # ------------------------------------------------------------------
     # Cache handling ----------------------------------------------------
@@ -432,7 +480,9 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
 
         # Determine explicit file index for naming when file_number is None
         if file_number is None:
-            rank0_pattern = f"data/data_{sim_name}/bin/rank_00000000/Turb.full_mhd_w_bcc.*.bin"
+            rank0_pattern = (
+                f"data/data_{sim_name}/bin/rank_00000000/Turb.full_mhd_w_bcc.*.bin"
+            )
             rank0_files = sorted(glob.glob(rank0_pattern))
             if rank0_files:
                 last_fname = os.path.splitext(rank0_files[-1])[0]
@@ -465,6 +515,8 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
             np.savez(cache_fname, **slice_data)
         except Exception as err:
             # Do not fail the main path if caching fails; just warn.
-            print(f"[extract_2d_slice] Warning: could not write cache '{cache_fname}': {err}")
+            print(
+                f"[extract_2d_slice] Warning: could not write cache '{cache_fname}': {err}"
+            )
 
     return slice_data

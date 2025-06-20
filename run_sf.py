@@ -1,78 +1,92 @@
 #!/usr/bin/env python3
-"""MPI-capable driver for 2-D slice structure-function analysis.
+"""Driver for 2-D slice structure-function analysis with multiprocessing and optional MPI support.
 
-Usage (single node):
+This script supports three modes of operation:
+1. Single slice processing
+2. Multiple slices with multiprocessing (default for --slice_list)
+3. Multiple slices with MPI (when run with mpirun/mpiexec)
+
+The script automatically detects whether MPI is available and whether it's being
+run under MPI. When processing multiple slices without MPI, it uses Python's
+multiprocessing module for parallel execution on a single node.
+
+Usage (single slice):
     python run_sf.py --file_name slice_x1_-0.375_....npz --stride 2
 
-Usage (cluster):
+Usage (multiple slices with multiprocessing):
+    python run_sf.py --slice_list slices.txt --stride 2 --n_disp_total 200000
+
+Usage (cluster with MPI):
     mpirun -n 64 python run_sf.py --slice_list slices.txt --stride 2 --n_disp_total 200000
 """
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from datetime import datetime
+from multiprocessing import Pool, cpu_count
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
 import numpy as np
-from mpi4py import MPI
 
-from sf_cli import parse_cli
-from sf_io import load_slice_npz, parse_slice_metadata
-from sf_physics import compute_vA, compute_z_plus_minus
-from sf_displacements import find_ell_bin_edges, build_displacement_list
-from sf_histograms import (
-    Channel,
+try:
+    from mpi4py import MPI
+
+    HAS_MPI = True
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+except ImportError:
+    HAS_MPI = False
+    comm = None
+    rank = 0
+    size = 1
+
+from sfunctor.sf_cli import RunConfig, parse_cli
+from sfunctor.sf_displacements import build_displacement_list, find_ell_bin_edges
+from sfunctor.sf_histograms import (
     MAG_CHANNELS,
+    N_MAG_CHANNELS,
+    N_OTHER_CHANNELS,
     OTHER_CHANNELS,
+    Channel,
 )
-from sf_parallel import compute_histograms_shared
+from sfunctor.sf_io import load_slice_npz, parse_slice_metadata
+from sfunctor.sf_parallel import compute_histograms_shared
+from sfunctor.sf_physics import compute_vA, compute_z_plus_minus
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
 
-def main() -> None:
-    cfg = parse_cli()
+def process_single_slice(
+    args: Tuple[Path, RunConfig],
+) -> Tuple[Path, np.ndarray, np.ndarray, Dict]:
+    """Process a single slice and return histograms.
 
-    # ---------------------------------------------------------------------
-    # Determine slice path for this rank -----------------------------------
-    # ---------------------------------------------------------------------
-    if cfg.slice_list:
-        if rank == 0:
-            with open(cfg.slice_list) as f:
-                all_paths = [Path(line.strip()) for line in f if line.strip()]
-        else:
-            all_paths = None
-        all_paths = comm.bcast(all_paths, root=0)
-        if rank >= len(all_paths):
-            if rank == 0:
-                print(f"[run_sf] Warning: size {size} > number of slices {len(all_paths)}")
-            return  # idle ranks exit early
-        slice_path = all_paths[rank]
-    else:
-        slice_path = cfg.file_name
+    Returns:
+        Tuple of (slice_path, hist_mag, hist_other, metadata)
+    """
+    slice_path, cfg = args
 
-    if rank == 0:
-        print(f"[run_sf] Starting analysis with {size} MPI ranks")
+    print(f"[process_slice] Processing {slice_path.name}")
 
-    # ---------------------------------------------------------------------
-    # Load slice -----------------------------------------------------------
-    # ---------------------------------------------------------------------
+    # Load slice
     slice_data = load_slice_npz(slice_path, stride=cfg.stride)
     axis, beta = parse_slice_metadata(slice_path)
 
     rho = slice_data["rho"]
-    B_x = slice_data["B_x"]; B_y = slice_data["B_y"]; B_z = slice_data["B_z"]
-    v_x = slice_data["v_x"]; v_y = slice_data["v_y"]; v_z = slice_data["v_z"]
+    B_x = slice_data["B_x"]
+    B_y = slice_data["B_y"]
+    B_z = slice_data["B_z"]
+    v_x = slice_data["v_x"]
+    v_y = slice_data["v_y"]
+    v_z = slice_data["v_z"]
 
     vA_x, vA_y, vA_z = compute_vA(B_x, B_y, B_z, rho)
-    (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z) = compute_z_plus_minus(v_x, v_y, v_z, vA_x, vA_y, vA_z)
+    (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z) = (
+        compute_z_plus_minus(v_x, v_y, v_z, vA_x, vA_y, vA_z)
+    )
 
-    # ---------------------------------------------------------------------
-    # Displacements --------------------------------------------------------
-    # ---------------------------------------------------------------------
+    # Displacements
     N_res = rho.shape[0]
-    # Adjust ℓ-max depending on stencil width -----------------------------
     if cfg.stencil_width == 2:
         ell_max = N_res // 2
     elif cfg.stencil_width == 3:
@@ -83,7 +97,7 @@ def main() -> None:
     ell_bin_edges = find_ell_bin_edges(1.0, ell_max, cfg.n_ell_bins)
     displacements = build_displacement_list(ell_bin_edges, cfg.n_disp_total)
 
-    # Histogram bin definitions (reuse from legacy script) -----------------
+    # Histogram bin definitions
     n_theta_bins = 18
     theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
     n_phi_bins = 18
@@ -117,7 +131,7 @@ def main() -> None:
         omega_z=slice_data["omega_z"],
     )
 
-    local_mag, local_other = compute_histograms_shared(
+    hist_mag, hist_other = compute_histograms_shared(
         fields_for_parallel,
         displacements,
         axis=axis,
@@ -131,42 +145,114 @@ def main() -> None:
         n_processes=cfg.n_processes,
     )
 
-    # MPI reduce -----------------------------------------------------------
-    global_mag = np.zeros_like(local_mag)
-    global_other = np.zeros_like(local_other)
-    comm.Reduce(local_mag, global_mag, op=MPI.SUM, root=0)
-    comm.Reduce(local_other, global_other, op=MPI.SUM, root=0)
+    metadata = dict(
+        ell_bin_edges=ell_bin_edges,
+        theta_bin_edges=theta_bin_edges,
+        phi_bin_edges=phi_bin_edges,
+        sf_bin_edges=sf_bin_edges,
+        product_bin_edges=product_bin_edges,
+        axis=axis,
+        beta=beta,
+    )
 
-    if rank == 0:
-        out_name = Path("slice_data") / f"hist_st{cfg.stencil_width}_{slice_path.stem}_ndisp{cfg.n_disp_total}_Nsub{cfg.N_random_subsamples}.npz"
-        out_name.parent.mkdir(parents=True, exist_ok=True)
+    return slice_path, hist_mag, hist_other, metadata
 
-        # Build dict combining mag (θ-φ resolved) and other (θ-φ collapsed) --
-        hist_dict = {}
-        for idx, ch in enumerate(MAG_CHANNELS):
-            hist_dict[ch.name] = global_mag[idx]
-        for idx, ch in enumerate(OTHER_CHANNELS):
-            hist_dict[ch.name] = global_other[idx]
 
-        np.savez(
-            out_name,
-            **hist_dict,
-            ell_bin_edges=ell_bin_edges,
-            theta_bin_edges=theta_bin_edges,
-            phi_bin_edges=phi_bin_edges,
-            sf_bin_edges=sf_bin_edges,
-            product_bin_edges=product_bin_edges,
-            meta=dict(
-                slice=str(slice_path),
-                axis=axis,
-                beta=beta,
-                stride=cfg.stride,
-                stencil_width=cfg.stencil_width,
-                date=datetime.utcnow().isoformat(),
-            ),
+def save_results(
+    slice_path: Path,
+    hist_mag: np.ndarray,
+    hist_other: np.ndarray,
+    metadata: Dict,
+    cfg: RunConfig,
+) -> None:
+    """Save histogram results to file."""
+    out_name = (
+        Path("slice_data")
+        / f"hist_st{cfg.stencil_width}_{slice_path.stem}_ndisp{cfg.n_disp_total}_Nsub{cfg.N_random_subsamples}.npz"
+    )
+    out_name.parent.mkdir(parents=True, exist_ok=True)
+
+    # Build dict combining mag (θ-φ resolved) and other (θ-φ collapsed)
+    hist_dict = {}
+    for idx, ch in enumerate(MAG_CHANNELS):
+        hist_dict[ch.name] = hist_mag[idx]
+    for idx, ch in enumerate(OTHER_CHANNELS):
+        hist_dict[ch.name] = hist_other[idx]
+
+    np.savez(
+        out_name,
+        **hist_dict,
+        **metadata,
+        meta=dict(
+            slice=str(slice_path),
+            axis=metadata["axis"],
+            beta=metadata["beta"],
+            stride=cfg.stride,
+            stencil_width=cfg.stencil_width,
+            date=datetime.utcnow().isoformat(),
+        ),
+    )
+    print(f"[run_sf] Done. Output written to {out_name}")
+
+
+def main() -> None:
+    cfg = parse_cli()
+
+    # ---------------------------------------------------------------------
+    # Handle different execution modes -------------------------------------
+    # ---------------------------------------------------------------------
+
+    if cfg.slice_list:
+        # Read slice list
+        with open(cfg.slice_list) as f:
+            all_paths = [Path(line.strip()) for line in f if line.strip()]
+
+        if HAS_MPI and size > 1:
+            # MPI mode: each rank processes different slices
+            print(f"[run_sf] Using MPI with {size} ranks")
+
+            # Distribute slices among ranks
+            my_slices = []
+            for i, path in enumerate(all_paths):
+                if i % size == rank:
+                    my_slices.append(path)
+
+            # Process assigned slices
+            for slice_path in my_slices:
+                _, hist_mag, hist_other, metadata = process_single_slice(
+                    (slice_path, cfg)
+                )
+                if (
+                    rank == 0 or not HAS_MPI
+                ):  # In MPI mode, optionally only rank 0 saves
+                    save_results(slice_path, hist_mag, hist_other, metadata, cfg)
+
+        else:
+            # Multiprocessing mode: process slices in parallel on single node
+            n_workers = min(cfg.n_processes or cpu_count() - 1, len(all_paths))
+            print(f"[run_sf] Using multiprocessing with {n_workers} workers")
+
+            # Process slices in parallel
+            with Pool(processes=n_workers) as pool:
+                args = [(path, cfg) for path in all_paths]
+                results = pool.map(process_single_slice, args)
+
+            # Save all results
+            for slice_path, hist_mag, hist_other, metadata in results:
+                save_results(slice_path, hist_mag, hist_other, metadata, cfg)
+
+    else:
+        # Single file mode
+        if rank == 0:
+            print(f"[run_sf] Processing single file")
+
+        slice_path, hist_mag, hist_other, metadata = process_single_slice(
+            (cfg.file_name, cfg)
         )
-        print(f"[run_sf] Done. Output written to {out_name}")
+
+        if rank == 0:  # Only rank 0 saves in MPI mode
+            save_results(slice_path, hist_mag, hist_other, metadata, cfg)
 
 
 if __name__ == "__main__":
-    main() 
+    main()

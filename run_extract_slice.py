@@ -73,6 +73,7 @@ size = comm.Get_size()
 # CLI helper ------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
+
 @dataclass(slots=True)
 class RunConfig:
     """Aggregated, type-checked runtime options."""
@@ -123,7 +124,7 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
     parser.add_argument(
         "--offsets",
         type=_float_list,
-        default=(-3/8, -1/8, 1/8, 3/8),
+        default=(-3 / 8, -1 / 8, 1 / 8, 3 / 8),
         help="Comma-separated list of slice positions along each axis (−0.5 … 0.5).",
     )
     parser.add_argument(
@@ -161,9 +162,11 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
         cache_dir=args.cache_dir.resolve(),
     )
 
+
 # ----------------------------------------------------------------------------
 # Utility functions -----------------------------------------------------------
 # ----------------------------------------------------------------------------
+
 
 def _format_float(val: float) -> str:
     """Return *val* as filename-friendly string with up to 6 decimals."""
@@ -184,9 +187,7 @@ def _save_slice_npz(
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     offset_str = _format_float(offset)
-    file_part = (
-        f"_{file_number:04d}" if file_number is not None else ""
-    )
+    file_part = f"_{file_number:04d}" if file_number is not None else ""
     out_name = cache_dir / f"slice_x{axis}_{offset_str}_{sim_name}{file_part}.npz"
 
     np.savez(out_name, **data)
@@ -197,6 +198,7 @@ def _plot_density(slice_path: Path, density: np.ndarray) -> None:
     """Save a density image next to *slice_path* (PNG, same stem)."""
     try:
         import matplotlib
+
         matplotlib.use("Agg")  # headless
         import matplotlib.pyplot as plt
 
@@ -211,11 +213,15 @@ def _plot_density(slice_path: Path, density: np.ndarray) -> None:
         fig.savefig(slice_path.with_suffix(".png"), dpi=200)
         plt.close(fig)
     except Exception as err:
-        print(f"[run_extract_slice] Warning: could not plot slice '{slice_path}': {err}")
+        print(
+            f"[run_extract_slice] Warning: could not plot slice '{slice_path}': {err}"
+        )
+
 
 # ----------------------------------------------------------------------------
 # Main -----------------------------------------------------------------------
 # ----------------------------------------------------------------------------
+
 
 def main() -> None:
     cfg = parse_cli()
@@ -231,7 +237,9 @@ def main() -> None:
 
     if rank >= len(tasks):
         if rank == 0:
-            print(f"[run_extract_slice] Warning: size {size} > number of slices {len(tasks)}")
+            print(
+                f"[run_extract_slice] Warning: size {size} > number of slices {len(tasks)}"
+            )
         return  # idle ranks exit early
 
     axis, offset = tasks[rank]
@@ -270,4 +278,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main() 
+    main()

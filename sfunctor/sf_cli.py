@@ -3,6 +3,7 @@
 All options common across scripts are centralised here so that other modules
 can import :func:`parse_cli` and avoid duplicating *argparse* boilerplate.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,6 +35,7 @@ class RunConfig:
 # Parser ---------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
+
 def _positive_int(value: str) -> int:
     ivalue = int(value)
     if ivalue <= 0:
@@ -48,15 +50,56 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument("--stride", type=_positive_int, default=1, help="Down-sampling factor applied equally in both in-plane directions.")
-    parser.add_argument("--file_name", type=Path, default=None, help="Path to single slice *.npz* file (mutually exclusive with --slice_list).")
-    parser.add_argument("--slice_list", type=Path, default=None, help="Text file with one slice-filename per line; each MPI rank processes one line.")
+    parser.add_argument(
+        "--stride",
+        type=_positive_int,
+        default=1,
+        help="Down-sampling factor applied equally in both in-plane directions.",
+    )
+    parser.add_argument(
+        "--file_name",
+        type=Path,
+        default=None,
+        help="Path to single slice *.npz* file (mutually exclusive with --slice_list).",
+    )
+    parser.add_argument(
+        "--slice_list",
+        type=Path,
+        default=None,
+        help="Text file with one slice-filename per line; each MPI rank processes one line.",
+    )
 
-    parser.add_argument("--n_disp_total", type=_positive_int, default=1000, help="Total number of (unique) displacement vectors over all ℓ-bins.")
-    parser.add_argument("--N_random_subsamples", type=_positive_int, default=1000, help="Number of random spatial points per displacement.")
-    parser.add_argument("--n_ell_bins", type=_positive_int, default=128, help="Number of logarithmic ℓ-bins.")
-    parser.add_argument("--n_processes", type=int, default=0, help="Processes per node (0 → auto: cpu_count() − 2).")
-    parser.add_argument("--stencil_width", type=int, choices=[2,3,5], default=2, help="Structure-function stencil width (2, 3, or 5).")
+    parser.add_argument(
+        "--n_disp_total",
+        type=_positive_int,
+        default=1000,
+        help="Total number of (unique) displacement vectors over all ℓ-bins.",
+    )
+    parser.add_argument(
+        "--N_random_subsamples",
+        type=_positive_int,
+        default=1000,
+        help="Number of random spatial points per displacement.",
+    )
+    parser.add_argument(
+        "--n_ell_bins",
+        type=_positive_int,
+        default=128,
+        help="Number of logarithmic ℓ-bins.",
+    )
+    parser.add_argument(
+        "--n_processes",
+        type=int,
+        default=0,
+        help="Processes per node (0 → auto: cpu_count() − 2).",
+    )
+    parser.add_argument(
+        "--stencil_width",
+        type=int,
+        choices=[2, 3, 5],
+        default=2,
+        help="Structure-function stencil width (2, 3, or 5).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -75,4 +118,4 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
         n_ell_bins=args.n_ell_bins,
         n_processes=args.n_processes,
         stencil_width=args.stencil_width,
-    ) 
+    )

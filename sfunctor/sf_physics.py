@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import numpy as np
 from typing import Tuple
+
+import numpy as np
 
 __all__ = [
     "compute_vA",
@@ -9,7 +10,9 @@ __all__ = [
 ]
 
 
-def compute_vA(B_x: np.ndarray, B_y: np.ndarray, B_z: np.ndarray, rho: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def compute_vA(
+    B_x: np.ndarray, B_y: np.ndarray, B_z: np.ndarray, rho: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return vector Alfvén speed **v_A = B / sqrt(rho)** for a 2-D slice.
 
     Parameters
@@ -33,18 +36,20 @@ def compute_z_plus_minus(
     vA_x: np.ndarray,
     vA_y: np.ndarray,
     vA_z: np.ndarray,
-) -> Tuple[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+) -> Tuple[
+    Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray]
+]:
     """Return Elsasser variables **z⁺ = v + v_A**, **z⁻ = v − v_A**.
 
     All inputs must have identical shapes.  The function returns two triplets
     ``(z_plus_x, z_plus_y, z_plus_z)`` and ``(z_minus_x, z_minus_y, z_minus_z)``.
     """
-    z_plus_x  = v_x + vA_x
-    z_plus_y  = v_y + vA_y
-    z_plus_z  = v_z + vA_z
+    z_plus_x = v_x + vA_x
+    z_plus_y = v_y + vA_y
+    z_plus_z = v_z + vA_z
 
     z_minus_x = v_x - vA_x
     z_minus_y = v_y - vA_y
     z_minus_z = v_z - vA_z
 
-    return (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z) 
+    return (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z)

@@ -1,0 +1,18 @@
+[flake8]
+max-line-length = 88
+extend-ignore = E203, E266, E501, W503
+# E203: whitespace before ':' (conflicts with black)
+# E266: too many leading '#' for block comment
+# E501: line too long (handled by black)
+# W503: line break before binary operator (conflicts with black)
+exclude = 
+    .git,
+    __pycache__,
+    build,
+    dist,
+    .venv,
+    test_env,
+    *.egg-info
+per-file-ignores =
+    __init__.py:F401
+    # F401: imported but unused (common in __init__.py) 
