@@ -57,17 +57,49 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import numpy as np
-from mpi4py import MPI
 
-# Local imports --------------------------------------------------------------
-from extract_2d_slice import extract_2d_slice
+# ---------------------------------------------------------------------------
+# MPI import with graceful fallback -----------------------------------------
+# ---------------------------------------------------------------------------
+# The extraction step can run perfectly fine on a single workstation without
+# ``mpi4py``.  We therefore attempt to import it, but fall back to a minimal
+# stub that mimics the subset of the API we rely on when the package is not
+# available.
 
-# ----------------------------------------------------------------------------
-# MPI setup ------------------------------------------------------------------
-# ----------------------------------------------------------------------------
+try:
+    from mpi4py import MPI  # type: ignore
+    _mpi_enabled = True
+except ModuleNotFoundError:
+    _mpi_enabled = False
+
+    class _SerialComm:
+        def Get_rank(self):  # noqa: N802
+            return 0
+
+        def Get_size(self):  # noqa: N802
+            return 1
+
+        def bcast(self, obj, root=0):  # noqa: ANN001, N802
+            return obj
+
+        def Barrier(self):  # noqa: N802
+            pass
+
+    class _FakeMPI:  # pylint: disable=too-few-public-methods
+        COMM_WORLD = _SerialComm()
+
+    MPI = _FakeMPI()  # type: ignore
+
+# ---------------------------------------------------------------------------
+# Basic MPI variables (valid in both real and stubbed mode) ------------------
+# ---------------------------------------------------------------------------
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
+
+# Local imports --------------------------------------------------------------
+from extract_2d_slice import extract_2d_slice
 
 # ----------------------------------------------------------------------------
 # CLI helper ------------------------------------------------------------------
@@ -220,34 +252,49 @@ def _plot_density(slice_path: Path, density: np.ndarray) -> None:
 def main() -> None:
     cfg = parse_cli()
 
-    # Build the complete task list in rank-0 then broadcast ------------------
+    # ------------------------------------------------------------------
+    # Build the full task list on rank-0 and share with everyone ---------
+    # ------------------------------------------------------------------
     if rank == 0:
         tasks: List[Tuple[int, float]] = [
             (ax, off) for ax in cfg.axes for off in cfg.slice_offsets
         ]
     else:
         tasks = None  # type: ignore[assignment]
+
     tasks = comm.bcast(tasks, root=0)
 
-    if rank >= len(tasks):
-        if rank == 0:
-            print(f"[run_extract_slice] Warning: size {size} > number of slices {len(tasks)}")
-        return  # idle ranks exit early
-
-    axis, offset = tasks[rank]
+    # Distribute tasks --------------------------------------------------
+    if size > 1:
+        tasks_my_rank = tasks[rank::size]
+        if not tasks_my_rank:
+            # More ranks than tasks
+            return
+    else:
+        tasks_my_rank = tasks
 
     if rank == 0:
+        mode = "MPI" if _mpi_enabled and size > 1 else "serial"
         print(
-            f"[run_extract_slice] Starting extraction with {size} MPI ranks -> {len(tasks)} slices"
+            f"[run_extract_slice] Starting extraction in {mode} mode with {size} rank(s) -> {len(tasks)} slices"
         )
 
-    # Perform extraction -----------------------------------------------------
+    # ------------------------------------------------------------------
+    # Main processing loop ---------------------------------------------
+    # ------------------------------------------------------------------
+    for axis, offset in tasks_my_rank:
+        _process_single_slice(axis, offset, cfg)
+
+
+def _process_single_slice(axis: int, offset: float, cfg) -> None:  # noqa: D401, ANN001
+    """Extract one slice and handle optional plotting/saving."""
+
     slice_data = extract_2d_slice(
         cfg.sim_name,
         axis,
         offset,
         file_number=cfg.file_number,
-        save=False,  # we handle saving to enforce naming
+        save=False,
     )
 
     out_path = _save_slice_npz(
@@ -262,7 +309,6 @@ def main() -> None:
     if rank == 0:
         print(f"[run_extract_slice] Saved slice to {out_path}")
 
-    # Optional plotting ------------------------------------------------------
     if cfg.plot:
         dens = slice_data.get("dens")
         if dens is not None:
