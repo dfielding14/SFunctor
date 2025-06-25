@@ -1,0 +1,33 @@
+# Default SFunctor Configuration
+# This file provides sensible defaults for structure function analysis
+
+# Analysis parameters
+analysis:
+  stride: 1
+  n_disp_total: 10000
+  N_random_subsamples: 5000
+  n_ell_bins: 128
+  stencil_width: 2
+  n_processes: 0  # auto-detect
+
+# Histogram binning
+binning:
+  n_theta_bins: 18
+  n_phi_bins: 18
+  sf_min: 1.0e-4
+  sf_max: 10.0
+  sf_bins: 128
+  product_min: 1.0e-5
+  product_max: 1.0e5
+  product_bins: 128
+
+# Output settings
+output:
+  format: "npz"
+  compression: true
+  output_dir: "./results"
+  save_intermediate: false
+
+# Physics parameters
+physics:
+  min_density: 1.0e-10

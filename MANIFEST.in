@@ -1,0 +1,17 @@
+include README.md
+include LICENSE
+include requirements.txt
+include requirements-dev.txt
+include CLAUDE.md
+include DOCUMENTATION_IMPROVEMENTS.md
+include pytest.ini
+
+recursive-include tests *.py
+recursive-include slice_data *.npz
+recursive-include sfunctor *.py
+
+# Exclude compiled files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude .DS_Store

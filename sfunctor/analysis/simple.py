@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
-"""Simplified structure function analysis without Numba for testing purposes."""
+"""Simplified structure function analysis without Numba for testing purposes.
+
+This module provides a pure Python implementation of structure function
+calculations without dependencies on Numba or MPI. It's designed for:
+- Testing and validation of the main pipeline
+- Quick exploratory analysis on small datasets  
+- Debugging structure function algorithms
+- Educational purposes to understand the core concepts
+
+The simplified version computes basic structure functions (velocity, magnetic
+field, density) but omits the full histogram binning and angle-resolved
+analysis of the production pipeline.
+
+Usage:
+    python simple_sf_analysis.py --file_name slice.npz --stride 2
+"""
 from __future__ import annotations
 
 import sys
@@ -8,17 +23,49 @@ from datetime import datetime
 
 import numpy as np
 
-from sf_cli import parse_cli
-from sf_io import load_slice_npz, parse_slice_metadata
-from sf_physics import compute_vA, compute_z_plus_minus
-from sf_displacements import find_ell_bin_edges, build_displacement_list
+from sfunctor.utils.cli import parse_cli
+from sfunctor.io.slice_io import load_slice_npz, parse_slice_metadata
+from sfunctor.core.physics import compute_vA, compute_z_plus_minus
+from sfunctor.utils.displacements import find_ell_bin_edges, build_displacement_list
 
 
 def compute_structure_functions_simple(
     v_x, v_y, v_z, B_x, B_y, B_z, rho,
     delta_i, delta_j, N_random_subsamples=100
 ):
-    """Simplified structure function computation without Numba."""
+    """Simplified structure function computation without Numba.
+    
+    Computes structure functions for a single displacement vector by
+    randomly sampling spatial positions and computing field differences.
+    
+    Parameters
+    ----------
+    v_x, v_y, v_z : np.ndarray
+        Velocity field components (2D arrays).
+    B_x, B_y, B_z : np.ndarray
+        Magnetic field components (2D arrays).
+    rho : np.ndarray
+        Density field (2D array).
+    delta_i : int
+        Displacement in x-direction (pixels).
+    delta_j : int  
+        Displacement in y-direction (pixels).
+    N_random_subsamples : int, optional
+        Number of random positions to sample. Default is 100.
+    
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray]
+        Arrays containing:
+        - dv_values: Velocity structure function values |δv|
+        - dB_values: Magnetic field structure function values |δB|
+        - drho_values: Density structure function values |δρ|
+    
+    Notes
+    -----
+    Uses periodic boundary conditions for displacements that wrap around
+    the domain edges.
+    """
     N, M = v_x.shape
     
     # Random spatial samples

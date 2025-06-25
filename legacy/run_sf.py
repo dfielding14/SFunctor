@@ -51,6 +51,7 @@ except ModuleNotFoundError:
             pass
 
     class _FakeMPI:  # pylint: disable=too-few-public-methods
+        """Minimal MPI module replacement for single-node execution."""
         COMM_WORLD = _SerialComm()
         SUM = None  # placeholder so "op=MPI.SUM" is still valid
 
@@ -72,6 +73,19 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 def main() -> None:
+    """Main entry point for structure function analysis.
+    
+    Orchestrates the full analysis pipeline:
+    1. Parses command-line arguments
+    2. Distributes work across MPI ranks (if available)
+    3. Processes assigned slices
+    4. Aggregates results across ranks
+    5. Saves final histograms
+    
+    The function handles both single-node and multi-node execution
+    transparently, using MPI when available or falling back to serial
+    processing.
+    """
     cfg = parse_cli()
 
     # ---------------------------------------------------------------------
@@ -114,7 +128,28 @@ def main() -> None:
 
 
 def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
-    """Compute histograms for a single 2-D slice located at *slice_path*."""
+    """Compute histograms for a single 2-D slice.
+    
+    This function performs the core analysis for one slice:
+    1. Loads the slice data from disk
+    2. Computes derived fields (Alfvén velocity, Elsasser variables)
+    3. Generates displacement vectors
+    4. Computes structure function histograms
+    5. Reduces results across MPI ranks
+    6. Saves output (rank 0 only)
+    
+    Parameters
+    ----------
+    slice_path : Path
+        Path to the .npz file containing the 2D slice data.
+    cfg : RunConfig
+        Configuration object with analysis parameters.
+    
+    Notes
+    -----
+    This function is called once per slice assigned to the current MPI rank.
+    Results are automatically aggregated across ranks using MPI reductions.
+    """
     # ------------------------------------------------------------------
     # Load slice -------------------------------------------------------
     # ------------------------------------------------------------------

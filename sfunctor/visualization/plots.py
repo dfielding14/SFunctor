@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
-"""Simple visualization of structure function results."""
+"""Visualization tools for structure function analysis results.
+
+This module provides functions to load and visualize structure function
+results from the simplified analysis pipeline. It creates publication-quality
+plots showing structure functions versus displacement and probability distributions.
+
+Features:
+- Log-log plots of structure functions vs displacement
+- Theoretical scaling comparisons (Kolmogorov 1/3, etc.)
+- Probability distribution histograms
+- Automatic plot saving
+
+Usage:
+    python visualize_sf_results.py [results_file.npz]
+    
+If no file is specified, it will look for simple_sf_*.npz files in slice_data/.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +23,34 @@ from pathlib import Path
 import sys
 
 def plot_structure_functions(sf_file):
-    """Plot structure function results from simplified analysis."""
+    """Plot structure function results from simplified analysis.
+    
+    Creates a two-panel figure showing:
+    1. Structure functions vs displacement (log-log plot)
+    2. Probability distributions of structure function values
+    
+    Parameters
+    ----------
+    sf_file : str or Path
+        Path to the .npz file containing structure function results.
+        Expected to contain:
+        - 'displacements': Array of displacement magnitudes
+        - 'dv_values': Velocity structure function values
+        - 'dB_values': Magnetic field structure function values
+        - 'drho_values': Density structure function values
+        - 'meta': Metadata dictionary
+    
+    Returns
+    -------
+    None
+        Displays the plot and saves it as a PNG file.
+    
+    Notes
+    -----
+    The function bins the data logarithmically to compute mean structure
+    functions at different scales. It also overlays theoretical scaling
+    predictions for comparison.
+    """
     
     print(f"Loading structure function results from: {sf_file}")
     
@@ -104,6 +147,17 @@ def plot_structure_functions(sf_file):
     plt.show()
 
 def main():
+    """Command-line interface for structure function visualization.
+    
+    Accepts an optional command-line argument specifying the results file.
+    If no argument is provided, searches for simple_sf_*.npz files in the
+    slice_data directory and uses the first one found.
+    
+    Returns
+    -------
+    None
+        Exits after creating and displaying the plots.
+    """
     if len(sys.argv) > 1:
         sf_file = sys.argv[1]
     else:

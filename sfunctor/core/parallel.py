@@ -13,7 +13,7 @@ from typing import Dict, Sequence, Tuple
 
 import numpy as np
 
-from sf_histograms import (
+from sfunctor.core.histograms import (
     compute_histogram_for_disp_2D,
     N_CHANNELS,
     N_MAG_CHANNELS,
@@ -32,7 +32,23 @@ _GLOBAL_FIELDS: Dict[str, np.ndarray] = {}
 
 
 def _init_worker(shm_meta: Dict[str, Tuple[str, Tuple[int, ...], str]]) -> None:
-    """Pool initializer that attaches numpy views to shared-memory segments."""
+    """Pool initializer that attaches numpy views to shared-memory segments.
+    
+    This function is called once per worker process to set up access to
+    shared memory arrays. It creates numpy array views that map to the
+    same underlying memory, avoiding data duplication across processes.
+    
+    Parameters
+    ----------
+    shm_meta : dict
+        Metadata dictionary mapping field names to tuples of:
+        (shared_memory_name, array_shape, dtype_string)
+    
+    Notes
+    -----
+    Modifies the global _GLOBAL_FIELDS dictionary to store array references.
+    These arrays are read-only views of the shared memory segments.
+    """
     global _GLOBAL_FIELDS  # modify module-level dict
     for name, (shm_name, shape, dtype_str) in shm_meta.items():
         shm = shared_memory.SharedMemory(name=shm_name)
@@ -58,7 +74,54 @@ def _process_batch(
     n_theta_bins: int,
     n_phi_bins: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Compute histogram for a batch of displacement indices using globals."""
+    """Compute histogram for a batch of displacement indices using globals.
+    
+    Worker function that processes a subset of displacement vectors. Accesses
+    field data from shared memory to avoid duplication across processes.
+    
+    Parameters
+    ----------
+    batch_indices : sequence of int
+        Indices into the displacements array for this batch.
+    displacements : np.ndarray
+        Array of shape (N, 2) containing (dx, dy) displacement vectors.
+    axis : int
+        Slice orientation (1, 2, or 3 for x, y, or z).
+    N_random_subsamples : int
+        Number of random samples to use per displacement.
+    ell_bin_edges : np.ndarray
+        Bin edges for displacement magnitude.
+    theta_bin_edges : np.ndarray
+        Bin edges for theta angle (latitude).
+    phi_bin_edges : np.ndarray
+        Bin edges for phi angle (azimuth).
+    sf_bin_edges : np.ndarray
+        Bin edges for structure function values.
+    product_bin_edges : np.ndarray
+        Bin edges for cross-product terms.
+    stencil_width : int
+        Width of finite difference stencil (2, 3, or 5).
+    n_ell_bins : int
+        Number of displacement magnitude bins.
+    n_theta_bins : int
+        Number of theta bins.
+    n_phi_bins : int
+        Number of phi bins.
+    
+    Returns
+    -------
+    hist_mag : np.ndarray
+        Histogram for magnitude channels with shape
+        (N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins).
+    hist_other : np.ndarray
+        Histogram for cross-product channels with shape
+        (N_OTHER_CHANNELS, n_ell_bins, n_sf_bins).
+    
+    Notes
+    -----
+    This function is designed to be called by multiprocessing.Pool workers.
+    It relies on global field arrays initialized by _init_worker.
+    """
     vx = _GLOBAL_FIELDS["v_x"]
     vy = _GLOBAL_FIELDS["v_y"]
     vz = _GLOBAL_FIELDS["v_z"]
@@ -159,17 +222,63 @@ def compute_histograms_shared(
     n_processes: int | None = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute histograms using shared-memory Pool.
+    
+    Main entry point for parallel histogram computation. Uses multiprocessing
+    with shared memory to efficiently process large datasets without duplicating
+    field arrays across worker processes.
 
     Parameters
     ----------
-    fields
-        Dict with keys "v_x", "v_y", "v_z", "B_x", "B_y", "B_z", "rho", "j_x", "j_y", "j_z".
-    displacements
-        Array *(N,2)* of integer offsets.
-    axis
-        Slice orientation (1,2,3).
-    n_processes
-        Worker count; defaults to *cpu_count() - 2*.
+    fields : dict[str, np.ndarray]
+        Dictionary containing field arrays. Required keys:
+        - 'v_x', 'v_y', 'v_z': Velocity components
+        - 'B_x', 'B_y', 'B_z': Magnetic field components
+        - 'rho': Density
+        - 'vA_x', 'vA_y', 'vA_z': Alfvén velocity components
+        - 'zp_x', 'zp_y', 'zp_z': Elsasser variable z+
+        - 'zm_x', 'zm_y', 'zm_z': Elsasser variable z-
+        - 'omega_x', 'omega_y', 'omega_z': Vorticity components
+        - 'j_x', 'j_y', 'j_z': Current density components
+    displacements : np.ndarray
+        Array of shape (N, 2) containing integer displacement vectors (dx, dy).
+    axis : int
+        Slice orientation: 1 for yz-plane, 2 for xz-plane, 3 for xy-plane.
+    N_random_subsamples : int
+        Number of random position samples per displacement vector.
+    ell_bin_edges : np.ndarray
+        Bin edges for displacement magnitude |Δ|.
+    theta_bin_edges : np.ndarray
+        Bin edges for polar angle θ ∈ [0, π].
+    phi_bin_edges : np.ndarray
+        Bin edges for azimuthal angle φ ∈ [0, 2π].
+    sf_bin_edges : np.ndarray
+        Bin edges for structure function values.
+    product_bin_edges : np.ndarray
+        Bin edges for cross-product terms.
+    stencil_width : int, optional
+        Finite difference stencil width (2, 3, or 5). Default is 2.
+    n_processes : int, optional
+        Number of worker processes. Defaults to cpu_count() - 2.
+
+    Returns
+    -------
+    hist_mag : np.ndarray
+        5D histogram for magnitude channels with shape
+        (N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins).
+    hist_other : np.ndarray
+        3D histogram for cross-product channels with shape
+        (N_OTHER_CHANNELS, n_ell_bins, n_product_bins).
+
+    Raises
+    ------
+    ValueError
+        If required fields are missing from the fields dictionary.
+    
+    Notes
+    -----
+    This function uses shared memory to avoid duplicating large field arrays
+    across worker processes. The shared memory is automatically cleaned up
+    after computation completes.
     """
     required = {
         "v_x", "v_y", "v_z",

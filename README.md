@@ -15,6 +15,7 @@ Key features
   slices / nodes while avoiding in-node RAM duplication.
 * **Numba-accelerated kernels** (see `sf_histograms.py`) 
 * **Self-describing outputs** (`.npz`) with edges, centres and provenance meta.
+* **Configuration file support** – YAML configs with profiles for reproducible analysis.
 * Quick-look contour/heat-map plots for slice sanity checks.
 
 ---
@@ -51,7 +52,20 @@ environment is stable.
 
 Quick start
 ===========
-Single slice (local machine)
+
+Using configuration files (recommended)
+```bash
+# Create a configuration file
+python create_config.py
+
+# Run with configuration
+python run_sf.py --config sfunctor.yaml --file_name slice_data/slice_0000.npz
+
+# Use a specific profile for production runs
+python run_sf.py --config sfunctor.yaml --profile production --file_name slice_data/slice_0000.npz
+```
+
+Single slice with command-line arguments
 ```bash
 python run_sf.py \
   --file_name slice_data/slice_x1_-0.375_Turb_5120_beta25_dedt025_plm_0024.npz \

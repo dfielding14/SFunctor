@@ -1,0 +1,45 @@
+# Configuration for studying plasma beta dependence
+# Optimized for comparing structure functions across different beta values
+
+analysis:
+  # Use consistent parameters across all beta values
+  stride: 2
+  n_disp_total: 15000
+  N_random_subsamples: 5000
+  n_ell_bins: 128
+  stencil_width: 3  # Higher accuracy for derivatives
+  n_processes: 0
+
+# Finer angular resolution to capture anisotropy
+binning:
+  n_theta_bins: 24  # More theta bins
+  n_phi_bins: 24    # More phi bins
+  sf_min: 1.0e-5    # Extended range for low beta
+  sf_max: 100.0     # Extended range for high beta
+  sf_bins: 192      # More bins for better resolution
+
+output:
+  format: "npz"
+  compression: true
+  # Organize by beta value
+  output_dir: "./results/beta_study"
+  save_intermediate: true  # Keep intermediate results
+
+physics:
+  min_density: 1.0e-12  # Lower threshold for low-beta cases
+
+# Profiles for specific beta regimes
+profiles:
+  # Low beta (B >> v)
+  low_beta:
+    analysis:
+      n_disp_total: 20000  # More samples for better statistics
+    binning:
+      sf_min: 1.0e-6      # Capture smaller fluctuations
+  
+  # High beta (v >> B)  
+  high_beta:
+    physics:
+      min_density: 1.0e-8  # Can use higher threshold
+    binning:
+      sf_max: 1000.0      # Capture larger fluctuations

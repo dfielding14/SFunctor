@@ -1,0 +1,75 @@
+# SFunctor Configuration with Multiple Profiles
+# Use with: --config profiles.yaml --profile <profile_name>
+
+# Base configuration (used by all profiles unless overridden)
+analysis:
+  stride: 2
+  n_disp_total: 5000
+  N_random_subsamples: 2000
+  n_ell_bins: 64
+  stencil_width: 2
+  n_processes: 0
+
+binning:
+  n_theta_bins: 18
+  n_phi_bins: 18
+  sf_min: 1.0e-4
+  sf_max: 10.0
+  sf_bins: 128
+
+# Profile definitions
+profiles:
+  # Quick test run - minimal sampling for debugging
+  test:
+    analysis:
+      n_disp_total: 100
+      N_random_subsamples: 100
+      n_ell_bins: 16
+      stride: 8
+  
+  # Development - reasonable quality with fast turnaround
+  dev:
+    analysis:
+      n_disp_total: 1000
+      N_random_subsamples: 500
+      n_ell_bins: 32
+      stride: 4
+  
+  # Production - full quality for paper figures
+  production:
+    analysis:
+      stride: 1
+      n_disp_total: 20000
+      N_random_subsamples: 10000
+      n_ell_bins: 128
+      stencil_width: 3
+  
+  # High resolution - maximum quality
+  hires:
+    analysis:
+      stride: 1
+      n_disp_total: 50000
+      N_random_subsamples: 20000
+      n_ell_bins: 256
+      stencil_width: 5
+    binning:
+      sf_bins: 256
+      n_theta_bins: 36
+      n_phi_bins: 36
+  
+  # Memory constrained - for large datasets
+  lowmem:
+    analysis:
+      stride: 4
+      n_disp_total: 2000
+      N_random_subsamples: 1000
+      n_ell_bins: 64
+      n_processes: 2  # Limit parallelism
+  
+  # MPI cluster - optimized for multi-node runs
+  cluster:
+    analysis:
+      n_disp_total: 10000
+      N_random_subsamples: 5000
+      n_ell_bins: 128
+      n_processes: -1  # Use all cores on each node
