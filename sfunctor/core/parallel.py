@@ -51,8 +51,20 @@ def _init_worker(shm_meta: Dict[str, Tuple[str, Tuple[int, ...], str]]) -> None:
     """
     global _GLOBAL_FIELDS  # modify module-level dict
     for name, (shm_name, shape, dtype_str) in shm_meta.items():
-        shm = shared_memory.SharedMemory(name=shm_name)
-        _GLOBAL_FIELDS[name] = np.ndarray(shape, dtype=np.dtype(dtype_str), buffer=shm.buf)
+        try:
+            # Attach to existing shared memory
+            shm = shared_memory.SharedMemory(name=shm_name, create=False)
+            # Create array view - ensure it's read-only to prevent accidental modification
+            arr = np.ndarray(shape, dtype=np.dtype(dtype_str), buffer=shm.buf)
+            arr.flags.writeable = False  # Make array read-only
+            _GLOBAL_FIELDS[name] = arr
+            # Store shared memory object to prevent garbage collection
+            if not hasattr(_init_worker, '_shm_objects'):
+                _init_worker._shm_objects = {}
+            _init_worker._shm_objects[name] = shm
+        except Exception as e:
+            print(f"Error attaching to shared memory for {name}: {e}")
+            raise
 
 
 # -----------------------------------------------------------------------------
@@ -165,7 +177,7 @@ def _process_batch(
         (
             N_OTHER_CHANNELS,
             n_ell_bins,
-            sf_bin_edges.shape[0] - 1,
+            product_bin_edges.shape[0] - 1,
         ),
         dtype=np.int64,
     )
@@ -295,18 +307,71 @@ def compute_histograms_shared(
         raise ValueError(f"compute_histograms_shared missing fields: {missing}")
 
     n_processes = n_processes or max(1, cpu_count() - 2)
+    
+    # Special case: single process execution without shared memory
+    if n_processes == 1:
+        # Direct computation without multiprocessing overhead
+        hist_mag_total = np.zeros(
+            (
+                N_MAG_CHANNELS,
+                ell_bin_edges.shape[0] - 1,
+                theta_bin_edges.shape[0] - 1,
+                phi_bin_edges.shape[0] - 1,
+                sf_bin_edges.shape[0] - 1,
+            ),
+            dtype=np.int64,
+        )
+        hist_other_total = np.zeros(
+            (
+                N_OTHER_CHANNELS,
+                ell_bin_edges.shape[0] - 1,
+                product_bin_edges.shape[0] - 1,
+            ),
+            dtype=np.int64,
+        )
+        
+        # Process all displacements directly
+        for idx in range(displacements.shape[0]):
+            dx, dy = displacements[idx]
+            hm_part, ho_part = compute_histogram_for_disp_2D(
+                fields["v_x"], fields["v_y"], fields["v_z"],
+                fields["B_x"], fields["B_y"], fields["B_z"],
+                fields["rho"],
+                fields["vA_x"], fields["vA_y"], fields["vA_z"],
+                fields["zp_x"], fields["zp_y"], fields["zp_z"],
+                fields["zm_x"], fields["zm_y"], fields["zm_z"],
+                fields["omega_x"], fields["omega_y"], fields["omega_z"],
+                fields["j_x"], fields["j_y"], fields["j_z"],
+                int(dx), int(dy), axis,
+                N_random_subsamples,
+                ell_bin_edges, theta_bin_edges, phi_bin_edges,
+                sf_bin_edges, product_bin_edges,
+                stencil_width,
+            )
+            hist_mag_total += hm_part
+            hist_other_total += ho_part
+        
+        return hist_mag_total, hist_other_total
 
     # Create shared-memory segments ---------------------------------------
     shm_objects: Dict[str, shared_memory.SharedMemory] = {}
     shm_meta: Dict[str, Tuple[str, Tuple[int, ...], str]] = {}
     try:
+        import time
         for key in required:
             arr = np.ascontiguousarray(fields[key])
             shm = shared_memory.SharedMemory(create=True, size=arr.nbytes)
             shm_arr = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
-            shm_arr[:] = arr  # copy once
+            # Ensure complete copy with explicit memory order
+            np.copyto(shm_arr, arr, casting='no')
+            # Verify the copy was successful
+            if not np.array_equal(shm_arr, arr):
+                raise RuntimeError(f"Failed to copy {key} to shared memory")
             shm_objects[key] = shm
             shm_meta[key] = (shm.name, arr.shape, str(arr.dtype))
+        
+        # Small delay to ensure shared memory is synced
+        time.sleep(0.01)
 
         # Prepare batching --------------------------------------------------
         batch_size = max(1, displacements.shape[0] // n_processes)
@@ -358,7 +423,7 @@ def compute_histograms_shared(
             (
                 N_OTHER_CHANNELS,
                 n_ell_bins,
-                sf_bin_edges.shape[0] - 1,
+                product_bin_edges.shape[0] - 1,
             ),
             dtype=np.int64,
         )

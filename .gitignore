@@ -31,3 +31,17 @@ Thumbs.db
 *.tmp
 *.temp
 *~
+
+# Test and debugging artifacts
+test_*.py
+*_diagnostic.py
+*_REPORT*.md
+*_FIX*.md
+*_fixes_summary.md
+
+# Generated results
+demo_sf_results.npz
+results_sf.npz
+
+# Temporary slice lists
+slice_data/my_slices.txt

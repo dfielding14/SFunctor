@@ -190,7 +190,7 @@ def _compute_histogram_core(
     """Common histogram computation logic shared by all stencil widths."""
     
     Bmean_mag = (Bmx * Bmx + Bmy * Bmy + Bmz * Bmz) ** 0.5
-    if Bmean_mag == 0.0:
+    if Bmean_mag < 1e-10:  # Use small epsilon instead of exact zero
         return
     
     cos_theta = abs(dx * Bmx + dy * Bmy + dz * Bmz) / (r * Bmean_mag)
@@ -244,47 +244,51 @@ def _compute_histogram_core(
     theta_idx = find_bin_index_binary(theta_val, theta_bin_edges)
     phi_idx = find_bin_index_binary(phi_val, phi_bin_edges)
     
+    # Check if angular indices are valid
+    if theta_idx < 0 or phi_idx < 0:
+        return
+    
     # Update histograms for magnitude channels
     v_idx = find_bin_index_binary(dv, sf_bin_edges)
     if v_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_V], ell_idx, theta_idx, phi_idx, v_idx] += 1
+        hist_mag[0, ell_idx, theta_idx, phi_idx, v_idx] += 1  # Channel.D_V = 0
     
     b_idx = find_bin_index_binary(dB, sf_bin_edges)
     if b_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_B], ell_idx, theta_idx, phi_idx, b_idx] += 1
+        hist_mag[1, ell_idx, theta_idx, phi_idx, b_idx] += 1  # Channel.D_B = 1
     
     rho_idx = find_bin_index_binary(drho, sf_bin_edges)
     if rho_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_RHO], ell_idx, theta_idx, phi_idx, rho_idx] += 1
+        hist_mag[2, ell_idx, theta_idx, phi_idx, rho_idx] += 1  # Channel.D_RHO = 2
     
     va_idx = find_bin_index_binary(dVA, sf_bin_edges)
     if va_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_VA], ell_idx, theta_idx, phi_idx, va_idx] += 1
+        hist_mag[3, ell_idx, theta_idx, phi_idx, va_idx] += 1  # Channel.D_VA = 3
     
     zp_idx = find_bin_index_binary(dZp, sf_bin_edges)
     if zp_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_ZPLUS], ell_idx, theta_idx, phi_idx, zp_idx] += 1
+        hist_mag[4, ell_idx, theta_idx, phi_idx, zp_idx] += 1  # Channel.D_ZPLUS = 4
     
     zm_idx = find_bin_index_binary(dZm, sf_bin_edges)
     if zm_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_ZMINUS], ell_idx, theta_idx, phi_idx, zm_idx] += 1
+        hist_mag[5, ell_idx, theta_idx, phi_idx, zm_idx] += 1  # Channel.D_ZMINUS = 5
     
     om_idx = find_bin_index_binary(dOmega, sf_bin_edges)
     if om_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_OMEGA], ell_idx, theta_idx, phi_idx, om_idx] += 1
+        hist_mag[6, ell_idx, theta_idx, phi_idx, om_idx] += 1  # Channel.D_OMEGA = 6
     
     j_idx = find_bin_index_binary(dJ, sf_bin_edges)
     if j_idx >= 0:
-        hist_mag[MAG_IDX[Channel.D_J], ell_idx, theta_idx, phi_idx, j_idx] += 1
+        hist_mag[7, ell_idx, theta_idx, phi_idx, j_idx] += 1  # Channel.D_J = 7
     
     # Update histograms for cross product channels
     x_idx = find_bin_index_binary(vperp_cross_bperp, product_bin_edges)
     if x_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Vperp_CROSS_Bperp], ell_idx, x_idx] += 1
+        hist_other[0, ell_idx, x_idx] += 1  # Channel.D_Vperp_CROSS_Bperp = 8
     
     p_idx = find_bin_index_binary(vperp_bperp, product_bin_edges)
     if p_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Vperp_D_Bperp_MAG], ell_idx, p_idx] += 1
+        hist_other[4, ell_idx, p_idx] += 1  # Channel.D_Vperp_D_Bperp_MAG = 12
     
     # Compute perpendicular components for other fields
     dVA_vec = np.array([dvAz, dvAy, dvAx])
@@ -306,15 +310,15 @@ def _compute_histogram_core(
     
     c_idx = find_bin_index_binary(cross_v_va, product_bin_edges)
     if c_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Vperp_CROSS_VAperp], ell_idx, c_idx] += 1
+        hist_other[1, ell_idx, c_idx] += 1  # Channel.D_Vperp_CROSS_VAperp = 9
     
     c_idx = find_bin_index_binary(cross_v_omega, product_bin_edges)
     if c_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Vperp_CROSS_Omegaperp], ell_idx, c_idx] += 1
+        hist_other[2, ell_idx, c_idx] += 1  # Channel.D_Vperp_CROSS_Omegaperp = 10
     
     c_idx = find_bin_index_binary(cross_B_j, product_bin_edges)
     if c_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Bperp_CROSS_Jperp], ell_idx, c_idx] += 1
+        hist_other[3, ell_idx, c_idx] += 1  # Channel.D_Bperp_CROSS_Jperp = 11
     
     # Product magnitudes
     MAG_v_va = dv_perp_mag * dVA_perp_mag
@@ -323,15 +327,15 @@ def _compute_histogram_core(
     
     d_idx = find_bin_index_binary(MAG_v_va, product_bin_edges)
     if d_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Vperp_D_VAperp_MAG], ell_idx, d_idx] += 1
+        hist_other[5, ell_idx, d_idx] += 1  # Channel.D_Vperp_D_VAperp_MAG = 13
     
     d_idx = find_bin_index_binary(MAG_v_omega, product_bin_edges)
     if d_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Vperp_D_Omegaperp_MAG], ell_idx, d_idx] += 1
+        hist_other[6, ell_idx, d_idx] += 1  # Channel.D_Vperp_D_Omegaperp_MAG = 14
     
     d_idx = find_bin_index_binary(MAG_B_j, product_bin_edges)
     if d_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_Bperp_D_Jperp_MAG], ell_idx, d_idx] += 1
+        hist_other[7, ell_idx, d_idx] += 1  # Channel.D_Bperp_D_Jperp_MAG = 15
     
     # Full vector cross products
     cross_v_B_full = np.sqrt((np.cross(dv_vec, dB_vec)**2).sum())
@@ -341,19 +345,19 @@ def _compute_histogram_core(
     
     f_idx = find_bin_index_binary(cross_v_B_full, product_bin_edges)
     if f_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_V_CROSS_B], ell_idx, f_idx] += 1
+        hist_other[8, ell_idx, f_idx] += 1  # Channel.D_V_CROSS_B = 16
     
     f_idx = find_bin_index_binary(cross_v_VA_full, product_bin_edges)
     if f_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_V_CROSS_VA], ell_idx, f_idx] += 1
+        hist_other[9, ell_idx, f_idx] += 1  # Channel.D_V_CROSS_VA = 17
     
     f_idx = find_bin_index_binary(cross_v_Omega_full, product_bin_edges)
     if f_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_V_CROSS_OMEGA], ell_idx, f_idx] += 1
+        hist_other[10, ell_idx, f_idx] += 1  # Channel.D_V_CROSS_OMEGA = 18
     
     f_idx = find_bin_index_binary(cross_B_J_full, product_bin_edges)
     if f_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_B_CROSS_J], ell_idx, f_idx] += 1
+        hist_other[11, ell_idx, f_idx] += 1  # Channel.D_B_CROSS_J = 19
     
     # Full vector product magnitudes
     MAG_v_B_full = dv * dB
@@ -363,19 +367,19 @@ def _compute_histogram_core(
     
     g_idx = find_bin_index_binary(MAG_v_B_full, product_bin_edges)
     if g_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_V_D_B_MAG], ell_idx, g_idx] += 1
+        hist_other[12, ell_idx, g_idx] += 1  # Channel.D_V_D_B_MAG = 20
     
     g_idx = find_bin_index_binary(MAG_v_VA_full, product_bin_edges)
     if g_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_V_D_VA_MAG], ell_idx, g_idx] += 1
+        hist_other[13, ell_idx, g_idx] += 1  # Channel.D_V_D_VA_MAG = 21
     
     g_idx = find_bin_index_binary(MAG_v_Omega_full, product_bin_edges)
     if g_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_V_D_OMEGA_MAG], ell_idx, g_idx] += 1
+        hist_other[14, ell_idx, g_idx] += 1  # Channel.D_V_D_OMEGA_MAG = 22
     
     g_idx = find_bin_index_binary(MAG_B_J_full, product_bin_edges)
     if g_idx >= 0:
-        hist_other[OTHER_IDX[Channel.D_B_D_J_MAG], ell_idx, g_idx] += 1
+        hist_other[15, ell_idx, g_idx] += 1  # Channel.D_B_D_J_MAG = 23
 
 
 # -----------------------------------------------------------------------------
@@ -416,7 +420,8 @@ def compute_histogram_for_disp_2D_stencil2(
         dx, dy, dz = delta_i, delta_j, 0
     
     hist_mag = np.zeros((N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
-    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_sf_bins), dtype=np.int64)
+    n_product_bins = product_bin_edges.shape[0] - 1
+    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_product_bins), dtype=np.int64)
     
     r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
@@ -519,7 +524,8 @@ def compute_histogram_for_disp_2D_stencil3(
         dx, dy, dz = delta_i, delta_j, 0
     
     hist_mag = np.zeros((N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
-    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_sf_bins), dtype=np.int64)
+    n_product_bins = product_bin_edges.shape[0] - 1
+    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_product_bins), dtype=np.int64)
     
     r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
@@ -574,6 +580,7 @@ def compute_histogram_for_disp_2D_stencil3(
         Bmy = _mean_B_3pt(B_y[jp, ip], B_y[j, i], B_y[jm, im])
         Bmz = _mean_B_3pt(B_z[jp, ip], B_z[j, i], B_z[jm, im])
         
+        
         # Call common histogram computation
         _compute_histogram_core(
             dvx, dvy, dvz, dBx, dBy, dBz, drho,
@@ -624,7 +631,8 @@ def compute_histogram_for_disp_2D_stencil5(
         dx, dy, dz = delta_i, delta_j, 0
     
     hist_mag = np.zeros((N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
-    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_sf_bins), dtype=np.int64)
+    n_product_bins = product_bin_edges.shape[0] - 1
+    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_product_bins), dtype=np.int64)
     
     r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
@@ -682,6 +690,7 @@ def compute_histogram_for_disp_2D_stencil5(
         Bmx = _mean_B_5pt(B_x[jp2, ip2], B_x[jp, ip], B_x[j, i], B_x[jm, im], B_x[jm2, im2])
         Bmy = _mean_B_5pt(B_y[jp2, ip2], B_y[jp, ip], B_y[j, i], B_y[jm, im], B_y[jm2, im2])
         Bmz = _mean_B_5pt(B_z[jp2, ip2], B_z[jp, ip], B_z[j, i], B_z[jm, im], B_z[jm2, im2])
+        
         
         # Call common histogram computation
         _compute_histogram_core(

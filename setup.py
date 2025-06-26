@@ -34,7 +34,7 @@ setup(
     python_requires=">=3.8",
     install_requires=requirements,
     extras_require={
-        "dev": dev_requirements,
+        "dev": dev_requirements
     },
     entry_points={
         "console_scripts": [
