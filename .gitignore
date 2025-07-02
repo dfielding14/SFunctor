@@ -8,17 +8,22 @@ __pycache__/
 *.pyd
 .Python
 *.so
+*.egg-info/
+dist/
+build/
 
-# Virtual environment
+# Virtual environments
 sf_env/
 venv/
 env/
+.venv/
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+.claude/
 
 # OS files
 .DS_Store
@@ -45,3 +50,10 @@ results_sf.npz
 
 # Temporary slice lists
 slice_data/my_slices.txt
+
+# Temporary scripts
+check_slice_fields.py
+bin_convert_new.py
+
+# Personal notebooks
+*_mine.ipynb

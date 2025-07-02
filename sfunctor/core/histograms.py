@@ -37,30 +37,34 @@ class Channel(IntEnum):
     D_ZMINUS = 5   # |δz⁻|
     D_OMEGA = 6    # |δω|
     D_J = 7        # |δj|
+    D_CURV = 8     # |δ(b·∇b)|
+    D_GRAD_RHO = 9 # |δ(∇ρ)|
 
     # --- Angle numerators: perpendicular components -----------------------
-    D_Vperp_CROSS_Bperp = 8      # |δv_⊥ × δB_⊥|
-    D_Vperp_CROSS_VAperp = 9     # |δv_⊥ × δv_A⊥|
-    D_Vperp_CROSS_Omegaperp = 10 # |δv_⊥ × δω_⊥|
-    D_Bperp_CROSS_Jperp = 11     # |δB_⊥ × δj_⊥|
+    D_Vperp_CROSS_Bperp = 10      # |δv_⊥ × δB_⊥|
+    D_Vperp_CROSS_VAperp = 11     # |δv_⊥ × δv_A⊥|
+    D_Vperp_CROSS_Omegaperp = 12  # |δv_⊥ × δω_⊥|
+    D_Bperp_CROSS_Jperp = 13      # |δB_⊥ × δj_⊥|
 
     # --- MAG (product magnitudes) of perpendicular components -------------
-    D_Vperp_D_Bperp_MAG = 12       # |δv_⊥||δB_⊥|
-    D_Vperp_D_VAperp_MAG = 13      # |δv_⊥||δv_A⊥|
-    D_Vperp_D_Omegaperp_MAG = 14   # |δv_⊥||δω_⊥|
-    D_Bperp_D_Jperp_MAG = 15       # |δB_⊥||δj_⊥|
+    D_Vperp_D_Bperp_MAG = 14       # |δv_⊥||δB_⊥|
+    D_Vperp_D_VAperp_MAG = 15      # |δv_⊥||δv_A⊥|
+    D_Vperp_D_Omegaperp_MAG = 16   # |δv_⊥||δω_⊥|
+    D_Bperp_D_Jperp_MAG = 17       # |δB_⊥||δj_⊥|
 
     # --- Non-perpendicular (full-vector) numerators -----------------------
-    D_V_CROSS_B = 16
-    D_V_CROSS_VA = 17
-    D_V_CROSS_OMEGA = 18
-    D_B_CROSS_J = 19
+    D_V_CROSS_B = 18
+    D_V_CROSS_VA = 19
+    D_V_CROSS_OMEGA = 20
+    D_B_CROSS_J = 21
+    D_CURV_CROSS_GRAD_RHO = 22    # |δ(curv) × δ(∇ρ)|
 
     # --- MAG (product magnitudes) of full vectors ------------------------
-    D_V_D_B_MAG = 20      # |δv||δB|
-    D_V_D_VA_MAG = 21     # |δv||δv_A|
-    D_V_D_OMEGA_MAG = 22  # |δv||δω|
-    D_B_D_J_MAG = 23      # |δB||δj|
+    D_V_D_B_MAG = 23      # |δv||δB|
+    D_V_D_VA_MAG = 24     # |δv||δv_A|
+    D_V_D_OMEGA_MAG = 25  # |δv||δω|
+    D_B_D_J_MAG = 26      # |δB||δj|
+    D_CURV_D_GRAD_RHO_MAG = 27  # |δ(curv)||δ(∇ρ)|
 
 
 N_CHANNELS = len(Channel)
@@ -75,6 +79,8 @@ MAG_CHANNELS = (
     Channel.D_ZMINUS,
     Channel.D_OMEGA,
     Channel.D_J,
+    Channel.D_CURV,
+    Channel.D_GRAD_RHO,
 )
 N_MAG_CHANNELS = len(MAG_CHANNELS)
 
@@ -96,6 +102,8 @@ OTHER_CHANNELS = (
     Channel.D_V_D_VA_MAG,
     Channel.D_V_D_OMEGA_MAG,
     Channel.D_B_D_J_MAG,
+    Channel.D_CURV_CROSS_GRAD_RHO,
+    Channel.D_CURV_D_GRAD_RHO_MAG,
 )
 N_OTHER_CHANNELS = len(OTHER_CHANNELS)
 
@@ -181,6 +189,8 @@ def _compute_histogram_core(
     dvAx, dvAy, dvAz, dzpx, dzpy, dzpz,
     dzmx, dzmy, dzmz, domegax, domegay, domegaz,
     dJx, dJy, dJz,
+    dcurvx, dcurvy, dcurvz,
+    dgradrhox, dgradrhoy, dgradrhoz,
     Bmx, Bmy, Bmz,
     dx, dy, dz, r,
     ell_idx, theta_bin_edges, phi_bin_edges, 
@@ -239,6 +249,8 @@ def _compute_histogram_core(
     dZm = np.sqrt(dzmx*dzmx + dzmy*dzmy + dzmz*dzmz)
     dOmega = np.sqrt(domegax*domegax + domegay*domegay + domegaz*domegaz)
     dJ = np.sqrt(dJx*dJx + dJy*dJy + dJz*dJz)
+    dCurv = np.sqrt(dcurvx*dcurvx + dcurvy*dcurvy + dcurvz*dcurvz)
+    dGradRho = np.sqrt(dgradrhox*dgradrhox + dgradrhoy*dgradrhoy + dgradrhoz*dgradrhoz)
     
     # Bin indices
     theta_idx = find_bin_index_binary(theta_val, theta_bin_edges)
@@ -280,6 +292,14 @@ def _compute_histogram_core(
     j_idx = find_bin_index_binary(dJ, sf_bin_edges)
     if j_idx >= 0:
         hist_mag[7, ell_idx, theta_idx, phi_idx, j_idx] += 1  # Channel.D_J = 7
+    
+    curv_idx = find_bin_index_binary(dCurv, sf_bin_edges)
+    if curv_idx >= 0:
+        hist_mag[8, ell_idx, theta_idx, phi_idx, curv_idx] += 1  # Channel.D_CURV = 8
+    
+    gradrho_idx = find_bin_index_binary(dGradRho, sf_bin_edges)
+    if gradrho_idx >= 0:
+        hist_mag[9, ell_idx, theta_idx, phi_idx, gradrho_idx] += 1  # Channel.D_GRAD_RHO = 9
     
     # Update histograms for cross product channels
     x_idx = find_bin_index_binary(vperp_cross_bperp, product_bin_edges)
@@ -380,6 +400,20 @@ def _compute_histogram_core(
     g_idx = find_bin_index_binary(MAG_B_J_full, product_bin_edges)
     if g_idx >= 0:
         hist_other[15, ell_idx, g_idx] += 1  # Channel.D_B_D_J_MAG = 23
+    
+    # Curvature and gradient cross product and magnitude product
+    dCurv_vec = np.array([dcurvz, dcurvy, dcurvx])
+    dGradRho_vec = np.array([dgradrhoz, dgradrhoy, dgradrhox])
+    
+    cross_curv_gradrho = np.sqrt((np.cross(dCurv_vec, dGradRho_vec)**2).sum())
+    c_idx = find_bin_index_binary(cross_curv_gradrho, product_bin_edges)
+    if c_idx >= 0:
+        hist_other[16, ell_idx, c_idx] += 1  # Channel.D_CURV_CROSS_GRAD_RHO = 22
+    
+    MAG_curv_gradrho = dCurv * dGradRho
+    m_idx = find_bin_index_binary(MAG_curv_gradrho, product_bin_edges)
+    if m_idx >= 0:
+        hist_other[17, ell_idx, m_idx] += 1  # Channel.D_CURV_D_GRAD_RHO_MAG = 27
 
 
 # -----------------------------------------------------------------------------
@@ -396,6 +430,8 @@ def compute_histogram_for_disp_2D_stencil2(
     zm_x: np.ndarray, zm_y: np.ndarray, zm_z: np.ndarray,
     omega_x: np.ndarray, omega_y: np.ndarray, omega_z: np.ndarray,
     J_x: np.ndarray, J_y: np.ndarray, J_z: np.ndarray,
+    curv_x: np.ndarray, curv_y: np.ndarray, curv_z: np.ndarray,
+    grad_rho_x: np.ndarray, grad_rho_y: np.ndarray, grad_rho_z: np.ndarray,
     delta_i: int, delta_j: int, slice_axis: int,
     N_random_subsamples: int,
     ell_bin_edges: np.ndarray,
@@ -469,6 +505,14 @@ def compute_histogram_for_disp_2D_stencil2(
         dJy = _diff_2pt(J_y, jp, ip, j, i)
         dJz = _diff_2pt(J_z, jp, ip, j, i)
         
+        dcurvx = _diff_2pt(curv_x, jp, ip, j, i)
+        dcurvy = _diff_2pt(curv_y, jp, ip, j, i)
+        dcurvz = _diff_2pt(curv_z, jp, ip, j, i)
+        
+        dgradrhox = _diff_2pt(grad_rho_x, jp, ip, j, i)
+        dgradrhoy = _diff_2pt(grad_rho_y, jp, ip, j, i)
+        dgradrhoz = _diff_2pt(grad_rho_z, jp, ip, j, i)
+        
         # Mean B field
         Bmx = _mean_B_2pt(B_x[jp, ip], B_x[j, i])
         Bmy = _mean_B_2pt(B_y[jp, ip], B_y[j, i])
@@ -480,6 +524,8 @@ def compute_histogram_for_disp_2D_stencil2(
             dvAx, dvAy, dvAz, dzpx, dzpy, dzpz,
             dzmx, dzmy, dzmz, domegax, domegay, domegaz,
             dJx, dJy, dJz,
+            dcurvx, dcurvy, dcurvz,
+            dgradrhox, dgradrhoy, dgradrhoz,
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
@@ -500,6 +546,8 @@ def compute_histogram_for_disp_2D_stencil3(
     zm_x: np.ndarray, zm_y: np.ndarray, zm_z: np.ndarray,
     omega_x: np.ndarray, omega_y: np.ndarray, omega_z: np.ndarray,
     J_x: np.ndarray, J_y: np.ndarray, J_z: np.ndarray,
+    curv_x: np.ndarray, curv_y: np.ndarray, curv_z: np.ndarray,
+    grad_rho_x: np.ndarray, grad_rho_y: np.ndarray, grad_rho_z: np.ndarray,
     delta_i: int, delta_j: int, slice_axis: int,
     N_random_subsamples: int,
     ell_bin_edges: np.ndarray,
@@ -575,6 +623,14 @@ def compute_histogram_for_disp_2D_stencil3(
         dJy = _diff_3pt(J_y, jp, ip, j, i, jm, im)
         dJz = _diff_3pt(J_z, jp, ip, j, i, jm, im)
         
+        dcurvx = _diff_3pt(curv_x, jp, ip, j, i, jm, im)
+        dcurvy = _diff_3pt(curv_y, jp, ip, j, i, jm, im)
+        dcurvz = _diff_3pt(curv_z, jp, ip, j, i, jm, im)
+        
+        dgradrhox = _diff_3pt(grad_rho_x, jp, ip, j, i, jm, im)
+        dgradrhoy = _diff_3pt(grad_rho_y, jp, ip, j, i, jm, im)
+        dgradrhoz = _diff_3pt(grad_rho_z, jp, ip, j, i, jm, im)
+        
         # Mean B field
         Bmx = _mean_B_3pt(B_x[jp, ip], B_x[j, i], B_x[jm, im])
         Bmy = _mean_B_3pt(B_y[jp, ip], B_y[j, i], B_y[jm, im])
@@ -587,6 +643,8 @@ def compute_histogram_for_disp_2D_stencil3(
             dvAx, dvAy, dvAz, dzpx, dzpy, dzpz,
             dzmx, dzmy, dzmz, domegax, domegay, domegaz,
             dJx, dJy, dJz,
+            dcurvx, dcurvy, dcurvz,
+            dgradrhox, dgradrhoy, dgradrhoz,
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
@@ -607,6 +665,8 @@ def compute_histogram_for_disp_2D_stencil5(
     zm_x: np.ndarray, zm_y: np.ndarray, zm_z: np.ndarray,
     omega_x: np.ndarray, omega_y: np.ndarray, omega_z: np.ndarray,
     J_x: np.ndarray, J_y: np.ndarray, J_z: np.ndarray,
+    curv_x: np.ndarray, curv_y: np.ndarray, curv_z: np.ndarray,
+    grad_rho_x: np.ndarray, grad_rho_y: np.ndarray, grad_rho_z: np.ndarray,
     delta_i: int, delta_j: int, slice_axis: int,
     N_random_subsamples: int,
     ell_bin_edges: np.ndarray,
@@ -686,6 +746,14 @@ def compute_histogram_for_disp_2D_stencil5(
         dJy = _diff_5pt(J_y, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
         dJz = _diff_5pt(J_z, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
         
+        dcurvx = _diff_5pt(curv_x, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
+        dcurvy = _diff_5pt(curv_y, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
+        dcurvz = _diff_5pt(curv_z, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
+        
+        dgradrhox = _diff_5pt(grad_rho_x, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
+        dgradrhoy = _diff_5pt(grad_rho_y, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
+        dgradrhoz = _diff_5pt(grad_rho_z, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2)
+        
         # Mean B field
         Bmx = _mean_B_5pt(B_x[jp2, ip2], B_x[jp, ip], B_x[j, i], B_x[jm, im], B_x[jm2, im2])
         Bmy = _mean_B_5pt(B_y[jp2, ip2], B_y[jp, ip], B_y[j, i], B_y[jm, im], B_y[jm2, im2])
@@ -698,6 +766,8 @@ def compute_histogram_for_disp_2D_stencil5(
             dvAx, dvAy, dvAz, dzpx, dzpy, dzpz,
             dzmx, dzmy, dzmz, domegax, domegay, domegaz,
             dJx, dJy, dJz,
+            dcurvx, dcurvy, dcurvz,
+            dgradrhox, dgradrhoy, dgradrhoz,
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
@@ -717,6 +787,8 @@ def compute_histogram_for_disp_2D(
     zm_x: np.ndarray, zm_y: np.ndarray, zm_z: np.ndarray,
     omega_x: np.ndarray, omega_y: np.ndarray, omega_z: np.ndarray,
     J_x: np.ndarray, J_y: np.ndarray, J_z: np.ndarray,
+    curv_x: np.ndarray, curv_y: np.ndarray, curv_z: np.ndarray,
+    grad_rho_x: np.ndarray, grad_rho_y: np.ndarray, grad_rho_z: np.ndarray,
     delta_i: int, delta_j: int, slice_axis: int,
     N_random_subsamples: int,
     ell_bin_edges: np.ndarray,
@@ -733,7 +805,9 @@ def compute_histogram_for_disp_2D(
             v_x, v_y, v_z, B_x, B_y, B_z, rho,
             vA_x, vA_y, vA_z, zp_x, zp_y, zp_z,
             zm_x, zm_y, zm_z, omega_x, omega_y, omega_z,
-            J_x, J_y, J_z, delta_i, delta_j, slice_axis,
+            J_x, J_y, J_z, curv_x, curv_y, curv_z,
+            grad_rho_x, grad_rho_y, grad_rho_z,
+            delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
             phi_bin_edges, sf_bin_edges, product_bin_edges
         )
@@ -742,7 +816,9 @@ def compute_histogram_for_disp_2D(
             v_x, v_y, v_z, B_x, B_y, B_z, rho,
             vA_x, vA_y, vA_z, zp_x, zp_y, zp_z,
             zm_x, zm_y, zm_z, omega_x, omega_y, omega_z,
-            J_x, J_y, J_z, delta_i, delta_j, slice_axis,
+            J_x, J_y, J_z, curv_x, curv_y, curv_z,
+            grad_rho_x, grad_rho_y, grad_rho_z,
+            delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
             phi_bin_edges, sf_bin_edges, product_bin_edges
         )
@@ -751,7 +827,9 @@ def compute_histogram_for_disp_2D(
             v_x, v_y, v_z, B_x, B_y, B_z, rho,
             vA_x, vA_y, vA_z, zp_x, zp_y, zp_z,
             zm_x, zm_y, zm_z, omega_x, omega_y, omega_z,
-            J_x, J_y, J_z, delta_i, delta_j, slice_axis,
+            J_x, J_y, J_z, curv_x, curv_y, curv_z,
+            grad_rho_x, grad_rho_y, grad_rho_z,
+            delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
             phi_bin_edges, sf_bin_edges, product_bin_edges
         )

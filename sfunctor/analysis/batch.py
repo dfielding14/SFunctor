@@ -185,6 +185,12 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         "j_x": slice_data.get("j_x", np.full_like(rho, np.nan)),
         "j_y": slice_data.get("j_y", np.full_like(rho, np.nan)),
         "j_z": slice_data.get("j_z", np.full_like(rho, np.nan)),
+        "curv_x": slice_data.get("curv_x", np.full_like(rho, np.nan)),
+        "curv_y": slice_data.get("curv_y", np.full_like(rho, np.nan)),
+        "curv_z": slice_data.get("curv_z", np.full_like(rho, np.nan)),
+        "grad_rho_x": slice_data.get("grad_rho_x", np.full_like(rho, np.nan)),
+        "grad_rho_y": slice_data.get("grad_rho_y", np.full_like(rho, np.nan)),
+        "grad_rho_z": slice_data.get("grad_rho_z", np.full_like(rho, np.nan)),
     }
 
     hist_mag, hist_other = compute_histograms_shared(

@@ -112,6 +112,14 @@ _EXPECTED_KEYS = {
     "currx": "j_x",
     "curry": "j_y",
     "currz": "j_z",
+    # magnetic curvature
+    "curvx": "curv_x",
+    "curvy": "curv_y",
+    "curvz": "curv_z",
+    # density gradient
+    "grad_rho_x": "grad_rho_x",
+    "grad_rho_y": "grad_rho_y",
+    "grad_rho_z": "grad_rho_z",
 }
 
 

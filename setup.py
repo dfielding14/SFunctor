@@ -8,12 +8,21 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
 # Read requirements
-requirements = (this_directory / "requirements.txt").read_text().splitlines()
-dev_requirements = (this_directory / "requirements-dev.txt").read_text().splitlines()
+def parse_requirements(filename):
+    """Parse requirements file, ignoring comments and empty lines."""
+    requirements = []
+    for line in (this_directory / filename).read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            requirements.append(line)
+    return requirements
+
+requirements = parse_requirements("requirements.txt")
+dev_requirements = parse_requirements("requirements-dev.txt")
 
 setup(
     name="sfunctor",
-    version="0.1.0",
+    version="1.0.0",
     author="SFunctor Development Team",
     description="Structure Function Analysis for MHD Turbulence",
     long_description=long_description,
@@ -21,7 +30,7 @@ setup(
     url="https://github.com/yourusername/sfunctor",
     packages=find_packages(),
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
         "License :: OSI Approved :: MIT License",

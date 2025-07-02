@@ -1,4 +1,3 @@
-import h5py
 import matplotlib
 matplotlib.rc('font', family='serif')
 matplotlib.rc('mathtext', fontset='cm')
@@ -225,7 +224,7 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     #   axis==2  →  slice data shape (k=z, i=x)
     #   axis==3  →  slice data shape (j=y, i=x)
     # ----------------------------------------------------------------------------------
-    needed_vec_vars = ['velx', 'vely', 'velz', 'bcc1', 'bcc2', 'bcc3']
+    needed_vec_vars = ['velx', 'vely', 'velz', 'bcc1', 'bcc2', 'bcc3', 'dens']
 
     # Convenience: ensure we always have the primitive vector variables in the output
     for v in needed_vec_vars:
@@ -407,13 +406,119 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     J_y = db_x_dz - db_z_dx
     J_z = db_y_dx - db_x_dy
 
-    # Store results
+
+    # ------------------------------------------------------------------
+    # Magnetic curvature vector: (b·∇)b where b = B/|B|
+    # ------------------------------------------------------------------
+    # Get density from the slice data
+    rho = slice_data['dens']
+      
+    # Compute |B| with small epsilon to avoid division by zero
+    B_mag = np.sqrt(bxc**2 + byc**2 + bzc**2 + 1e-10)
+
+    # Unit magnetic field vector
+    bx_unit = bxc / B_mag
+    by_unit = byc / B_mag
+    bz_unit = bzc / B_mag
+
+    # Need derivatives of unit vector components
+    # For neighboring slices, compute unit vectors
+    B_mag_plus = np.sqrt(bxp**2 + byp**2 + bzp**2 + 1e-10)
+    B_mag_minus = np.sqrt(bxm**2 + bym**2 + bzm**2 + 1e-10)
+
+    bx_unit_plus = bxp / B_mag_plus
+    by_unit_plus = byp / B_mag_plus
+    bz_unit_plus = bzp / B_mag_plus
+
+    bx_unit_minus = bxm / B_mag_minus
+    by_unit_minus = bym / B_mag_minus
+    bz_unit_minus = bzm / B_mag_minus
+
+    # Compute derivatives of unit vector components based on slice orientation
+    if axis == 1:
+        # x-normal slice → in-plane (y,z)
+        dbx_dx = (bx_unit_plus - bx_unit_minus) / (2 * dx)
+        dbx_dy = (np.roll(bx_unit, -1, axis=1) - np.roll(bx_unit, 1, axis=1)) / (2 * dy)
+        dbx_dz = (np.roll(bx_unit, -1, axis=0) - np.roll(bx_unit, 1, axis=0)) / (2 * dz)
+        
+        dby_dx = (by_unit_plus - by_unit_minus) / (2 * dx)
+        dby_dy = (np.roll(by_unit, -1, axis=1) - np.roll(by_unit, 1, axis=1)) / (2 * dy)
+        dby_dz = (np.roll(by_unit, -1, axis=0) - np.roll(by_unit, 1, axis=0)) / (2 * dz)
+        
+        dbz_dx = (bz_unit_plus - bz_unit_minus) / (2 * dx)
+        dbz_dy = (np.roll(bz_unit, -1, axis=1) - np.roll(bz_unit, 1, axis=1)) / (2 * dy)
+        dbz_dz = (np.roll(bz_unit, -1, axis=0) - np.roll(bz_unit, 1, axis=0)) / (2 * dz)
+        
+    elif axis == 2:
+        # y-normal slice → in-plane (x,z)
+        dbx_dx = (np.roll(bx_unit, -1, axis=1) - np.roll(bx_unit, 1, axis=1)) / (2 * dx)
+        dbx_dy = (bx_unit_plus - bx_unit_minus) / (2 * dy)
+        dbx_dz = (np.roll(bx_unit, -1, axis=0) - np.roll(bx_unit, 1, axis=0)) / (2 * dz)
+        
+        dby_dx = (np.roll(by_unit, -1, axis=1) - np.roll(by_unit, 1, axis=1)) / (2 * dx)
+        dby_dy = (by_unit_plus - by_unit_minus) / (2 * dy)
+        dby_dz = (np.roll(by_unit, -1, axis=0) - np.roll(by_unit, 1, axis=0)) / (2 * dz)
+        
+        dbz_dx = (np.roll(bz_unit, -1, axis=1) - np.roll(bz_unit, 1, axis=1)) / (2 * dx)
+        dbz_dy = (bz_unit_plus - bz_unit_minus) / (2 * dy)
+        dbz_dz = (np.roll(bz_unit, -1, axis=0) - np.roll(bz_unit, 1, axis=0)) / (2 * dz)
+        
+    else:  # axis == 3
+        # z-normal slice → in-plane (x,y)
+        dbx_dx = (np.roll(bx_unit, -1, axis=1) - np.roll(bx_unit, 1, axis=1)) / (2 * dx)
+        dbx_dy = (np.roll(bx_unit, -1, axis=0) - np.roll(bx_unit, 1, axis=0)) / (2 * dy)
+        dbx_dz = (bx_unit_plus - bx_unit_minus) / (2 * dz)
+        
+        dby_dx = (np.roll(by_unit, -1, axis=1) - np.roll(by_unit, 1, axis=1)) / (2 * dx)
+        dby_dy = (np.roll(by_unit, -1, axis=0) - np.roll(by_unit, 1, axis=0)) / (2 * dy)
+        dby_dz = (by_unit_plus - by_unit_minus) / (2 * dz)
+        
+        dbz_dx = (np.roll(bz_unit, -1, axis=1) - np.roll(bz_unit, 1, axis=1)) / (2 * dx)
+        dbz_dy = (np.roll(bz_unit, -1, axis=0) - np.roll(bz_unit, 1, axis=0)) / (2 * dy)
+        dbz_dz = (bz_unit_plus - bz_unit_minus) / (2 * dz)
+
+    # Compute (b·∇)b components
+    curv_x = bx_unit * dbx_dx + by_unit * dbx_dy + bz_unit * dbx_dz
+    curv_y = bx_unit * dby_dx + by_unit * dby_dy + bz_unit * dby_dz
+    curv_z = bx_unit * dbz_dx + by_unit * dbz_dy + bz_unit * dbz_dz
+
+    # ------------------------------------------------------------------
+    # Density gradient: ∇ρ
+    # ------------------------------------------------------------------
+    # Need density from neighboring slices
+    rho_plus = plus_slice.get('dens', np.full_like(rho, np.nan))
+    rho_minus = minus_slice.get('dens', np.full_like(rho, np.nan))
+
+    if axis == 1:
+        # x-normal slice → in-plane (y,z)
+        grad_rho_x = (rho_plus - rho_minus) / (2 * dx)
+        grad_rho_y = (np.roll(rho, -1, axis=1) - np.roll(rho, 1, axis=1)) / (2 * dy)
+        grad_rho_z = (np.roll(rho, -1, axis=0) - np.roll(rho, 1, axis=0)) / (2 * dz)
+        
+    elif axis == 2:
+        # y-normal slice → in-plane (x,z)
+        grad_rho_x = (np.roll(rho, -1, axis=1) - np.roll(rho, 1, axis=1)) / (2 * dx)
+        grad_rho_y = (rho_plus - rho_minus) / (2 * dy)
+        grad_rho_z = (np.roll(rho, -1, axis=0) - np.roll(rho, 1, axis=0)) / (2 * dz)
+        
+    else:  # axis == 3
+        # z-normal slice → in-plane (x,y)
+        grad_rho_x = (np.roll(rho, -1, axis=1) - np.roll(rho, 1, axis=1)) / (2 * dx)
+        grad_rho_y = (np.roll(rho, -1, axis=0) - np.roll(rho, 1, axis=0)) / (2 * dy)
+        grad_rho_z = (rho_plus - rho_minus) / (2 * dz)
+
     slice_data['vortx'] = omega_x
     slice_data['vorty'] = omega_y
     slice_data['vortz'] = omega_z
     slice_data['currx'] = J_x
     slice_data['curry'] = J_y
     slice_data['currz'] = J_z
+    slice_data['curvx'] = curv_x
+    slice_data['curvy'] = curv_y
+    slice_data['curvz'] = curv_z
+    slice_data['grad_rho_x'] = grad_rho_x
+    slice_data['grad_rho_y'] = grad_rho_y
+    slice_data['grad_rho_z'] = grad_rho_z
 
     # ------------------------------------------------------------------
     # Cache handling ----------------------------------------------------

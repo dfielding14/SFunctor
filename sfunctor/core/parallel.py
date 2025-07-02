@@ -161,6 +161,14 @@ def _process_batch(
     jx = _GLOBAL_FIELDS["j_x"]
     jy = _GLOBAL_FIELDS["j_y"]
     jz = _GLOBAL_FIELDS["j_z"]
+    
+    curvx = _GLOBAL_FIELDS["curv_x"]
+    curvy = _GLOBAL_FIELDS["curv_y"]
+    curvz = _GLOBAL_FIELDS["curv_z"]
+    
+    gradrhox = _GLOBAL_FIELDS["grad_rho_x"]
+    gradrhoy = _GLOBAL_FIELDS["grad_rho_y"]
+    gradrhoz = _GLOBAL_FIELDS["grad_rho_z"]
 
     hist_mag = np.zeros(
         (
@@ -197,6 +205,8 @@ def _process_batch(
             zmx, zmy, zmz,
             omegax, omegay, omegaz,
             jx, jy, jz,
+            curvx, curvy, curvz,
+            gradrhox, gradrhoy, gradrhoz,
             int(dx),
             int(dy),
             axis,
@@ -251,6 +261,8 @@ def compute_histograms_shared(
         - 'zm_x', 'zm_y', 'zm_z': Elsasser variable z-
         - 'omega_x', 'omega_y', 'omega_z': Vorticity components
         - 'j_x', 'j_y', 'j_z': Current density components
+        - 'curv_x', 'curv_y', 'curv_z': Magnetic curvature components
+        - 'grad_rho_x', 'grad_rho_y', 'grad_rho_z': Density gradient components
     displacements : np.ndarray
         Array of shape (N, 2) containing integer displacement vectors (dx, dy).
     axis : int
@@ -301,6 +313,8 @@ def compute_histograms_shared(
         "zm_x", "zm_y", "zm_z",
         "omega_x", "omega_y", "omega_z",
         "j_x", "j_y", "j_z",
+        "curv_x", "curv_y", "curv_z",
+        "grad_rho_x", "grad_rho_y", "grad_rho_z",
     }
     missing = required - fields.keys()
     if missing:
@@ -342,6 +356,8 @@ def compute_histograms_shared(
                 fields["zm_x"], fields["zm_y"], fields["zm_z"],
                 fields["omega_x"], fields["omega_y"], fields["omega_z"],
                 fields["j_x"], fields["j_y"], fields["j_z"],
+                fields["curv_x"], fields["curv_y"], fields["curv_z"],
+                fields["grad_rho_x"], fields["grad_rho_y"], fields["grad_rho_z"],
                 int(dx), int(dy), axis,
                 N_random_subsamples,
                 ell_bin_edges, theta_bin_edges, phi_bin_edges,
@@ -358,7 +374,9 @@ def compute_histograms_shared(
     shm_meta: Dict[str, Tuple[str, Tuple[int, ...], str]] = {}
     try:
         import time
-        for key in required:
+        # Update required to include new fields for shared memory
+        required_for_shm = required.copy()  # Use the updated required set
+        for key in required_for_shm:
             arr = np.ascontiguousarray(fields[key])
             shm = shared_memory.SharedMemory(create=True, size=arr.nbytes)
             shm_arr = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
