@@ -9,12 +9,18 @@ long_description = (this_directory / "README.md").read_text()
 
 # Read requirements
 def parse_requirements(filename):
-    """Parse requirements file, ignoring comments and empty lines."""
+    """Parse requirements file, ignoring comments, -r directives, and empty lines."""
     requirements = []
     for line in (this_directory / filename).read_text().splitlines():
         line = line.strip()
-        if line and not line.startswith("#"):
-            requirements.append(line)
+        # skip blanks, comments, recursive includes, editable installs, and VCS URLs
+        if (
+            not line
+            or line.startswith("#")
+            or line.startswith(("-r", "-e", "git+", "hg+", "svn+", "bzr+"))
+        ):
+            continue
+        requirements.append(line)
     return requirements
 
 requirements = parse_requirements("requirements.txt")
