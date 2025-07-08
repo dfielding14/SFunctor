@@ -7,7 +7,7 @@ metadata extraction, and data loading with proper error handling.
 
 import re
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 import logging
 
 import numpy as np
@@ -21,19 +21,21 @@ __all__ = [
 ]
 
 
-#: Regex pre-compiled once for performance.  Matches e.g. "slice_x1_-0.375_Turb_5120_beta25_dedt025_plm_0022.npz"
+#: Regex pre-compiled once for performance.  
+#: Matches both old format: "slice_x1_-0.375_Turb_5120_beta25_dedt025_plm_0022.npz"
+#: and new format: "Turb_1280_beta1_dedt025_plm_axis1_slice0p125_file0040.npz"
 _FILENAME_RE = re.compile(
-    r"slice_x(?P<axis>[123])_.*?_beta(?P<beta>[0-9]+(?:\.[0-9]+)?)",
+    r"(?:.*beta(?P<beta>[0-9]+(?:\.[0-9]+)?).*axis(?P<axis2>[123])|slice_x(?P<axis1>[123]).*beta(?P<beta2>[0-9]+(?:\.[0-9]+)?))",
     re.IGNORECASE,
 )
 
 
-def parse_slice_metadata(file_path: str | Path) -> Tuple[int, float]:
+def parse_slice_metadata(file_path: Union[str, Path]) -> Tuple[int, float]:
     """Extract *axis* and *beta* from a slice filename.
 
     Parameters
     ----------
-    file_path : str | Path
+    file_path : Union[str, Path]
         Full path or filename of the slice ``*.npz`` produced by
         ``extract_2d_slice``. Must be a valid path string or Path object.
 
@@ -71,15 +73,19 @@ def parse_slice_metadata(file_path: str | Path) -> Tuple[int, float]:
     if not m:
         raise ValueError(
             f"Cannot parse axis/beta from filename '{fname}'."
-            " Expected pattern like 'slice_x1_<...>_beta25_<...>.npz'"
+            " Expected pattern like 'slice_x1_<...>_beta25_<...>.npz' or 'Turb_<...>_beta1_<...>_axis1_<...>.npz'"
         )
     
     try:
-        axis = int(m.group("axis"))
+        # Try both axis groups since regex has two capture groups
+        axis_str = m.group("axis1") or m.group("axis2")
+        axis = int(axis_str)
         if axis not in (1, 2, 3):
             raise ValueError(f"Invalid axis {axis}, must be 1, 2, or 3")
         
-        beta = float(m.group("beta"))
+        # Try both beta groups
+        beta_str = m.group("beta") or m.group("beta2")
+        beta = float(beta_str)
         if beta < 0:
             raise ValueError(f"Invalid beta {beta}, must be non-negative")
         
@@ -123,7 +129,7 @@ _EXPECTED_KEYS = {
 }
 
 
-def load_slice_npz(file_path: str | Path, *, stride: int = 1) -> Dict[str, np.ndarray]:
+def load_slice_npz(file_path: Union[str, Path], *, stride: int = 1) -> Dict[str, np.ndarray]:
     """Load a slice ``*.npz`` file and apply *stride* uniformly to all 2-D arrays.
 
     The function guarantees that every expected physical quantity is present in
@@ -132,7 +138,7 @@ def load_slice_npz(file_path: str | Path, *, stride: int = 1) -> Dict[str, np.nd
 
     Parameters
     ----------
-    file_path : str | Path
+    file_path : Union[str, Path]
         Path to the ``*.npz`` file produced by ``extract_2d_slice``.
         Must be a valid file path that exists.
     stride : int, optional

@@ -4,7 +4,6 @@
 # Testing
 pytest>=7.4.0,<8.0.0
 pytest-cov>=4.1.0,<5.0.0
-pytest-mpi>=0.6,<0.7  # For testing MPI code
 pytest-xdist>=3.3.0,<4.0.0  # Parallel test execution
 
 # Code quality

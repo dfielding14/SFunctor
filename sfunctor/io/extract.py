@@ -21,7 +21,7 @@ import sys
 import matplotlib.patheffects as patheffects
 import time
 
-import bin_convert_new as bc
+from sfunctor.io import bin_convert_new as bc
 
 def Morton_array_to_int(arr):
     """
