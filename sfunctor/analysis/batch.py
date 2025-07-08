@@ -42,11 +42,19 @@ except ModuleNotFoundError:
 
         def Barrier(self):  # noqa: N802
             pass
+        
+        def allgather(self, obj):  # noqa: ANN001
+            return [obj]
 
     class _FakeMPI:  # pylint: disable=too-few-public-methods
         """Minimal MPI module replacement for single-node execution."""
         COMM_WORLD = _SerialComm()
         SUM = None  # placeholder so "op=MPI.SUM" is still valid
+        
+        @staticmethod
+        def Get_processor_name() -> str:  # noqa: N802
+            import socket
+            return socket.gethostname()
 
     MPI = _FakeMPI()  # type: ignore
 
@@ -66,6 +74,32 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 
+def is_multi_node_run() -> bool:
+    """Detect if MPI ranks span multiple nodes.
+    
+    Returns
+    -------
+    bool
+        True if MPI ranks are distributed across multiple nodes, False otherwise.
+    """
+    if size == 1:
+        return False
+    
+    processor_name = MPI.Get_processor_name()
+    all_names = comm.allgather(processor_name)
+    unique_nodes = len(set(all_names))
+    
+    if rank == 0 and unique_nodes > 1:
+        print(f"[sfunctor.batch] Detected {unique_nodes} unique nodes in MPI run")
+        node_counts = {}
+        for name in all_names:
+            node_counts[name] = node_counts.get(name, 0) + 1
+        for node, count in sorted(node_counts.items()):
+            print(f"  - {node}: {count} rank(s)")
+    
+    return unique_nodes > 1
+
+
 def main() -> None:
     """Main entry point for batch structure function analysis.
     
@@ -81,6 +115,9 @@ def main() -> None:
     processing.
     """
     cfg = parse_cli()
+    
+    # Detect multi-node execution early
+    is_multi_node = is_multi_node_run() if size > 1 else False
 
     # Build list of slice paths and decide which ones this rank will run
     if cfg.slice_list:
@@ -111,10 +148,10 @@ def main() -> None:
 
     # Loop over the slice(s) assigned to this rank
     for slice_path in slice_paths_my_rank:
-        _process_single_slice(slice_path, cfg)
+        _process_single_slice(slice_path, cfg, is_multi_node)
 
 
-def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
+def _process_single_slice(slice_path: Path, cfg, is_multi_node: bool = False) -> None:  # noqa: ANN001
     """Process a single 2-D slice and save results.
     
     This function performs the core analysis for one slice:
@@ -131,11 +168,15 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         Path to the .npz file containing the 2D slice data.
     cfg : RunConfig
         Configuration object with analysis parameters.
+    is_multi_node : bool, optional
+        Whether MPI ranks span multiple nodes. Default is False.
     
     Notes
     -----
     This function is called once per slice assigned to the current MPI rank.
     Results are automatically aggregated across ranks using MPI reductions.
+    When running across multiple nodes, multiprocessing is disabled to avoid
+    shared memory issues.
     """
     # Load slice
     axis, beta = parse_slice_metadata(slice_path)
@@ -171,6 +212,15 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
     sf_bin_edges = np.logspace(-4, 1, 128)
     product_bin_edges = np.logspace(-5, 5, 128)
 
+    # Determine n_processes based on multi-node status
+    effective_n_processes = cfg.n_processes
+    if is_multi_node and cfg.n_processes != 1:
+        if rank == 0:
+            print(f"[sfunctor.batch] WARNING: Multi-node MPI detected. Disabling multiprocessing (n_processes=1)")
+            print(f"[sfunctor.batch] Original n_processes was {cfg.n_processes}")
+            print(f"[sfunctor.batch] For better performance, consider using more MPI ranks")
+        effective_n_processes = 1
+    
     # Compute histograms
     fields = {
         "v_x": v_x, "v_y": v_y, "v_z": v_z,
@@ -204,7 +254,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         sf_bin_edges=sf_bin_edges,
         product_bin_edges=product_bin_edges,
         stencil_width=cfg.stencil_width,
-        n_processes=cfg.n_processes,
+        n_processes=effective_n_processes,
     )
 
     # MPI reduction
@@ -235,7 +285,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
             product_bin_edges=product_bin_edges,
             displacements=displacements,
             metadata={
-                "n_slices": len(slice_paths_my_rank) if size == 1 else size,
+                "n_slices": 1,  # Single slice processed in this function
                 "stride": cfg.stride,
                 "stencil_width": cfg.stencil_width,
                 "N_random_subsamples": cfg.N_random_subsamples,

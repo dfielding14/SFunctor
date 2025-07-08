@@ -8,7 +8,7 @@ analysis:
   N_random_subsamples: 2000
   n_ell_bins: 64
   stencil_width: 2
-  n_processes: 0
+  n_processes: 0  # 0 = auto-detect. NOTE: Automatically set to 1 for multi-node MPI runs
 
 binning:
   n_theta_bins: 18
@@ -26,6 +26,13 @@ profiles:
       N_random_subsamples: 100
       n_ell_bins: 16
       stride: 8
+  
+  bigger_test:
+    analysis:
+      n_disp_total: 2000
+      N_random_subsamples: 1000
+      n_ell_bins: 32
+      stride: 1
   
   # Development - reasonable quality with fast turnaround
   dev:
@@ -72,4 +79,4 @@ profiles:
       n_disp_total: 10000
       N_random_subsamples: 5000
       n_ell_bins: 128
-      n_processes: -1  # Use all cores on each node
+      n_processes: 1  # Set to 1 for multi-node compatibility (multiprocessing disabled across nodes)
