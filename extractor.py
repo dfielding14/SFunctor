@@ -25,16 +25,21 @@ def main():
     print(f"Extracting: file {args.file_number}, axis {args.axis}, position {args.position}")
     
     try:
+        # Set cache directory to new structure
+        cache_dir = f"sfunctor_results/slice_{args.sim_name}"
+        
         # Extract the slice
         slice_data = extract_2d_slice(
             sim_name=args.sim_name,
             axis=args.axis,
             slice_value=args.position,
             file_number=args.file_number,
-            save=True  # Will save to slice_data/ directory
+            save=True,
+            cache_dir=cache_dir
         )
         
         print(f"Successfully extracted slice with shape {slice_data['dens'].shape}")
+        print(f"Saved to: {cache_dir}")
         
     except Exception as e:
         print(f"Error extracting slice: {e}")

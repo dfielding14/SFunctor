@@ -17,6 +17,7 @@ sf_env/
 venv/
 env/
 .venv/
+venv_sfunctor/
 
 # IDE files
 .vscode/
@@ -57,3 +58,6 @@ bin_convert_new.py
 
 # Personal notebooks
 *_mine.ipynb
+
+# SLURM output files
+*.out

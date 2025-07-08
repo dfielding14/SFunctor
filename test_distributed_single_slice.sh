@@ -6,8 +6,10 @@ echo "====================================="
 
 # Set paths
 SFUNCTOR_DIR="/autofs/nccs-svm1_home2/dfielding/SFunctor"
-TEST_SLICE="/lustre/orion/ast207/proj-shared/dfielding/Production_plm/sfunctor_results/slices_Turb_640_beta25_dedt025_plm/Turb_640_beta25_dedt025_plm_axis1_slice0p375_file0024.npz"
-WORK_DIR="./test_distributed_$(date +%Y%m%d_%H%M%S)"
+SIM_NAME="Turb_640_beta25_dedt025_plm"
+BASE_DIR="/lustre/orion/ast207/proj-shared/dfielding/Production_plm"
+TEST_SLICE="${BASE_DIR}/sfunctor_results/slice_${SIM_NAME}/Turb_640_beta25_dedt025_plm_axis1_slice0_file0024.npz"
+WORK_DIR="${BASE_DIR}/sfunctor_results/results_${SIM_NAME}/test_distributed_$(date +%Y%m%d_%H%M%S)"
 
 # Configuration
 N_NODES=4
