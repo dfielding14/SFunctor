@@ -26,21 +26,22 @@ module load gcc/9.3.0 python/.3.11-anaconda3
 source /ccs/home/dfielding/SFunctor/venv_sfunctor/bin/activate
 
 # Configuration
-SIM_NAME="Turb_5120_beta25_dedt025_plm"
+SIM_NAME="Turb_10240_beta25_dedt025_plm"
 BASE_DIR="/lustre/orion/ast207/proj-shared/dfielding/Production_plm"
+
+# Configuration
+N_DISP_TOTAL=10000
+N_ELL_BINS=128
+N_RANDOM_SUBSAMPLES=1000
+STRIDE=1
+STENCIL_WIDTH=2
+NRES=10240
 
 # Set paths
 SFUNCTOR_DIR="/ccs/home/dfielding/SFunctor"
 RUN_NAME="ndisp${N_DISP_TOTAL}_nrand${N_RANDOM_SUBSAMPLES}_nell${N_ELL_BINS}_sw${STENCIL_WIDTH}_job${SLURM_JOB_ID}"
 WORK_DIR="${BASE_DIR}/sfunctor_results/results_${SIM_NAME}/${RUN_NAME}"
 SLICE_LIST="${BASE_DIR}/sfunctor_results/slice_list_${SIM_NAME}.txt"
-
-# Configuration
-N_DISP_TOTAL=10000
-N_ELL_BINS=128
-N_RANDOM_SUBSAMPLES=5000
-STRIDE=1
-STENCIL_WIDTH=3
 
 # Create working directory
 mkdir -p $WORK_DIR
@@ -52,6 +53,8 @@ echo "- Working directory: $WORK_DIR"
 echo "- Slice list: $SLICE_LIST"
 echo "- Total displacements: $N_DISP_TOTAL"
 echo "- Random subsamples: $N_RANDOM_SUBSAMPLES"
+echo "- Grid resolution: $NRES"
+echo "- Stencil width: $STENCIL_WIDTH"
 echo "- Nodes: $SLURM_JOB_NUM_NODES"
 echo ""
 
@@ -62,6 +65,8 @@ echo "======================================"
 python ${SFUNCTOR_DIR}/generate_displacements.py \
     --n_disp_total $N_DISP_TOTAL \
     --n_ell_bins $N_ELL_BINS \
+    --Nres $NRES \
+    --stencil_width $STENCIL_WIDTH \
     --output displacements.npz \
     --seed 42
 
@@ -109,6 +114,12 @@ for i in "${!SLICES[@]}"; do
             --N_random_subsamples $N_RANDOM_SUBSAMPLES \
             --stencil_width $STENCIL_WIDTH \
             --n_processes 32 \
+            --log_sf_bin_edges_min -5 \
+            --log_sf_bin_edges_max 5 \
+            --N_sf_bin_edges 101 \
+            --log_product_bin_edges_min -5 \
+            --log_product_bin_edges_max 5 \
+            --N_product_bin_edges 101 \
             > ${SLICE_OUTPUT_DIR}/node_${node_id}.log 2>&1 &
     done
     

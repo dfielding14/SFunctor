@@ -88,6 +88,22 @@ def main():
     parser.add_argument("--n_processes", type=int, default=0,
                         help="Number of processes (0=auto)")
     
+    # Bin edge parameters for sf_bin_edges
+    parser.add_argument("--log_sf_bin_edges_min", type=float, default=-4,
+                        help="Log10 of minimum sf bin edge (default: -4)")
+    parser.add_argument("--log_sf_bin_edges_max", type=float, default=1,
+                        help="Log10 of maximum sf bin edge (default: 1)")
+    parser.add_argument("--N_sf_bin_edges", type=int, default=128,
+                        help="Number of sf bins (default: 128)")
+    
+    # Bin edge parameters for product_bin_edges
+    parser.add_argument("--log_product_bin_edges_min", type=float, default=-5,
+                        help="Log10 of minimum product bin edge (default: -5)")
+    parser.add_argument("--log_product_bin_edges_max", type=float, default=5,
+                        help="Log10 of maximum product bin edge (default: 5)")
+    parser.add_argument("--N_product_bin_edges", type=int, default=128,
+                        help="Number of product bins (default: 128)")
+    
     args = parser.parse_args()
     
     # Determine number of processes
@@ -156,8 +172,8 @@ def main():
     theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
     n_phi_bins = 18
     phi_bin_edges = np.linspace(0, np.pi, n_phi_bins + 1)
-    sf_bin_edges = np.logspace(-4, 1, 128)
-    product_bin_edges = np.logspace(-5, 5, 128)
+    sf_bin_edges = np.logspace(args.log_sf_bin_edges_min, args.log_sf_bin_edges_max, args.N_sf_bin_edges)
+    product_bin_edges = np.logspace(args.log_product_bin_edges_min, args.log_product_bin_edges_max, args.N_product_bin_edges)
     
     # Split displacements for multiprocessing
     if n_processes > 1:
