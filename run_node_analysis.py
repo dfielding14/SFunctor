@@ -29,7 +29,7 @@ def process_displacement_batch(args):
     """Process a batch of displacements (for multiprocessing pool)."""
     (fields, displacements, axis, N_random_subsamples, 
      ell_bin_edges, theta_bin_edges, phi_bin_edges, 
-     sf_bin_edges, product_bin_edges, stencil_width) = args
+     sf_bin_edges, sf_derivative_bin_edges, product_bin_edges, stencil_width) = args
     
     # Initialize histograms
     hist_mag = np.zeros(
@@ -58,7 +58,7 @@ def process_displacement_batch(args):
             int(dx), int(dy), axis,
             N_random_subsamples,
             ell_bin_edges, theta_bin_edges, phi_bin_edges,
-            sf_bin_edges, product_bin_edges,
+            sf_bin_edges, sf_derivative_bin_edges, product_bin_edges,
             stencil_width
         )
         hist_mag += hm
@@ -95,6 +95,12 @@ def main():
                         help="Log10 of maximum sf bin edge (default: 1)")
     parser.add_argument("--N_sf_bin_edges", type=int, default=128,
                         help="Number of sf bins (default: 128)")
+    
+    # Bin edge parameters for sf_derivative_bin_edges
+    parser.add_argument("--log_sf_derivative_bin_edges_min", type=float, default=-5,
+                        help="Log10 of minimum sf derivative bin edge (default: -5)")
+    parser.add_argument("--log_sf_derivative_bin_edges_max", type=float, default=5,
+                        help="Log10 of maximum sf derivative bin edge (default: 5)")
     
     # Bin edge parameters for product_bin_edges
     parser.add_argument("--log_product_bin_edges_min", type=float, default=-5,
@@ -173,6 +179,7 @@ def main():
     n_phi_bins = 18
     phi_bin_edges = np.linspace(0, np.pi, n_phi_bins + 1)
     sf_bin_edges = np.logspace(args.log_sf_bin_edges_min, args.log_sf_bin_edges_max, args.N_sf_bin_edges)
+    sf_derivative_bin_edges = np.logspace(args.log_sf_derivative_bin_edges_min, args.log_sf_derivative_bin_edges_max, args.N_sf_bin_edges)
     product_bin_edges = np.logspace(args.log_product_bin_edges_min, args.log_product_bin_edges_max, args.N_product_bin_edges)
     
     # Split displacements for multiprocessing
@@ -185,7 +192,7 @@ def main():
             batches.append((
                 fields, batch, axis, args.N_random_subsamples,
                 ell_bin_edges, theta_bin_edges, phi_bin_edges,
-                sf_bin_edges, product_bin_edges, args.stencil_width
+                sf_bin_edges, sf_derivative_bin_edges, product_bin_edges, args.stencil_width
             ))
         
         # Process in parallel
@@ -202,7 +209,7 @@ def main():
         hist_mag, hist_other = process_displacement_batch((
             fields, node_displacements, axis, args.N_random_subsamples,
             ell_bin_edges, theta_bin_edges, phi_bin_edges,
-            sf_bin_edges, product_bin_edges, args.stencil_width
+            sf_bin_edges, sf_derivative_bin_edges, product_bin_edges, args.stencil_width
         ))
     
     # Save results
@@ -222,6 +229,7 @@ def main():
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
         sf_bin_edges=sf_bin_edges,
+        sf_derivative_bin_edges=sf_derivative_bin_edges,
         product_bin_edges=product_bin_edges,
         node_info={
             'node_id': args.node_id,

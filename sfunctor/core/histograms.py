@@ -194,7 +194,7 @@ def _compute_histogram_core(
     Bmx, Bmy, Bmz,
     dx, dy, dz, r,
     ell_idx, theta_bin_edges, phi_bin_edges, 
-    sf_bin_edges, product_bin_edges,
+    sf_bin_edges, sf_derivative_bin_edges, product_bin_edges,
     hist_mag, hist_other
 ):
     """Common histogram computation logic shared by all stencil widths."""
@@ -285,19 +285,19 @@ def _compute_histogram_core(
     if zm_idx >= 0:
         hist_mag[5, ell_idx, theta_idx, phi_idx, zm_idx] += 1  # Channel.D_ZMINUS = 5
     
-    om_idx = find_bin_index_binary(dOmega, sf_bin_edges)
+    om_idx = find_bin_index_binary(dOmega, sf_derivative_bin_edges)
     if om_idx >= 0:
         hist_mag[6, ell_idx, theta_idx, phi_idx, om_idx] += 1  # Channel.D_OMEGA = 6
     
-    j_idx = find_bin_index_binary(dJ, sf_bin_edges)
+    j_idx = find_bin_index_binary(dJ, sf_derivative_bin_edges)
     if j_idx >= 0:
         hist_mag[7, ell_idx, theta_idx, phi_idx, j_idx] += 1  # Channel.D_J = 7
     
-    curv_idx = find_bin_index_binary(dCurv, sf_bin_edges)
+    curv_idx = find_bin_index_binary(dCurv, sf_derivative_bin_edges)
     if curv_idx >= 0:
         hist_mag[8, ell_idx, theta_idx, phi_idx, curv_idx] += 1  # Channel.D_CURV = 8
     
-    gradrho_idx = find_bin_index_binary(dGradRho, sf_bin_edges)
+    gradrho_idx = find_bin_index_binary(dGradRho, sf_derivative_bin_edges)
     if gradrho_idx >= 0:
         hist_mag[9, ell_idx, theta_idx, phi_idx, gradrho_idx] += 1  # Channel.D_GRAD_RHO = 9
     
@@ -438,6 +438,7 @@ def compute_histogram_for_disp_2D_stencil2(
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
     sf_bin_edges: np.ndarray,
+    sf_derivative_bin_edges: np.ndarray,
     product_bin_edges: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """2-point stencil version of histogram computation."""
@@ -529,7 +530,7 @@ def compute_histogram_for_disp_2D_stencil2(
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
-            sf_bin_edges, product_bin_edges,
+            sf_bin_edges, sf_derivative_bin_edges, product_bin_edges,
             hist_mag, hist_other
         )
     
@@ -554,6 +555,7 @@ def compute_histogram_for_disp_2D_stencil3(
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
     sf_bin_edges: np.ndarray,
+    sf_derivative_bin_edges: np.ndarray,
     product_bin_edges: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """3-point stencil version of histogram computation."""
@@ -648,7 +650,7 @@ def compute_histogram_for_disp_2D_stencil3(
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
-            sf_bin_edges, product_bin_edges,
+            sf_bin_edges, sf_derivative_bin_edges, product_bin_edges,
             hist_mag, hist_other
         )
     
@@ -673,6 +675,7 @@ def compute_histogram_for_disp_2D_stencil5(
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
     sf_bin_edges: np.ndarray,
+    sf_derivative_bin_edges: np.ndarray,
     product_bin_edges: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """5-point stencil version of histogram computation."""
@@ -771,7 +774,7 @@ def compute_histogram_for_disp_2D_stencil5(
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
-            sf_bin_edges, product_bin_edges,
+            sf_bin_edges, sf_derivative_bin_edges, product_bin_edges,
             hist_mag, hist_other
         )
     
@@ -795,6 +798,7 @@ def compute_histogram_for_disp_2D(
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
     sf_bin_edges: np.ndarray,
+    sf_derivative_bin_edges: np.ndarray,
     product_bin_edges: np.ndarray,
     stencil_width: int = 2,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -809,7 +813,7 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, sf_bin_edges, product_bin_edges
+            phi_bin_edges, sf_bin_edges, sf_derivative_bin_edges, product_bin_edges
         )
     elif stencil_width == 3:
         return compute_histogram_for_disp_2D_stencil3(
@@ -820,7 +824,7 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, sf_bin_edges, product_bin_edges
+            phi_bin_edges, sf_bin_edges, sf_derivative_bin_edges, product_bin_edges
         )
     elif stencil_width == 5:
         return compute_histogram_for_disp_2D_stencil5(
@@ -831,7 +835,7 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, sf_bin_edges, product_bin_edges
+            phi_bin_edges, sf_bin_edges, sf_derivative_bin_edges, product_bin_edges
         )
     else:
         raise ValueError(f"Unsupported stencil_width: {stencil_width}")

@@ -61,3 +61,4 @@ bin_convert_new.py
 
 # SLURM output files
 *.out
+logs/

@@ -55,6 +55,7 @@ def combine_node_histograms(histogram_files, args):
     theta_bin_edges = first_data['theta_bin_edges']
     phi_bin_edges = first_data['phi_bin_edges']
     sf_bin_edges = first_data['sf_bin_edges']
+    sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)  # Fallback for backward compatibility
     product_bin_edges = first_data['product_bin_edges']
     
     # Keep track of node info
@@ -113,6 +114,7 @@ def combine_node_histograms(histogram_files, args):
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
         sf_bin_edges=sf_bin_edges,
+        sf_derivative_bin_edges=sf_derivative_bin_edges,
         product_bin_edges=product_bin_edges,
         metadata=metadata,
         node_infos=node_infos
@@ -138,6 +140,7 @@ def merge_slice_results(slice_files, args):
     theta_bin_edges = first_data['theta_bin_edges']
     phi_bin_edges = first_data['phi_bin_edges']
     sf_bin_edges = first_data['sf_bin_edges']
+    sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)  # Fallback for backward compatibility
     product_bin_edges = first_data['product_bin_edges']
     
     # Keep track of slice info
@@ -207,6 +210,7 @@ def merge_slice_results(slice_files, args):
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
         sf_bin_edges=sf_bin_edges,
+        sf_derivative_bin_edges=sf_derivative_bin_edges,
         product_bin_edges=product_bin_edges,
         metadata=combined_metadata,
         slice_metadata=all_metadata  # Keep individual slice metadata

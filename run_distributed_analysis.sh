@@ -2,10 +2,11 @@
 #SBATCH -A AST207
 #SBATCH -J SF_DISTRIBUTED
 #SBATCH -o sf_distributed_%j.out
-#SBATCH -t 12:00:00
+#SBATCH -t 36:00:00
 #SBATCH -p batch
-#SBATCH -N 16
+#SBATCH -N 64
 #SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
 
 # Distributed structure function analysis using multiprocessing
 # Each node processes a subset of displacements independently
@@ -30,9 +31,9 @@ SIM_NAME="Turb_10240_beta25_dedt025_plm"
 BASE_DIR="/lustre/orion/ast207/proj-shared/dfielding/Production_plm"
 
 # Configuration
-N_DISP_TOTAL=10000
+N_DISP_TOTAL=100000
 N_ELL_BINS=128
-N_RANDOM_SUBSAMPLES=1000
+N_RANDOM_SUBSAMPLES=10000
 STRIDE=1
 STENCIL_WIDTH=2
 NRES=10240
@@ -103,7 +104,9 @@ for i in "${!SLICES[@]}"; do
     
     # Use srun to launch one task per node
     for node_id in $(seq 0 $((SLURM_JOB_NUM_NODES - 1))); do
-        srun --exclusive -N1 -n1 --cpu-bind=none \
+        srun --exclusive -N1 -n1 \
+            --cpus-per-task=32 \
+            --cpu-bind=cores \
             python ${SFUNCTOR_DIR}/run_node_analysis.py \
             --slice "$SLICE_PATH" \
             --displacements displacements.npz \
@@ -115,11 +118,13 @@ for i in "${!SLICES[@]}"; do
             --stencil_width $STENCIL_WIDTH \
             --n_processes 32 \
             --log_sf_bin_edges_min -5 \
-            --log_sf_bin_edges_max 5 \
-            --N_sf_bin_edges 101 \
-            --log_product_bin_edges_min -5 \
+            --log_sf_bin_edges_max 1 \
+            --N_sf_bin_edges 201 \
+            --log_sf_derivative_bin_edges_min -2 \
+            --log_sf_derivative_bin_edges_max 4 \
+            --log_product_bin_edges_min -8 \
             --log_product_bin_edges_max 5 \
-            --N_product_bin_edges 101 \
+            --N_product_bin_edges 201 \
             > ${SLICE_OUTPUT_DIR}/node_${node_id}.log 2>&1 &
     done
     

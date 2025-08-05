@@ -9,40 +9,7 @@ of displacements for consistent results.
 import argparse
 import numpy as np
 from pathlib import Path
-
-
-def find_ell_bin_edges(ell_min, ell_max, n_bins):
-    """Create logarithmically spaced bin edges for displacement magnitudes."""
-    return np.logspace(np.log10(ell_min), np.log10(ell_max), n_bins + 1)
-
-
-def build_displacement_list(ell_bin_edges, n_disp_total):
-    """Generate random displacement vectors distributed across magnitude bins."""
-    n_bins = len(ell_bin_edges) - 1
-    n_disp_per_bin = max(1, n_disp_total // n_bins)
-    
-    displacements = []
-    
-    for i in range(n_bins):
-        ell_min = ell_bin_edges[i]
-        ell_max = ell_bin_edges[i + 1]
-        
-        # Generate random displacements in this bin
-        for _ in range(n_disp_per_bin):
-            # Random magnitude in bin
-            ell = np.random.uniform(ell_min, ell_max)
-            # Random angle
-            theta = np.random.uniform(0, 2 * np.pi)
-            
-            # Convert to Cartesian
-            dx = int(np.round(ell * np.cos(theta)))
-            dy = int(np.round(ell * np.sin(theta)))
-            
-            # Skip zero displacements
-            if dx != 0 or dy != 0:
-                displacements.append([dx, dy])
-    
-    return np.array(displacements, dtype=np.int32)
+from sfunctor.utils.displacements import find_ell_bin_edges, build_displacement_list
 
 
 def main():
@@ -53,8 +20,10 @@ def main():
                         help="Number of displacement magnitude bins")
     parser.add_argument("--ell_min", type=float, default=1.0,
                         help="Minimum displacement magnitude")
-    parser.add_argument("--ell_max", type=float, default=512.0,
-                        help="Maximum displacement magnitude")
+    parser.add_argument("--Nres", type=int, default=1024,
+                        help="Grid resolution")
+    parser.add_argument("--stencil_width", type=int, default=2, choices=[2, 3, 5],
+                        help="Stencil width for derivatives (2, 3, or 5)")
     parser.add_argument("--output", type=str, default="displacements.npz",
                         help="Output filename")
     parser.add_argument("--seed", type=int, default=None,
@@ -62,15 +31,21 @@ def main():
     
     args = parser.parse_args()
     
-    # Set random seed if provided
-    if args.seed is not None:
-        np.random.seed(args.seed)
+    # Calculate ell_max based on stencil width
+    if args.stencil_width == 2:
+        ell_max = args.Nres / 2
+    elif args.stencil_width == 3:
+        ell_max = args.Nres / 4
+    elif args.stencil_width == 5:
+        ell_max = args.Nres / 8
+    else:
+        raise ValueError(f"Invalid stencil_width: {args.stencil_width}. Must be 2, 3, or 5.")
     
     # Generate bin edges
-    ell_bin_edges = find_ell_bin_edges(args.ell_min, args.ell_max, args.n_ell_bins)
+    ell_bin_edges = find_ell_bin_edges(args.ell_min, ell_max, args.n_ell_bins)
     
     # Generate displacements
-    displacements = build_displacement_list(ell_bin_edges, args.n_disp_total)
+    displacements = build_displacement_list(ell_bin_edges, args.n_disp_total, seed=args.seed)
     
     # Save to file
     np.savez_compressed(
@@ -81,7 +56,9 @@ def main():
             'n_disp_total': args.n_disp_total,
             'n_ell_bins': args.n_ell_bins,
             'ell_min': args.ell_min,
-            'ell_max': args.ell_max,
+            'ell_max': ell_max,
+            'Nres': args.Nres,
+            'stencil_width': args.stencil_width,
             'seed': args.seed
         }
     )

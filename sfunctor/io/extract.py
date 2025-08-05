@@ -109,6 +109,12 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     nx1_meshblock = input_file['meshblock']['nx1']
     nx2_meshblock = input_file['meshblock']['nx2']
     nx3_meshblock = input_file['meshblock']['nx3']
+    x1_min = input_file['mesh']['x1min']
+    x2_min = input_file['mesh']['x2min']
+    x3_min = input_file['mesh']['x3min']
+    x1_max = input_file['mesh']['x1max']
+    x2_max = input_file['mesh']['x2max']
+    x3_max = input_file['mesh']['x3max']
     Nres = input_file['mesh']['nx1']
     N_meshblocks = int(Nres**3 / (nx3_meshblock*nx2_meshblock*nx1_meshblock))
     Nranks = int(len(glob.glob(f'data/data_{sim_name}/bin/rank_*/')))
@@ -117,9 +123,9 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     varnames = ['dens', 'velx', 'vely', 'velz', 'bcc1', 'bcc2', 'bcc3']
 
     # Prepare the global grid for the slice
-    x1f = np.linspace(-0.5, 0.5, Nres+1)
-    x2f = np.linspace(-0.5, 0.5, Nres+1)
-    x3f = np.linspace(-0.5, 0.5, Nres+1)
+    x1f = np.linspace(x1_min, x1_max, Nres+1)
+    x2f = np.linspace(x2_min, x2_max, Nres+1)
+    x3f = np.linspace(x3_min, x3_max, Nres+1)
     if axis == 1:
         slice_axis = x1f
         other_axes = (x2f, x3f)
@@ -178,9 +184,13 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
             continue
         # Select file based on file_number parameter
         if file_number is not None:
-            if file_number < 0 or file_number >= len(files):
+            if file_number == -1:
+                # Special case: -1 means use the final file
+                selected_file = files[-1]
+            elif file_number < 0 or file_number >= len(files):
                 raise ValueError(f"file_number {file_number} is out of range. Available files: {len(files)}")
-            selected_file = files[file_number]
+            else:
+                selected_file = files[file_number]
         else:
             selected_file = files[-1]
         # Read meshblock data
@@ -267,7 +277,13 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
             files = np.sort(glob.glob(f'data/data_{sim_name}/bin/rank_{i_rank:08d}/Turb.full_mhd_w_bcc.*.bin'))
             if len(files) == 0:
                 continue
-            selected_file = files[file_number] if file_number is not None else files[-1]
+            if file_number is not None:
+                if file_number == -1:
+                    selected_file = files[-1]
+                else:
+                    selected_file = files[file_number]
+            else:
+                selected_file = files[-1]
             mb_data = bc.read_single_rank_binary_as_athdf(selected_file, meshblock_index_in_file=local_mb_idx)
 
             if axis == 1:
@@ -550,7 +566,21 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
             else:
                 file_part = "latest"
         else:
-            file_part = f"{file_number:04d}"
+            if file_number == -1:
+                # For -1, determine the actual last file index
+                rank0_pattern = f"data/data_{sim_name}/bin/rank_00000000/Turb.full_mhd_w_bcc.*.bin"
+                rank0_files = sorted(glob.glob(rank0_pattern))
+                if rank0_files:
+                    last_fname = os.path.splitext(rank0_files[-1])[0]
+                    idx_str = last_fname.split(".")[-1]
+                    if idx_str.isdigit():
+                        file_part = f"{int(idx_str):04d}"
+                    else:
+                        file_part = "final"
+                else:
+                    file_part = "final"
+            else:
+                file_part = f"{file_number:04d}"
 
         cache_fname = os.path.join(
             cache_dir,

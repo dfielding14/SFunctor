@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--sim_name", required=True, help="Simulation name")
     parser.add_argument("--axis", type=int, required=True, help="Axis (1, 2, or 3)")
     parser.add_argument("--position", type=float, required=True, help="Slice position")
-    parser.add_argument("--file_number", type=int, required=True, help="File number")
+    parser.add_argument("--file_number", type=int, required=True, help="File number (use -1 for the final file)")
     
     args = parser.parse_args()
     

@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J SF_EXTRACT
-#SBATCH -o sf_extract_%j.out
+#SBATCH -o sf_extract.%j.out
 #SBATCH -t 6:00:00
 #SBATCH -p batch
-#SBATCH -N 4
-#SBATCH --ntasks-per-node=3
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=12
 
 # SLURM script to extract slices with work distribution
 # Each task extracts one slice
@@ -19,10 +19,13 @@ echo "Date: $(date)"
 echo "========================================"
 
 # Configuration
-SIM_NAME="Turb_10240_beta25_dedt025_plm"
+SIM_NAME="Turb_5120_beta1_dedt025_plm"
 AXES=(1 2 3)
-POSITIONS=(-0.375 -0.125 0.125 0.375)
-FILE_NUMBERS=(11)  # Using file 24 as in your example path
+# Different positions for different axes
+POSITIONS_AXIS1=(-0.375 -0.125 0.125 0.375)
+POSITIONS_AXIS2=(-0.375 -0.125 0.125 0.375)
+POSITIONS_AXIS3=(-1.125 -0.375 0.375 1.125)
+FILE_NUMBERS=(-1)  # List of file numbers to extract (use -1 for the final file)
 
 # Base directory where data and inputs are located
 BASE_DIR="/lustre/orion/ast207/proj-shared/dfielding/Production_plm"
@@ -59,6 +62,15 @@ echo ""
 ARGS_LIST=()
 for file_num in "${FILE_NUMBERS[@]}"; do
     for axis in "${AXES[@]}"; do
+        # Select the appropriate positions array based on the axis
+        if [ $axis -eq 1 ]; then
+            POSITIONS=("${POSITIONS_AXIS1[@]}")
+        elif [ $axis -eq 2 ]; then
+            POSITIONS=("${POSITIONS_AXIS2[@]}")
+        elif [ $axis -eq 3 ]; then
+            POSITIONS=("${POSITIONS_AXIS3[@]}")
+        fi
+        
         for pos in "${POSITIONS[@]}"; do
             ARGS_LIST+=("--sim_name $SIM_NAME --axis $axis --position $pos --file_number $file_num")
         done
