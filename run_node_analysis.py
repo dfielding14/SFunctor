@@ -29,12 +29,12 @@ def process_displacement_batch(args):
     """Process a batch of displacements (for multiprocessing pool)."""
     (fields, displacements, axis, N_random_subsamples, 
      ell_bin_edges, theta_bin_edges, phi_bin_edges, 
-     sf_bin_edges, sf_derivative_bin_edges, product_bin_edges, stencil_width) = args
+     sf_channel_bin_edges, product_bin_edges, stencil_width) = args
     
     # Initialize histograms
     hist_mag = np.zeros(
         (N_MAG_CHANNELS, len(ell_bin_edges)-1, len(theta_bin_edges)-1, 
-         len(phi_bin_edges)-1, len(sf_bin_edges)-1),
+         len(phi_bin_edges)-1, len(sf_channel_bin_edges[0])-1),
         dtype=np.int64
     )
     hist_other = np.zeros(
@@ -58,7 +58,7 @@ def process_displacement_batch(args):
             int(dx), int(dy), axis,
             N_random_subsamples,
             ell_bin_edges, theta_bin_edges, phi_bin_edges,
-            sf_bin_edges, sf_derivative_bin_edges, product_bin_edges,
+            sf_channel_bin_edges, product_bin_edges,
             stencil_width
         )
         hist_mag += hm
@@ -88,19 +88,15 @@ def main():
     parser.add_argument("--n_processes", type=int, default=0,
                         help="Number of processes (0=auto)")
     
-    # Bin edge parameters for sf_bin_edges
-    parser.add_argument("--log_sf_bin_edges_min", type=float, default=-4,
-                        help="Log10 of minimum sf bin edge (default: -4)")
-    parser.add_argument("--log_sf_bin_edges_max", type=float, default=1,
-                        help="Log10 of maximum sf bin edge (default: 1)")
+    # Bin edge parameters for sf_bin_edges - now channel-specific
+    parser.add_argument("--log_sf_bin_edges_min", type=float, nargs='+', 
+                        default=[-5, -5, -5, -5, -5, -5, -2, -2, -2, -2, -8],
+                        help="Log10 of minimum sf bin edge for each channel (11 values)")
+    parser.add_argument("--log_sf_bin_edges_max", type=float, nargs='+',
+                        default=[1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 8],
+                        help="Log10 of maximum sf bin edge for each channel (11 values)")
     parser.add_argument("--N_sf_bin_edges", type=int, default=128,
                         help="Number of sf bins (default: 128)")
-    
-    # Bin edge parameters for sf_derivative_bin_edges
-    parser.add_argument("--log_sf_derivative_bin_edges_min", type=float, default=-5,
-                        help="Log10 of minimum sf derivative bin edge (default: -5)")
-    parser.add_argument("--log_sf_derivative_bin_edges_max", type=float, default=5,
-                        help="Log10 of maximum sf derivative bin edge (default: 5)")
     
     # Bin edge parameters for product_bin_edges
     parser.add_argument("--log_product_bin_edges_min", type=float, default=-5,
@@ -173,13 +169,24 @@ def main():
         "grad_rho_z": slice_data.get("grad_rho_z", np.zeros_like(rho)),
     }
     
+    # Validate bin edge arguments
+    if len(args.log_sf_bin_edges_min) != N_MAG_CHANNELS:
+        raise ValueError(f"Expected {N_MAG_CHANNELS} values for log_sf_bin_edges_min, got {len(args.log_sf_bin_edges_min)}")
+    if len(args.log_sf_bin_edges_max) != N_MAG_CHANNELS:
+        raise ValueError(f"Expected {N_MAG_CHANNELS} values for log_sf_bin_edges_max, got {len(args.log_sf_bin_edges_max)}")
+    
     # Set up histogram bins
     n_theta_bins = 18
     theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
     n_phi_bins = 18
     phi_bin_edges = np.linspace(0, np.pi, n_phi_bins + 1)
-    sf_bin_edges = np.logspace(args.log_sf_bin_edges_min, args.log_sf_bin_edges_max, args.N_sf_bin_edges)
-    sf_derivative_bin_edges = np.logspace(args.log_sf_derivative_bin_edges_min, args.log_sf_derivative_bin_edges_max, args.N_sf_bin_edges)
+    
+    # Create channel-specific bin edges
+    sf_channel_bin_edges = []
+    for i in range(N_MAG_CHANNELS):
+        bin_edges = np.logspace(args.log_sf_bin_edges_min[i], args.log_sf_bin_edges_max[i], args.N_sf_bin_edges)
+        sf_channel_bin_edges.append(bin_edges)
+    
     product_bin_edges = np.logspace(args.log_product_bin_edges_min, args.log_product_bin_edges_max, args.N_product_bin_edges)
     
     # Split displacements for multiprocessing
@@ -192,7 +199,7 @@ def main():
             batches.append((
                 fields, batch, axis, args.N_random_subsamples,
                 ell_bin_edges, theta_bin_edges, phi_bin_edges,
-                sf_bin_edges, sf_derivative_bin_edges, product_bin_edges, args.stencil_width
+                sf_channel_bin_edges, product_bin_edges, args.stencil_width
             ))
         
         # Process in parallel
@@ -209,7 +216,7 @@ def main():
         hist_mag, hist_other = process_displacement_batch((
             fields, node_displacements, axis, args.N_random_subsamples,
             ell_bin_edges, theta_bin_edges, phi_bin_edges,
-            sf_bin_edges, sf_derivative_bin_edges, product_bin_edges, args.stencil_width
+            sf_channel_bin_edges, product_bin_edges, args.stencil_width
         ))
     
     # Save results
@@ -228,8 +235,7 @@ def main():
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_bin_edges=sf_bin_edges,
-        sf_derivative_bin_edges=sf_derivative_bin_edges,
+        sf_channel_bin_edges=sf_channel_bin_edges,
         product_bin_edges=product_bin_edges,
         node_info={
             'node_id': args.node_id,
@@ -244,7 +250,10 @@ def main():
             'stride': args.stride,
             'stencil_width': args.stencil_width,
             'N_random_subsamples': args.N_random_subsamples,
-            'n_processes': n_processes
+            'n_processes': n_processes,
+            'log_sf_bin_edges_min': args.log_sf_bin_edges_min,
+            'log_sf_bin_edges_max': args.log_sf_bin_edges_max,
+            'N_sf_bin_edges': args.N_sf_bin_edges
         }
     )
     

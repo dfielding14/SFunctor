@@ -40,8 +40,27 @@ def main():
     ell_bin_edges = data['ell_bin_edges']
     theta_bin_edges = data['theta_bin_edges']
     phi_bin_edges = data['phi_bin_edges']
-    sf_bin_edges = data['sf_bin_edges']
     product_bin_edges = data['product_bin_edges']
+    
+    # Handle channel-specific bin edges
+    if 'sf_channel_bin_edges' in data:
+        # New format with channel-specific bins
+        sf_channel_bin_edges = data['sf_channel_bin_edges']
+        # For backward compatibility in plotting, use the first channel's bins as default
+        sf_bin_edges = sf_channel_bin_edges[0]
+        
+        # Also extract metadata if available
+        if 'metadata' in data:
+            metadata = dict(data['metadata'].item())
+            if 'log_sf_bin_edges_min' in metadata:
+                print(f"Bin edge parameters found:")
+                print(f"  log_sf_bin_edges_min: {metadata['log_sf_bin_edges_min']}")
+                print(f"  log_sf_bin_edges_max: {metadata['log_sf_bin_edges_max']}")
+                print(f"  N_sf_bin_edges: {metadata['N_sf_bin_edges']}")
+    else:
+        # Old format - single set of bins
+        sf_bin_edges = data['sf_bin_edges']
+        sf_channel_bin_edges = [sf_bin_edges] * len(mag_channels)
     
     # Compute bin centers
     ell_centers = 0.5 * (ell_bin_edges[:-1] + ell_bin_edges[1:])
@@ -68,8 +87,13 @@ def main():
                                   output_dir, base_name, args.format, args.dpi)
     
     # 2. Plot 2D histograms for selected channels
-    plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_centers,
-                       output_dir, base_name, args.format, args.dpi)
+    # Pass channel-specific bins if available
+    if 'sf_channel_bin_edges' in data:
+        plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf_channel_bin_edges,
+                           output_dir, base_name, args.format, args.dpi)
+    else:
+        plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_centers,
+                           output_dir, base_name, args.format, args.dpi)
     
     # 3. Plot angular distributions
     plot_angular_distributions(hist_mag, mag_channels, ell_centers, theta_centers, phi_centers,
@@ -181,6 +205,54 @@ def plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_centers,
     
     plt.tight_layout()
     filename = output_dir / f"{base_name}_2d_histograms.{fmt}"
+    plt.savefig(filename, dpi=dpi, bbox_inches='tight')
+    plt.close()
+    print(f"  Created: {filename}")
+
+
+def plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf_channel_bin_edges,
+                                          output_dir, base_name, fmt, dpi):
+    """Plot 2D histograms for selected channels using channel-specific bins."""
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    axes = axes.flatten()
+    
+    # Select channels to plot
+    channels_to_plot = ['D_V', 'D_B', 'D_OMEGA', 'D_B_over_Bmean_loc']
+    
+    plot_idx = 0
+    for channel_name in channels_to_plot:
+        if channel_name not in mag_channels or plot_idx >= 4:
+            continue
+            
+        ax = axes[plot_idx]
+        channel_idx = list(mag_channels).index(channel_name)
+        
+        # Get channel-specific bin edges and centers
+        bin_edges = sf_channel_bin_edges[channel_idx]
+        bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        
+        # Sum over angles to get 2D histogram
+        hist_2d = hist_mag[channel_idx].sum(axis=(1, 2))  # Sum over theta, phi
+        
+        # Create meshgrid for plotting
+        ell_mesh, sf_mesh = np.meshgrid(ell_centers, bin_centers)
+        
+        # Plot with log normalization
+        pcm = ax.pcolormesh(ell_mesh, sf_mesh, hist_2d.T, 
+                            norm=colors.LogNorm(vmin=1), cmap='viridis')
+        
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel(r'$\ell$')
+        ax.set_ylabel(channel_name)
+        ax.set_title(f'2D Histogram: {channel_name} vs $\ell$')
+        
+        # Add colorbar
+        cbar = plt.colorbar(pcm, ax=ax, label='Counts')
+        plot_idx += 1
+    
+    plt.tight_layout()
+    filename = output_dir / f"{base_name}_2d_histograms_channel_bins.{fmt}"
     plt.savefig(filename, dpi=dpi, bbox_inches='tight')
     plt.close()
     print(f"  Created: {filename}")

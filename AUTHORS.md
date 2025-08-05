@@ -1,12 +1,10 @@
 # Authors
 
-SFunctor was created and is maintained by the MHD Turbulence Research Team.
+SFunctor was created and is maintained by the MHD-CR INCITE Dream Team.
 
 ## Core Contributors
 
-- Your Name (your.email@institution.edu) - Lead Developer
-- Collaborator Name - Physics Implementation
-- Additional Contributors...
+- Your Name (dbf233@nyu.edu) - Lead Developer
 
 ## Acknowledgments
 

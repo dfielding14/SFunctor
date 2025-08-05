@@ -54,8 +54,18 @@ def combine_node_histograms(histogram_files, args):
     ell_bin_edges = first_data['ell_bin_edges']
     theta_bin_edges = first_data['theta_bin_edges']
     phi_bin_edges = first_data['phi_bin_edges']
-    sf_bin_edges = first_data['sf_bin_edges']
-    sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)  # Fallback for backward compatibility
+    sf_channel_bin_edges = first_data.get('sf_channel_bin_edges', None)
+    # For backward compatibility, if sf_channel_bin_edges doesn't exist, create it from old format
+    if sf_channel_bin_edges is None:
+        sf_bin_edges = first_data['sf_bin_edges']
+        sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)
+        # Create channel-specific bins based on old structure
+        sf_channel_bin_edges = []
+        for i in range(11):  # Assuming 11 MAG_CHANNELS
+            if i < 6:  # D_V through D_ZMINUS use sf_bin_edges
+                sf_channel_bin_edges.append(sf_bin_edges)
+            else:  # D_OMEGA and later use sf_derivative_bin_edges
+                sf_channel_bin_edges.append(sf_derivative_bin_edges)
     product_bin_edges = first_data['product_bin_edges']
     
     # Keep track of node info
@@ -113,8 +123,7 @@ def combine_node_histograms(histogram_files, args):
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_bin_edges=sf_bin_edges,
-        sf_derivative_bin_edges=sf_derivative_bin_edges,
+        sf_channel_bin_edges=sf_channel_bin_edges,
         product_bin_edges=product_bin_edges,
         metadata=metadata,
         node_infos=node_infos
@@ -139,8 +148,18 @@ def merge_slice_results(slice_files, args):
     ell_bin_edges = first_data['ell_bin_edges']
     theta_bin_edges = first_data['theta_bin_edges']
     phi_bin_edges = first_data['phi_bin_edges']
-    sf_bin_edges = first_data['sf_bin_edges']
-    sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)  # Fallback for backward compatibility
+    sf_channel_bin_edges = first_data.get('sf_channel_bin_edges', None)
+    # For backward compatibility, if sf_channel_bin_edges doesn't exist, create it from old format
+    if sf_channel_bin_edges is None:
+        sf_bin_edges = first_data['sf_bin_edges']
+        sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)
+        # Create channel-specific bins based on old structure
+        sf_channel_bin_edges = []
+        for i in range(11):  # Assuming 11 MAG_CHANNELS
+            if i < 6:  # D_V through D_ZMINUS use sf_bin_edges
+                sf_channel_bin_edges.append(sf_bin_edges)
+            else:  # D_OMEGA and later use sf_derivative_bin_edges
+                sf_channel_bin_edges.append(sf_derivative_bin_edges)
     product_bin_edges = first_data['product_bin_edges']
     
     # Keep track of slice info
@@ -188,7 +207,8 @@ def merge_slice_results(slice_files, args):
     
     # Include common metadata from first file
     if all_metadata:
-        for key in ['stride', 'N_random_subsamples', 'stencil_width', 'n_ell_bins']:
+        for key in ['stride', 'N_random_subsamples', 'stencil_width', 'n_ell_bins', 
+                    'log_sf_bin_edges_min', 'log_sf_bin_edges_max', 'N_sf_bin_edges']:
             if key in all_metadata[0]:
                 combined_metadata[key] = all_metadata[0][key]
     
@@ -209,8 +229,7 @@ def merge_slice_results(slice_files, args):
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_bin_edges=sf_bin_edges,
-        sf_derivative_bin_edges=sf_derivative_bin_edges,
+        sf_channel_bin_edges=sf_channel_bin_edges,
         product_bin_edges=product_bin_edges,
         metadata=combined_metadata,
         slice_metadata=all_metadata  # Keep individual slice metadata

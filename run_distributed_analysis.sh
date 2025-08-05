@@ -2,9 +2,9 @@
 #SBATCH -A AST207
 #SBATCH -J SF_DISTRIBUTED
 #SBATCH -o sf_distributed_%j.out
-#SBATCH -t 36:00:00
+#SBATCH -t 1:00:00
 #SBATCH -p batch
-#SBATCH -N 64
+#SBATCH -N 2
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 
@@ -27,16 +27,16 @@ module load gcc/9.3.0 python/.3.11-anaconda3
 source /ccs/home/dfielding/SFunctor/venv_sfunctor/bin/activate
 
 # Configuration
-SIM_NAME="Turb_10240_beta25_dedt025_plm"
+SIM_NAME="Turb_2560_beta25_dedt025_plm"
 BASE_DIR="/lustre/orion/ast207/proj-shared/dfielding/Production_plm"
 
 # Configuration
-N_DISP_TOTAL=100000
-N_ELL_BINS=128
-N_RANDOM_SUBSAMPLES=10000
+N_DISP_TOTAL=10000
+N_ELL_BINS=64
+N_RANDOM_SUBSAMPLES=1000
 STRIDE=1
 STENCIL_WIDTH=2
-NRES=10240
+NRES=2560
 
 # Set paths
 SFUNCTOR_DIR="/ccs/home/dfielding/SFunctor"
@@ -117,11 +117,9 @@ for i in "${!SLICES[@]}"; do
             --N_random_subsamples $N_RANDOM_SUBSAMPLES \
             --stencil_width $STENCIL_WIDTH \
             --n_processes 32 \
-            --log_sf_bin_edges_min -5 \
-            --log_sf_bin_edges_max 1 \
+            --log_sf_bin_edges_min -5 -5 -5 -5 -5 -5 -2 -2 -2 -2 -8 \
+            --log_sf_bin_edges_max 1 1 1 1 1 1 4 4 4 4 8 \
             --N_sf_bin_edges 201 \
-            --log_sf_derivative_bin_edges_min -2 \
-            --log_sf_derivative_bin_edges_max 4 \
             --log_product_bin_edges_min -8 \
             --log_product_bin_edges_max 5 \
             --N_product_bin_edges 201 \
