@@ -95,11 +95,11 @@ def main():
         plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_centers,
                            output_dir, base_name, args.format, args.dpi)
     
-    # 3. Plot angular distributions
+    # 3. Plot angular distributions (2D histogram of D_V vs ell and theta)
     plot_angular_distributions(hist_mag, mag_channels, ell_centers, theta_centers, phi_centers,
                                output_dir, base_name, args.format, args.dpi)
     
-    # 4. Plot cross-product structure functions
+    # 4. Plot cross-product ratios
     plot_cross_products(hist_other, other_channels, ell_centers, product_centers,
                         output_dir, base_name, args.format, args.dpi)
     
@@ -117,8 +117,8 @@ def plot_mean_structure_functions(hist_mag, mag_channels, ell_centers, sf_center
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
     
-    # Select key channels to plot
-    key_channels = ['dv_ell', 'dv_perp', 'dB_ell', 'dB_perp']
+    # Select key channels to plot - use actual channel names
+    key_channels = ['D_V', 'D_B', 'D_RHO', 'D_ZPLUS']
     
     for idx, channel_name in enumerate(key_channels):
         if channel_name not in mag_channels:
@@ -142,15 +142,18 @@ def plot_mean_structure_functions(hist_mag, mag_channels, ell_centers, sf_center
                 variance = np.average((sf_centers - mean_sf[i])**2, weights=hist_ell_sf[i])
                 std_sf[i] = np.sqrt(variance)
         
-        # Plot
-        ax.errorbar(ell_centers, mean_sf, yerr=std_sf, fmt='o-', capsize=3, label=channel_name)
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-        ax.set_xlabel(r'$\ell$')
-        ax.set_ylabel(f'⟨{channel_name}⟩')
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-        ax.set_title(f'Mean {channel_name} vs $\ell$')
+        # Plot only non-zero values
+        mask = mean_sf > 0
+        if np.any(mask):
+            ax.errorbar(ell_centers[mask], mean_sf[mask], yerr=std_sf[mask], 
+                       fmt='o-', capsize=3, label=channel_name)
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            ax.set_xlabel(r'$\ell$')
+            ax.set_ylabel(f'⟨{channel_name}⟩')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            ax.set_title(f'Mean {channel_name} vs $\ell$')
     
     plt.tight_layout()
     filename = output_dir / f"{base_name}_mean_structure_functions.{fmt}"
@@ -162,8 +165,8 @@ def plot_mean_structure_functions(hist_mag, mag_channels, ell_centers, sf_center
 def plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_centers,
                        output_dir, base_name, fmt, dpi):
     """Plot 2D histograms of SF vs ell for selected channels."""
-    # Select channels to plot
-    channels_to_plot = ['dv_ell', 'dB_ell', 'drho', 'dz+_ell']
+    # Select channels to plot - use actual channel names
+    channels_to_plot = ['D_V', 'D_B', 'D_RHO', 'D_ZPLUS']
     
     n_channels = len(channels_to_plot)
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
@@ -212,7 +215,7 @@ def plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_centers,
 
 def plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf_channel_bin_edges,
                                           output_dir, base_name, fmt, dpi):
-    """Plot 2D histograms for selected channels using channel-specific bins."""
+    """Plot normalized 2D histograms for selected channels using channel-specific bins."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
     
@@ -234,25 +237,32 @@ def plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf
         # Sum over angles to get 2D histogram
         hist_2d = hist_mag[channel_idx].sum(axis=(1, 2))  # Sum over theta, phi
         
+        # Normalize each ell bin by total counts in that ell
+        hist_2d_norm = hist_2d.copy().astype(float)
+        for i in range(len(ell_centers)):
+            total_counts = hist_2d[i].sum()
+            if total_counts > 0:
+                hist_2d_norm[i] = hist_2d[i] / total_counts
+        
         # Create meshgrid for plotting
         ell_mesh, sf_mesh = np.meshgrid(ell_centers, bin_centers)
         
-        # Plot with log normalization
-        pcm = ax.pcolormesh(ell_mesh, sf_mesh, hist_2d.T, 
-                            norm=colors.LogNorm(vmin=1), cmap='viridis')
+        # Plot normalized histogram
+        pcm = ax.pcolormesh(ell_mesh, sf_mesh, hist_2d_norm.T, 
+                            norm=colors.LogNorm(vmin=1e-6, vmax=1), cmap='viridis')
         
         ax.set_xscale('log')
         ax.set_yscale('log')
         ax.set_xlabel(r'$\ell$')
         ax.set_ylabel(channel_name)
-        ax.set_title(f'2D Histogram: {channel_name} vs $\ell$')
+        ax.set_title(f'Normalized 2D Histogram: {channel_name} vs $\ell$')
         
         # Add colorbar
-        cbar = plt.colorbar(pcm, ax=ax, label='Counts')
+        cbar = plt.colorbar(pcm, ax=ax, label='Probability')
         plot_idx += 1
     
     plt.tight_layout()
-    filename = output_dir / f"{base_name}_2d_histograms_channel_bins.{fmt}"
+    filename = output_dir / f"{base_name}_2d_histograms_normalized.{fmt}"
     plt.savefig(filename, dpi=dpi, bbox_inches='tight')
     plt.close()
     print(f"  Created: {filename}")
@@ -260,38 +270,48 @@ def plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf
 
 def plot_angular_distributions(hist_mag, mag_channels, ell_centers, theta_centers, phi_centers,
                                output_dir, base_name, fmt, dpi):
-    """Plot angular distributions for selected channels and ell bins."""
-    # Select one channel and a few ell bins
-    channel_name = 'dv_ell'
+    """Plot 2D histogram of D_V versus ell and theta (summed over phi)."""
+    # Get D_V channel
+    channel_name = 'D_V'
     if channel_name not in mag_channels:
+        print(f"Warning: {channel_name} not found, using first channel")
         channel_name = mag_channels[0]
     
     channel_idx = list(mag_channels).index(channel_name)
     
-    # Select 3 ell bins (small, medium, large)
-    n_ell = len(ell_centers)
-    ell_indices = [n_ell//4, n_ell//2, 3*n_ell//4]
+    # Sum over phi and sf values to get 2D histogram
+    # hist_mag shape: (channel, ell, theta, phi, sf)
+    # Sum over phi (axis 2) and sf (axis 3)
+    hist_2d_theta = hist_mag[channel_idx].sum(axis=2).sum(axis=2)  # Shape: (ell, theta)
     
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5), subplot_kw=dict(projection='polar'))
+    fig, ax = plt.subplots(figsize=(10, 8))
     
-    for idx, ell_idx in enumerate(ell_indices):
-        ax = axes[idx]
-        
-        # Sum over SF values and phi to get theta distribution
-        theta_dist = hist_mag[channel_idx, ell_idx, :, :, :].sum(axis=(1, 2))
-        
-        # Plot on polar axis
-        theta_rad = np.deg2rad(theta_centers)
-        ax.plot(theta_rad, theta_dist, 'b-', linewidth=2)
-        ax.fill_between(theta_rad, 0, theta_dist, alpha=0.3)
-        
-        ax.set_title(f'$\ell$ = {ell_centers[ell_idx]:.1f}')
-        ax.set_theta_zero_location('N')
-        ax.set_theta_direction(-1)
+    # Convert theta to degrees for display
+    theta_degrees = np.rad2deg(theta_centers)
     
-    fig.suptitle(f'Angular Distribution of {channel_name}', fontsize=14)
+    # Create meshgrid for plotting
+    ell_edges = np.concatenate([[ell_centers[0] * 0.9], 
+                                0.5 * (ell_centers[:-1] + ell_centers[1:]),
+                                [ell_centers[-1] * 1.1]])
+    theta_edges_deg = np.concatenate([[theta_degrees[0] - 0.5 * (theta_degrees[1] - theta_degrees[0])],
+                                      0.5 * (theta_degrees[:-1] + theta_degrees[1:]),
+                                      [theta_degrees[-1] + 0.5 * (theta_degrees[-1] - theta_degrees[-2])]])
+    
+    # Plot 2D histogram
+    pcm = ax.pcolormesh(ell_edges, theta_edges_deg, hist_2d_theta.T,
+                        norm=colors.LogNorm(vmin=1, vmax=hist_2d_theta.max()),
+                        cmap='viridis', shading='flat')
+    
+    ax.set_xscale('log')
+    ax.set_xlabel(r'$\ell$')
+    ax.set_ylabel(r'$\theta$ (degrees)')
+    ax.set_title(f'2D Histogram: {channel_name} vs $\ell$ and $\\theta$ (summed over $\phi$)')
+    
+    # Add colorbar
+    cbar = plt.colorbar(pcm, ax=ax, label='Counts')
+    
     plt.tight_layout()
-    filename = output_dir / f"{base_name}_angular_distributions.{fmt}"
+    filename = output_dir / f"{base_name}_angular_distribution_2d.{fmt}"
     plt.savefig(filename, dpi=dpi, bbox_inches='tight')
     plt.close()
     print(f"  Created: {filename}")
@@ -299,37 +319,53 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, theta_center
 
 def plot_cross_products(hist_other, other_channels, ell_centers, product_centers,
                         output_dir, base_name, fmt, dpi):
-    """Plot cross-product structure functions."""
-    fig, ax = plt.subplots(figsize=(10, 8))
+    """Plot ratios of cross-products to their corresponding MAG products."""
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    axes = axes.flatten()
     
-    # Plot first few channels
-    n_plot = min(6, len(other_channels))
+    # Define cross product / MAG pairs
+    ratio_pairs = [
+        ('D_Vperp_CROSS_Bperp', 'D_Vperp_D_Bperp_MAG'),
+        ('D_Vperp_CROSS_VAperp', 'D_Vperp_D_VAperp_MAG'),
+        ('D_Vperp_CROSS_Omegaperp', 'D_Vperp_D_Omegaperp_MAG'),
+        ('D_Bperp_CROSS_Jperp', 'D_Bperp_D_Jperp_MAG')
+    ]
     
-    for idx in range(n_plot):
-        channel_name = other_channels[idx]
+    for idx, (cross_name, mag_name) in enumerate(ratio_pairs):
+        ax = axes[idx]
         
-        # Sum over ell bins to get product distribution
-        hist_product = hist_other[idx]
+        if cross_name not in other_channels or mag_name not in other_channels:
+            continue
+            
+        cross_idx = list(other_channels).index(cross_name)
+        mag_idx = list(other_channels).index(mag_name)
         
-        # Compute mean for each ell
-        mean_product = np.zeros(len(ell_centers))
+        # Compute mean values for each ell
+        mean_cross = np.zeros(len(ell_centers))
+        mean_mag = np.zeros(len(ell_centers))
         
         for i in range(len(ell_centers)):
-            if hist_product[i].sum() > 0:
-                mean_product[i] = np.average(product_centers, weights=hist_product[i])
+            if hist_other[cross_idx][i].sum() > 0:
+                mean_cross[i] = np.average(product_centers, weights=hist_other[cross_idx][i])
+            if hist_other[mag_idx][i].sum() > 0:
+                mean_mag[i] = np.average(product_centers, weights=hist_other[mag_idx][i])
         
-        # Plot
-        ax.plot(ell_centers, mean_product, 'o-', label=channel_name, markersize=4)
-    
-    ax.set_xscale('log')
-    ax.set_xlabel(r'$\ell$')
-    ax.set_ylabel('Mean Cross Product')
-    ax.grid(True, alpha=0.3)
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    ax.set_title('Cross-Product Structure Functions')
+        # Compute ratio
+        mask = (mean_mag > 0) & (mean_cross > 0)
+        if np.any(mask):
+            ratio = mean_cross[mask] / mean_mag[mask]
+            
+            # Plot ratio
+            ax.plot(ell_centers[mask], ratio, 'o-', markersize=6)
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            ax.set_xlabel(r'$\ell$')
+            ax.set_ylabel(f'{cross_name} / {mag_name}')
+            ax.grid(True, alpha=0.3)
+            ax.set_title(f'Ratio: {cross_name} / {mag_name}')
     
     plt.tight_layout()
-    filename = output_dir / f"{base_name}_cross_products.{fmt}"
+    filename = output_dir / f"{base_name}_cross_product_ratios.{fmt}"
     plt.savefig(filename, dpi=dpi, bbox_inches='tight')
     plt.close()
     print(f"  Created: {filename}")

@@ -2,9 +2,9 @@
 #SBATCH -A AST207
 #SBATCH -J SF_DISTRIBUTED
 #SBATCH -o sf_distributed_%j.out
-#SBATCH -t 1:00:00
+#SBATCH -t 6:00:00
 #SBATCH -p batch
-#SBATCH -N 2
+#SBATCH -N 8
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 
@@ -31,11 +31,11 @@ SIM_NAME="Turb_2560_beta25_dedt025_plm"
 BASE_DIR="/lustre/orion/ast207/proj-shared/dfielding/Production_plm"
 
 # Configuration
-N_DISP_TOTAL=10000
-N_ELL_BINS=64
-N_RANDOM_SUBSAMPLES=1000
+N_DISP_TOTAL=100000
+N_ELL_BINS=128
+N_RANDOM_SUBSAMPLES=10000
 STRIDE=1
-STENCIL_WIDTH=2
+STENCIL_WIDTH=3
 NRES=2560
 
 # Set paths
