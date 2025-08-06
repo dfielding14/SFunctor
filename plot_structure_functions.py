@@ -319,7 +319,7 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, theta_center
 
 def plot_cross_products(hist_other, other_channels, ell_centers, product_centers,
                         output_dir, base_name, fmt, dpi):
-    """Plot ratios of cross-products to their corresponding MAG products."""
+    """Plot ratios of cross-products to their corresponding MAG products with power law fits."""
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()
     
@@ -354,14 +354,43 @@ def plot_cross_products(hist_other, other_channels, ell_centers, product_centers
         mask = (mean_mag > 0) & (mean_cross > 0)
         if np.any(mask):
             ratio = mean_cross[mask] / mean_mag[mask]
+            ell_valid = ell_centers[mask]
             
             # Plot ratio
-            ax.plot(ell_centers[mask], ratio, 'o-', markersize=6)
+            ax.plot(ell_valid, ratio, 'o-', markersize=6, label='Data')
+            
+            # Fit power law from ell ~ 32 to ell ~ max(ell)/4
+            ell_min_fit = 32
+            ell_max_fit = ell_centers.max() / 4
+            fit_mask = (ell_valid >= ell_min_fit) & (ell_valid <= ell_max_fit)
+            
+            if np.sum(fit_mask) > 2:  # Need at least 3 points for a good fit
+                # Perform linear fit in log space
+                log_ell_fit = np.log10(ell_valid[fit_mask])
+                log_ratio_fit = np.log10(ratio[fit_mask])
+                
+                # Linear regression
+                coeffs = np.polyfit(log_ell_fit, log_ratio_fit, 1)
+                slope = coeffs[0]
+                intercept = coeffs[1]
+                
+                # Create fit line
+                ell_fit_range = np.logspace(np.log10(ell_min_fit), np.log10(ell_max_fit), 100)
+                ratio_fit = 10**(intercept) * ell_fit_range**slope
+                
+                # Plot fit
+                ax.plot(ell_fit_range, ratio_fit, 'r--', linewidth=2, 
+                       label=f'Power law: $\ell^{{{slope:.2f}}}$')
+                
+                # Add shaded region to show fit range
+                ax.axvspan(ell_min_fit, ell_max_fit, alpha=0.1, color='gray')
+            
             ax.set_xscale('log')
             ax.set_yscale('log')
             ax.set_xlabel(r'$\ell$')
             ax.set_ylabel(f'{cross_name} / {mag_name}')
             ax.grid(True, alpha=0.3)
+            ax.legend()
             ax.set_title(f'Ratio: {cross_name} / {mag_name}')
     
     plt.tight_layout()
