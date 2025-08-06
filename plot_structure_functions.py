@@ -113,47 +113,63 @@ def main():
 
 def plot_mean_structure_functions(hist_mag, mag_channels, ell_centers, sf_centers, 
                                    output_dir, base_name, fmt, dpi):
-    """Plot mean structure functions vs ell for key channels."""
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    axes = axes.flatten()
+    """Plot mean structure functions vs ell for all channels with power law fits."""
+    fig, ax = plt.subplots(figsize=(10, 8))
     
-    # Select key channels to plot - use actual channel names
-    key_channels = ['D_V', 'D_B', 'D_RHO', 'D_ZPLUS']
+    # Define colors for different channels
+    colors = plt.cm.tab20(np.linspace(0, 1, len(mag_channels)))
     
-    for idx, channel_name in enumerate(key_channels):
-        if channel_name not in mag_channels:
-            continue
-            
-        ax = axes[idx]
-        channel_idx = list(mag_channels).index(channel_name)
+    # Fit range
+    ell_min_fit = 32
+    ell_max_fit = ell_centers.max() / 4
+    
+    for idx, channel_name in enumerate(mag_channels):
+        channel_idx = idx
         
         # Sum over angles to get total histogram for this channel
         hist_ell_sf = hist_mag[channel_idx].sum(axis=(1, 2))  # Sum over theta, phi
         
-        # Compute mean and std
+        # Compute mean
         mean_sf = np.zeros(len(ell_centers))
-        std_sf = np.zeros(len(ell_centers))
         
         for i in range(len(ell_centers)):
             if hist_ell_sf[i].sum() > 0:
                 # Compute weighted mean
                 mean_sf[i] = np.average(sf_centers, weights=hist_ell_sf[i])
-                # Compute weighted std
-                variance = np.average((sf_centers - mean_sf[i])**2, weights=hist_ell_sf[i])
-                std_sf[i] = np.sqrt(variance)
         
         # Plot only non-zero values
         mask = mean_sf > 0
         if np.any(mask):
-            ax.errorbar(ell_centers[mask], mean_sf[mask], yerr=std_sf[mask], 
-                       fmt='o-', capsize=3, label=channel_name)
-            ax.set_xscale('log')
-            ax.set_yscale('log')
-            ax.set_xlabel(r'$\ell$')
-            ax.set_ylabel(f'⟨{channel_name}⟩')
-            ax.grid(True, alpha=0.3)
-            ax.legend()
-            ax.set_title(f'Mean {channel_name} vs $\ell$')
+            # Fit power law
+            fit_mask = mask & (ell_centers >= ell_min_fit) & (ell_centers <= ell_max_fit)
+            if np.sum(fit_mask) > 2:
+                # Perform linear fit in log space
+                log_ell_fit = np.log10(ell_centers[fit_mask])
+                log_sf_fit = np.log10(mean_sf[fit_mask])
+                
+                # Linear regression
+                coeffs = np.polyfit(log_ell_fit, log_sf_fit, 1)
+                slope = coeffs[0]
+                
+                # Create label with power law
+                label = f'{channel_name} $\propto \ell^{{{slope:.2f}}}$'
+            else:
+                label = channel_name
+            
+            # Plot data
+            ax.plot(ell_centers[mask], mean_sf[mask], 'o-', 
+                   color=colors[idx], markersize=4, linewidth=1.5, label=label)
+    
+    # Add shaded region for fit range
+    ax.axvspan(ell_min_fit, ell_max_fit, alpha=0.1, color='gray')
+    
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlabel(r'$\ell$')
+    ax.set_ylabel('Mean Structure Function')
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
+    ax.set_title('Mean Structure Functions for All Channels')
     
     plt.tight_layout()
     filename = output_dir / f"{base_name}_mean_structure_functions.{fmt}"
@@ -215,20 +231,15 @@ def plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_centers,
 
 def plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf_channel_bin_edges,
                                           output_dir, base_name, fmt, dpi):
-    """Plot normalized 2D histograms for selected channels using channel-specific bins."""
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    """Plot normalized 2D histograms for all channels with statistical moments."""
+    fig, axes = plt.subplots(6, 2, figsize=(12, 20))
     axes = axes.flatten()
     
-    # Select channels to plot
-    channels_to_plot = ['D_V', 'D_B', 'D_OMEGA', 'D_B_over_Bmean_loc']
-    
-    plot_idx = 0
-    for channel_name in channels_to_plot:
-        if channel_name not in mag_channels or plot_idx >= 4:
-            continue
+    for channel_idx, channel_name in enumerate(mag_channels):
+        if channel_idx >= len(axes) - 1:  # Skip if we run out of axes
+            break
             
-        ax = axes[plot_idx]
-        channel_idx = list(mag_channels).index(channel_name)
+        ax = axes[channel_idx]
         
         # Get channel-specific bin edges and centers
         bin_edges = sf_channel_bin_edges[channel_idx]
@@ -239,10 +250,28 @@ def plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf
         
         # Normalize each ell bin by total counts in that ell
         hist_2d_norm = hist_2d.copy().astype(float)
+        
+        # Calculate statistical moments for each ell
+        median_sf = np.zeros(len(ell_centers))
+        mean_sf = np.zeros(len(ell_centers))
+        second_moment = np.zeros(len(ell_centers))
+        
         for i in range(len(ell_centers)):
             total_counts = hist_2d[i].sum()
             if total_counts > 0:
                 hist_2d_norm[i] = hist_2d[i] / total_counts
+                
+                # Calculate median (cumulative sum approach)
+                cumsum = np.cumsum(hist_2d[i])
+                median_idx = np.searchsorted(cumsum, 0.5 * total_counts)
+                if median_idx < len(bin_centers):
+                    median_sf[i] = bin_centers[median_idx]
+                
+                # Calculate mean (first moment)
+                mean_sf[i] = np.average(bin_centers, weights=hist_2d[i])
+                
+                # Calculate second moment
+                second_moment[i] = np.average(bin_centers**2, weights=hist_2d[i])
         
         # Create meshgrid for plotting
         ell_mesh, sf_mesh = np.meshgrid(ell_centers, bin_centers)
@@ -251,15 +280,30 @@ def plot_2d_histograms_with_channel_bins(hist_mag, mag_channels, ell_centers, sf
         pcm = ax.pcolormesh(ell_mesh, sf_mesh, hist_2d_norm.T, 
                             norm=colors.LogNorm(vmin=1e-6, vmax=1), cmap='viridis')
         
+        # Overplot statistical moments
+        mask = mean_sf > 0
+        if np.any(mask):
+            ax.plot(ell_centers[mask], median_sf[mask], 'w-', linewidth=2, label='Median')
+            ax.plot(ell_centers[mask], mean_sf[mask], 'r-', linewidth=2, label='Mean')
+            ax.plot(ell_centers[mask], np.sqrt(second_moment[mask]), 'y-', linewidth=2, label='RMS')
+        
         ax.set_xscale('log')
         ax.set_yscale('log')
-        ax.set_xlabel(r'$\ell$')
+        ax.set_xlabel(r'$\ell$' if channel_idx >= 10 else '')
         ax.set_ylabel(channel_name)
-        ax.set_title(f'Normalized 2D Histogram: {channel_name} vs $\ell$')
+        ax.set_title(channel_name, fontsize=10)
+        
+        # Add legend only to first plot
+        if channel_idx == 0:
+            ax.legend(loc='upper left', fontsize=8)
         
         # Add colorbar
-        cbar = plt.colorbar(pcm, ax=ax, label='Probability')
-        plot_idx += 1
+        cbar = plt.colorbar(pcm, ax=ax, label='P' if channel_idx % 2 == 0 else '')
+        cbar.ax.tick_params(labelsize=8)
+    
+    # Hide the last empty axis
+    if len(mag_channels) < len(axes):
+        axes[-1].axis('off')
     
     plt.tight_layout()
     filename = output_dir / f"{base_name}_2d_histograms_normalized.{fmt}"
