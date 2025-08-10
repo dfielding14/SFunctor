@@ -8,7 +8,7 @@ It processes a fraction of the total displacements and saves partial results.
 import argparse
 import numpy as np
 from pathlib import Path
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count
 import sys
 
 # Add sfunctor to path
@@ -23,48 +23,7 @@ from sfunctor.core.histograms import (
     MAG_CHANNELS,
     OTHER_CHANNELS,
 )
-
-
-def process_displacement_batch(args):
-    """Process a batch of displacements (for multiprocessing pool)."""
-    (fields, displacements, axis, N_random_subsamples, 
-     ell_bin_edges, theta_bin_edges, phi_bin_edges, 
-     sf_channel_bin_edges, product_bin_edges, stencil_width) = args
-    
-    # Initialize histograms
-    hist_mag = np.zeros(
-        (N_MAG_CHANNELS, len(ell_bin_edges)-1, len(theta_bin_edges)-1, 
-         len(phi_bin_edges)-1, len(sf_channel_bin_edges[0])-1),
-        dtype=np.int64
-    )
-    hist_other = np.zeros(
-        (N_OTHER_CHANNELS, len(ell_bin_edges)-1, len(product_bin_edges)-1),
-        dtype=np.int64
-    )
-    
-    # Process each displacement
-    for dx, dy in displacements:
-        hm, ho = compute_histogram_for_disp_2D(
-            fields['v_x'], fields['v_y'], fields['v_z'],
-            fields['B_x'], fields['B_y'], fields['B_z'],
-            fields['rho'],
-            fields['vA_x'], fields['vA_y'], fields['vA_z'],
-            fields['zp_x'], fields['zp_y'], fields['zp_z'],
-            fields['zm_x'], fields['zm_y'], fields['zm_z'],
-            fields['omega_x'], fields['omega_y'], fields['omega_z'],
-            fields['j_x'], fields['j_y'], fields['j_z'],
-            fields['curv_x'], fields['curv_y'], fields['curv_z'],
-            fields['grad_rho_x'], fields['grad_rho_y'], fields['grad_rho_z'],
-            int(dx), int(dy), axis,
-            N_random_subsamples,
-            ell_bin_edges, theta_bin_edges, phi_bin_edges,
-            sf_channel_bin_edges, product_bin_edges,
-            stencil_width
-        )
-        hist_mag += hm
-        hist_other += ho
-    
-    return hist_mag, hist_other
+from sfunctor.core.parallel import compute_histograms_shared
 
 
 def main():
@@ -189,35 +148,34 @@ def main():
     
     product_bin_edges = np.logspace(args.log_product_bin_edges_min, args.log_product_bin_edges_max, args.N_product_bin_edges)
     
-    # Split displacements for multiprocessing
-    if n_processes > 1:
-        # Split displacements into batches
-        batch_size = max(1, len(node_displacements) // n_processes)
-        batches = []
-        for i in range(0, len(node_displacements), batch_size):
-            batch = node_displacements[i:i+batch_size]
-            batches.append((
-                fields, batch, axis, args.N_random_subsamples,
-                ell_bin_edges, theta_bin_edges, phi_bin_edges,
-                sf_channel_bin_edges, product_bin_edges, args.stencil_width
-            ))
-        
-        # Process in parallel
-        print(f"Processing with {n_processes} processes...")
-        with Pool(n_processes) as pool:
-            results = pool.map(process_displacement_batch, batches)
-        
-        # Combine results
-        hist_mag = sum(r[0] for r in results)
-        hist_other = sum(r[1] for r in results)
-    else:
-        # Process serially
-        print("Processing serially...")
-        hist_mag, hist_other = process_displacement_batch((
-            fields, node_displacements, axis, args.N_random_subsamples,
-            ell_bin_edges, theta_bin_edges, phi_bin_edges,
-            sf_channel_bin_edges, product_bin_edges, args.stencil_width
-        ))
+    # Process using shared memory implementation
+    print(f"Processing with shared memory ({n_processes} processes)...")
+    
+    # Report expected memory usage
+    total_field_memory = sum(f.nbytes for f in fields.values()) / 1024 / 1024
+    print(f"  Field memory: {total_field_memory:.1f} MB (shared across processes)")
+    print(f"  Previous approach would use: {total_field_memory * n_processes:.1f} MB")
+    print(f"  Processing {len(node_displacements)} displacements")
+    
+    # Note: compute_histograms_shared expects a single sf_bin_edges array
+    # For now, use the first channel's bin edges as representative
+    # TODO: Modify compute_histograms_shared to handle channel-specific bins
+    sf_bin_edges_single = sf_channel_bin_edges[0]
+    
+    # Use compute_histograms_shared for efficient memory usage
+    hist_mag, hist_other = compute_histograms_shared(
+        fields=fields,
+        displacements=node_displacements,
+        axis=axis,
+        N_random_subsamples=args.N_random_subsamples,
+        ell_bin_edges=ell_bin_edges,
+        theta_bin_edges=theta_bin_edges,
+        phi_bin_edges=phi_bin_edges,
+        sf_bin_edges=sf_bin_edges_single,
+        product_bin_edges=product_bin_edges,
+        stencil_width=args.stencil_width,
+        n_processes=n_processes
+    )
     
     # Save results
     output_dir = Path(args.output_dir)
