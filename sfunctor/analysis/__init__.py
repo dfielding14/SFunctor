@@ -14,9 +14,9 @@ simple
 """
 
 from sfunctor.analysis.single_slice import analyze_slice
-from sfunctor.analysis.batch import main as batch_analyze
+from sfunctor.analysis.batch import process_slices_batch
 
 __all__ = [
     "analyze_slice",
-    "batch_analyze",
+    "process_slices_batch",
 ]
