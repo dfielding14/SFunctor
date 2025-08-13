@@ -61,5 +61,16 @@ bin_convert_new.py
 
 # SLURM output files
 *.out
+*.err
 logs/
 venv_frontier/
+
+# Analysis results
+ALL_RESULTS_*/
+test_*_output/
+finish_*.log
+
+# Data files
+*.npz
+test_displacements.npz
+slice_data/
