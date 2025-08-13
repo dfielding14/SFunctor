@@ -194,6 +194,7 @@ Multi-scale analysis using wavelet transforms for identifying coherent structure
 - Multifractal analysis
 - Coherent structure identification
 - Intermittency detection
+- **NEW: Spatial wavelet power spectrum mapping**
 
 ### Installation
 Wavelet features require PyWavelets:
@@ -270,6 +271,156 @@ structures = identify_coherent_structures(
 ### Wavelet Types
 - **Discrete**: 'db4' (Daubechies), 'sym5' (Symlets), 'coif3' (Coiflets)
 - **Continuous**: 'morl' (Morlet), 'mexh' (Mexican hat), 'gaus8' (Gaussian)
+
+## Wavelet Power Spectrum Mapping
+
+Create spatial maps of turbulence properties by computing local wavelet power spectra and fitting power laws. This reveals how turbulence characteristics vary across the spatial domain.
+
+### Features
+- Local wavelet power spectrum at each spatial location
+- Power law fitting to extract amplitude and spectral index
+- Multi-scale spatial analysis
+- Anisotropic turbulence mapping
+- Cross-scale correlation maps
+- Automatic region identification
+
+### Usage
+
+```python
+from sfunctor.analysis.wavelet_maps import (
+    WaveletMapConfig,
+    compute_wavelet_power_maps,
+    compute_multiscale_maps,
+    compute_anisotropic_wavelet_maps,
+    identify_turbulence_regions,
+    visualize_wavelet_maps
+)
+
+# Configure analysis
+config = WaveletMapConfig(
+    outer_scale=64.0,      # Maximum scale to analyze (pixels)
+    inner_scale=2.0,       # Minimum scale
+    n_scales=32,           # Number of scales
+    window_size=64,        # Local window size
+    window_overlap=0.5,    # Overlap between windows
+    wavelet='morl',        # Morlet wavelet
+    detrend='linear',      # Remove trends
+    fit_method='robust'    # Robust power law fitting
+)
+
+# Compute wavelet power maps
+results = compute_wavelet_power_maps(field, config)
+
+# Access results
+amplitude_map = results['amplitude_map']  # Power law amplitude
+slope_map = results['slope_map']          # Spectral index
+r_squared_map = results['r_squared_map']  # Fit quality
+energy_map = results['energy_map']        # Total energy
+peak_scale_map = results['peak_scale_map'] # Dominant scale
+intermittency_map = results['intermittency_map']  # Local intermittency
+
+# Visualize
+visualize_wavelet_maps(results, field)
+```
+
+### Multi-Scale Analysis
+
+Analyze different scale ranges to study scale-dependent spatial variations:
+
+```python
+# Define scale ranges
+scale_ranges = [
+    (2, 8),     # Small scales (dissipation)
+    (8, 32),    # Intermediate scales (inertial)
+    (32, 128)   # Large scales (injection)
+]
+
+# Compute maps for each range
+multiscale = compute_multiscale_maps(field, scale_ranges, config)
+
+# Compare spectral slopes across scales
+for key, results in multiscale.items():
+    slope = results['slope_map']
+    print(f"{key}: mean slope = {np.nanmean(slope):.2f}")
+```
+
+### Anisotropic Analysis
+
+Study directional variations in turbulence properties:
+
+```python
+# Compute directional wavelet maps
+aniso_results = compute_anisotropic_wavelet_maps(
+    field,
+    config,
+    angles=[0, 45, 90, 135]  # degrees
+)
+
+# Access anisotropy measures
+anisotropy_ratio = aniso_results['anisotropy_ratio']
+preferred_direction = aniso_results['preferred_direction']
+alignment_strength = aniso_results['alignment_strength']
+```
+
+### Region Identification
+
+Automatically identify regions with different turbulence characteristics:
+
+```python
+# Identify turbulence regions
+regions = identify_turbulence_regions(
+    results,
+    slope_threshold=(-2.0, -1.3),  # Spectral slope range
+    r_squared_threshold=0.8         # Minimum fit quality
+)
+
+# Access region masks
+kolmogorov_regions = regions['regions']['kolmogorov']
+dissipation_regions = regions['regions']['dissipation']
+injection_regions = regions['regions']['injection']
+
+# Get statistics
+for name, stats in regions['statistics'].items():
+    print(f"{name}: {stats['fraction']*100:.1f}% of area")
+    print(f"  Mean slope: {stats['mean_slope']:.2f}")
+```
+
+### Cross-Scale Correlations
+
+Analyze energy transfer between scales:
+
+```python
+# Compute correlation between two scales
+cross_scale = compute_cross_scale_correlation_map(
+    field,
+    scale1=4.0,   # Small scale
+    scale2=32.0,  # Large scale
+    config=config
+)
+
+correlation_map = cross_scale['correlation_map']
+coherence_map = cross_scale['coherence_map']
+phase_map = cross_scale['phase_map']
+```
+
+### Interpretation
+
+**Spectral Slope Values:**
+- `-5/3 ≈ -1.67`: Kolmogorov turbulence (inertial range)
+- `-3`: Steep spectrum (dissipation or magnetic dominated)
+- `-1`: Shallow spectrum (energy injection or inverse cascade)
+
+**Amplitude Map:**
+- High values: Regions of intense turbulence
+- Low values: Quiescent or laminar regions
+
+**R² Map:**
+- Values > 0.8: Good power law fit (well-developed turbulence)
+- Values < 0.5: Poor fit (transitional or non-turbulent)
+
+**Intermittency Map:**
+- High values: Intermittent, bursty turbulence
+- Low values: Steady, homogeneous turbulence
 
 ## Complete Example
 
