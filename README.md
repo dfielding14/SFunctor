@@ -29,18 +29,39 @@ SFunctor computes structure functions - statistical measures of field increments
 
 ## Features
 
-- **High Performance**: Numba JIT compilation for critical loops, MPI support for multi-node parallelization
-- **Comprehensive Physics**: 10 magnitude channels and 18 cross-product channels including:
+### Core Capabilities
+- **High Performance**: GPU acceleration (100-1000x speedup), Numba JIT compilation, MPI support
+- **Comprehensive Physics**: 24 structure function channels including:
   - Velocity, magnetic field, and density increments
   - Perpendicular components for anisotropy studies
   - Elsasser variables (z+ and z-)
-  - Vorticity and current density from neighboring slices
+  - Vorticity and current density
   - Magnetic curvature (b·∇)b
   - Density gradients ∇ρ
 - **Angle-Resolved Analysis**: Full 3D displacement vector binning (magnitude, polar angle, azimuthal angle)
 - **Flexible Configuration**: YAML-based configuration with profiles for different use cases
 - **Robust I/O**: Handles AthenaK binary formats and self-describing NPZ files
-- **Memory Efficient**: Shared memory multiprocessing to avoid data duplication
+
+### 🆕 Advanced Scientific Features
+- **Time-Series Analysis**: Track turbulence evolution across multiple snapshots
+  - Temporal evolution of anisotropy and energy
+  - Scaling exponent dynamics
+  - Transition detection
+- **Scale-Dependent Anisotropy**: Multiple metrics for quantifying anisotropy
+  - Parallel/perpendicular ratios
+  - Angular variance and entropy
+  - Alignment statistics
+  - SVD mode decomposition
+- **Cross-Correlation Analysis**: Study field interactions
+  - Field-to-field correlations
+  - Energy transfer functions
+  - Nonlinear triadic coupling
+  - Mutual information
+- **Wavelet Decomposition**: Multi-scale turbulence analysis
+  - Discrete and continuous wavelet transforms
+  - Coherent structure identification
+  - Multifractal analysis
+  - Intermittency detection
 
 ## Installation
 
@@ -120,6 +141,34 @@ mpirun -n 8 python run_analysis.py \
 ### 3. Visualize results
 ```bash
 python visualize_sf_results.py results/sf_results_*.npz
+```
+
+### 4. Advanced analysis (NEW!)
+```python
+from sfunctor.analysis import (
+    analyze_time_series,
+    compute_scale_dependent_anisotropy,
+    compute_field_correlations
+)
+
+# Time-series analysis across snapshots
+results = analyze_time_series(
+    slice_files=['slice_0000.npz', 'slice_0001.npz', ...],
+    config={'stride': 2, 'n_disp_total': 1000}
+)
+
+# Scale-dependent anisotropy
+aniso = compute_scale_dependent_anisotropy(
+    single_result, 
+    method='ratio'  # or 'variance', 'entropy', 'alignment'
+)
+
+# Field correlations and energy transfer
+correlations = compute_field_correlations(
+    single_result,
+    field_pairs=[(0, 1), (0, 2)],  # vel-mag, vel-dens
+    compute_phase=True
+)
 ```
 
 ## Detailed Usage

@@ -1,0 +1,106 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sfunctor"
+version = "2.0.0"
+description = "GPU-accelerated structure function analysis for MHD turbulence"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Drummond Fielding", email = "dfielding@flatironinstitute.org"},
+]
+maintainers = [
+    {name = "Drummond Fielding", email = "dfielding@flatironinstitute.org"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Environment :: GPU",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Operating System :: OS Independent",
+]
+keywords = ["MHD", "turbulence", "structure functions", "GPU", "HPC", "astrophysics"]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "numba>=0.56.0",
+    "matplotlib>=3.3.0",
+    "pyyaml>=5.4.0",
+    "tqdm>=4.60.0",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "cupy-cuda12x>=11.0.0",  # For NVIDIA GPUs
+]
+mpi = [
+    "mpi4py>=3.0.0",
+]
+viz = [
+    "cmasher>=1.6.0",
+    "seaborn>=0.11.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+    "mypy>=0.950",
+    "sphinx>=4.5.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "nbsphinx>=0.8.0",
+]
+all = [
+    "sfunctor[gpu,mpi,viz,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/dfielding14/SFunctor"
+Documentation = "https://sfunctor.readthedocs.io"
+Repository = "https://github.com/dfielding14/SFunctor"
+Issues = "https://github.com/dfielding14/SFunctor/issues"
+
+[project.scripts]
+sfunctor = "sfunctor.cli:main"
+sfunctor-extract = "sfunctor.io.extract:main"
+sfunctor-analyze = "sfunctor.analysis.batch:main"
+
+[tool.setuptools]
+packages = ["sfunctor", "sfunctor.core", "sfunctor.io", "sfunctor.utils", "sfunctor.analysis", "sfunctor.visualization"]
+
+[tool.setuptools.package-data]
+sfunctor = ["*.yaml", "*.yml"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["sfunctor"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
