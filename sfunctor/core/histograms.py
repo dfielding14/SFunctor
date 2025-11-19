@@ -24,6 +24,11 @@ __all__ = [
     "compute_histogram_for_disp_2D",
 ]
 
+# Normalisation factors so that ⟨|Δu|²⟩ → 2σ² for uncorrelated samples
+NORM_2PT = 1.0
+NORM_3PT = 1.0 / np.sqrt(3.0)
+NORM_5PT = 1.0 / np.sqrt(707.0)
+
 
 class Channel(IntEnum):
     """Histogram channels – all names start with D_ for consistency."""
@@ -54,11 +59,11 @@ class Channel(IntEnum):
     D_Bperp_D_Jperp_MAG = 18       # |δB_⊥||δj_⊥|
 
     # --- Non-perpendicular (full-vector) numerators -----------------------
-    D_V_CROSS_B = 19
-    D_V_CROSS_VA = 20
-    D_V_CROSS_OMEGA = 21
-    D_B_CROSS_J = 22
-    D_CURV_CROSS_GRAD_RHO = 23    # |δ(curv) × δ(∇ρ)|
+    D_V_CROSS_B = 19               # |δv × δB|
+    D_V_CROSS_VA = 20              # |δv × δv_A|
+    D_V_CROSS_OMEGA = 21           # |δv × δω|
+    D_B_CROSS_J = 22               # |δB × δj|
+    D_CURV_CROSS_GRAD_RHO = 23     # |δ(curv) × δ(∇ρ)|
 
     # --- MAG (product magnitudes) of full vectors ------------------------
     D_V_D_B_MAG = 24      # |δv||δB|
@@ -141,20 +146,25 @@ def find_bin_index_binary(value: float, bin_edges: np.ndarray) -> int:
 @njit(inline="always")
 def _diff_2pt(arr, jp, ip, j, i):
     """2-point stencil difference."""
-    return arr[jp, ip] - arr[j, i]
+    return NORM_2PT * (arr[jp, ip] - arr[j, i])
 
 
 @njit(inline="always")
 def _diff_3pt(arr, jp, ip, j, i, jm, im):
     """3-point stencil difference."""
-    return arr[jp, ip] - 2.0 * arr[j, i] + arr[jm, im]
+    return NORM_3PT * (arr[jp, ip] - 2.0 * arr[j, i] + arr[jm, im])
 
 
 @njit(inline="always")
 def _diff_5pt(arr, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2):
     """5-point stencil difference."""
-    return (-arr[jp2, ip2] + 16.0 * arr[jp, ip] - 30.0 * arr[j, i] + 
-            16.0 * arr[jm, im] - arr[jm2, im2])
+    return NORM_5PT * (
+        -arr[jp2, ip2]
+        + 16.0 * arr[jp, ip]
+        - 30.0 * arr[j, i]
+        + 16.0 * arr[jm, im]
+        - arr[jm2, im2]
+    )
 
 
 @njit(inline="always")
