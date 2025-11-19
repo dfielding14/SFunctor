@@ -23,9 +23,9 @@ sbatch run_distributed_analysis.sh
 
 ## Scripts
 
-- `generate_displacements.py` - Generate displacement vectors
-- `run_node_analysis.py` - Process subset of displacements on one node
-- `combine_histograms.py` - Combine partial results
+- `scripts/production/generate_displacements.py` - Generate displacement vectors
+- `scripts/production/run_node_analysis.py` - Process subset of displacements on one node
+- `scripts/production/combine_histograms.py` - Combine partial results
 - `run_distributed_analysis.sh` - SLURM orchestration script
 
 ## Configuration

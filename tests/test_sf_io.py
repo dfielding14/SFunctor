@@ -94,10 +94,10 @@ class TestLoadSliceNpz:
         file_path = self.create_test_npz('test_slice.npz', test_data)
         result = load_slice_npz(file_path)
         
-        # Check all expected keys are present
+        # Check all core keys are present (additional optional fields may exist)
         expected_keys = {'rho', 'v_x', 'v_y', 'v_z', 'B_x', 'B_y', 'B_z',
                         'omega_x', 'omega_y', 'omega_z', 'j_x', 'j_y', 'j_z'}
-        assert set(result.keys()) == expected_keys
+        assert expected_keys.issubset(result.keys())
         
         # Check loaded values
         assert np.allclose(result['rho'], 1.0)

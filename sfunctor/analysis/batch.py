@@ -169,6 +169,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
     phi_bin_edges = np.linspace(0, np.pi, n_phi_bins + 1)
     
     sf_bin_edges = np.logspace(-4, 1, 128)
+    sf_channel_bin_edges = [sf_bin_edges.copy() for _ in MAG_CHANNELS]
     product_bin_edges = np.logspace(-5, 5, 128)
 
     # Compute histograms
@@ -201,7 +202,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_bin_edges=sf_bin_edges,
+        sf_channel_bin_edges=sf_channel_bin_edges,
         product_bin_edges=product_bin_edges,
         stencil_width=cfg.stencil_width,
         n_processes=cfg.n_processes,
@@ -231,7 +232,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
             ell_bin_edges=ell_bin_edges,
             theta_bin_edges=theta_bin_edges,
             phi_bin_edges=phi_bin_edges,
-            sf_bin_edges=sf_bin_edges,
+            sf_channel_bin_edges=np.array(sf_channel_bin_edges, dtype=object),
             product_bin_edges=product_bin_edges,
             displacements=displacements,
             metadata={

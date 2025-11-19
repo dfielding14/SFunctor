@@ -27,7 +27,7 @@ sfunctor_results/
    - New: `sfunctor_results/results_{SIM_NAME}/`
 
 3. **Scripts Updated**:
-   - `extractor.py`: Now saves to `sfunctor_results/slice_{SIM_NAME}/`
+   - `scripts/production/extractor.py`: Now saves to `sfunctor_results/slice_{SIM_NAME}/`
    - `run_extraction.sh`: Creates slice list pointing to new location
    - `run_distributed_analysis.sh`: Saves results to `sfunctor_results/results_{SIM_NAME}/`
    - `test_extraction.sh`: Updated to check new locations

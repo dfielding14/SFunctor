@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import contextlib
 from multiprocessing import Pool, cpu_count, shared_memory
-from typing import Dict, Sequence, Tuple
+from typing import Dict, Sequence, Tuple, Union
 
 import numpy as np
 
 from sfunctor.core.histograms import (
     compute_histogram_for_disp_2D,
-    N_CHANNELS,
     N_MAG_CHANNELS,
     N_OTHER_CHANNELS,
 )
@@ -79,7 +78,7 @@ def _process_batch(
     ell_bin_edges: np.ndarray,
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
-    sf_bin_edges: np.ndarray,
+    sf_channel_bin_edges: Sequence[np.ndarray],
     product_bin_edges: np.ndarray,
     stencil_width: int,
     n_ell_bins: int,
@@ -107,8 +106,10 @@ def _process_batch(
         Bin edges for theta angle (latitude).
     phi_bin_edges : np.ndarray
         Bin edges for phi angle (azimuth).
-    sf_bin_edges : np.ndarray
-        Bin edges for structure function values.
+    sf_channel_bin_edges : sequence of np.ndarray or np.ndarray
+        Bin edges for structure function values. If a single array is provided,
+        it is used for every magnitude channel; otherwise supply one array per
+        channel (length = N_MAG_CHANNELS).
     product_bin_edges : np.ndarray
         Bin edges for cross-product terms.
     stencil_width : int
@@ -176,7 +177,7 @@ def _process_batch(
             n_ell_bins,
             n_theta_bins,
             n_phi_bins,
-            sf_bin_edges.shape[0] - 1,
+            sf_channel_bin_edges[0].shape[0] - 1,
         ),
         dtype=np.int64,
     )
@@ -214,7 +215,7 @@ def _process_batch(
             ell_bin_edges,
             theta_bin_edges,
             phi_bin_edges,
-            sf_bin_edges,
+            sf_channel_bin_edges,
             product_bin_edges,
             stencil_width,
         )
@@ -238,7 +239,7 @@ def compute_histograms_shared(
     ell_bin_edges: np.ndarray,
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
-    sf_bin_edges: np.ndarray,
+    sf_channel_bin_edges: Union[Sequence[np.ndarray], np.ndarray],
     product_bin_edges: np.ndarray,
     stencil_width: int = 2,
     n_processes: int | None = None,
@@ -321,6 +322,17 @@ def compute_histograms_shared(
         raise ValueError(f"compute_histograms_shared missing fields: {missing}")
 
     n_processes = n_processes or max(1, cpu_count() - 2)
+
+    # Normalise structure-function bin edges to a list-of-arrays format.
+    if isinstance(sf_channel_bin_edges, np.ndarray):
+        sf_bins_prepped = [np.ascontiguousarray(sf_channel_bin_edges)] * N_MAG_CHANNELS
+    else:
+        sf_bins_prepped = [np.ascontiguousarray(arr) for arr in sf_channel_bin_edges]
+    if len(sf_bins_prepped) != N_MAG_CHANNELS:
+        raise ValueError(
+            f"Expected {N_MAG_CHANNELS} structure-function bin arrays, "
+            f"got {len(sf_bins_prepped)}"
+        )
     
     # Special case: single process execution without shared memory
     if n_processes == 1:
@@ -331,7 +343,7 @@ def compute_histograms_shared(
                 ell_bin_edges.shape[0] - 1,
                 theta_bin_edges.shape[0] - 1,
                 phi_bin_edges.shape[0] - 1,
-                sf_bin_edges.shape[0] - 1,
+                sf_bins_prepped[0].shape[0] - 1,
             ),
             dtype=np.int64,
         )
@@ -361,7 +373,7 @@ def compute_histograms_shared(
                 int(dx), int(dy), axis,
                 N_random_subsamples,
                 ell_bin_edges, theta_bin_edges, phi_bin_edges,
-                sf_bin_edges, product_bin_edges,
+                sf_bins_prepped, product_bin_edges,
                 stencil_width,
             )
             hist_mag_total += hm_part
@@ -414,7 +426,7 @@ def compute_histograms_shared(
                         ell_bin_edges,
                         theta_bin_edges,
                         phi_bin_edges,
-                        sf_bin_edges,
+                        sf_bins_prepped,
                         product_bin_edges,
                         stencil_width,
                         n_ell_bins,
@@ -432,7 +444,7 @@ def compute_histograms_shared(
                 n_ell_bins,
                 n_theta_bins,
                 n_phi_bins,
-                sf_bin_edges.shape[0] - 1,
+                sf_bins_prepped[0].shape[0] - 1,
             ),
             dtype=np.int64,
         )
