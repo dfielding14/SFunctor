@@ -101,8 +101,9 @@ def analyze_slice(
     # Set up bins
     n_theta_bins = 18
     theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
-    n_phi_bins = 18
-    phi_bin_edges = np.linspace(0, np.pi, n_phi_bins + 1)
+    n_phi_bins = 16  # keep phi resolution similar to theta
+    # Phi only needs to distinguish orientations up to 90° because we use |cos phi|
+    phi_bin_edges = np.linspace(0, np.pi / 2, n_phi_bins + 1)
     sf_bin_edges = np.logspace(-4, 1, 128)
     product_bin_edges = np.logspace(-5, 5, 128)
     

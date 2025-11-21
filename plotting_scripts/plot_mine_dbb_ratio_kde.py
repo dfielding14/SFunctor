@@ -150,8 +150,8 @@ def plot_kde_contours(
     inset = ax.inset_axes([0.55, 0.025, 0.425, 0.04])
     cb = fig.colorbar(contour, cax=inset, orientation="horizontal")
     cb.set_label(
-        r"$\left(\frac{\left|\delta B\right|}{\overline{B}(\ell)}\right)"
-        r"P\!\left( \frac{\left|\delta B\right|}{\overline{B}(\ell)} \,\middle|\, \ell\right)$",
+        r"$\left(\frac{\left|\delta B(\ell)\right|}{\overline{B}(\ell)}\right)"
+        r"P\!\left( \frac{\left|\delta B(\ell)\right|}{\overline{B}(\ell)} \,\middle|\, \ell\right)$",
         labelpad=12,
     )
     decade_ticks = [10.0**exp for exp in (-5, -4, -3, -2, -1)]

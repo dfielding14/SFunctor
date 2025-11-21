@@ -137,8 +137,8 @@ def main():
     # Set up histogram bins
     n_theta_bins = 18
     theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
-    n_phi_bins = 18
-    phi_bin_edges = np.linspace(0, np.pi, n_phi_bins + 1)
+    n_phi_bins = 16
+    phi_bin_edges = np.linspace(0, np.pi / 2, n_phi_bins + 1)
 
     # Create channel-specific bin edges
     sf_channel_bin_edges = []

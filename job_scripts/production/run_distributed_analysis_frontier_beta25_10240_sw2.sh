@@ -56,6 +56,7 @@ fi
 
 # Set paths
 SFUNCTOR_DIR="/autofs/nccs-svm1_home2/dfielding/SFunctor"
+export PYTHONPATH="${SFUNCTOR_DIR}:${PYTHONPATH}"
 RUN_NAME="ndisp${N_DISP_TOTAL}_nrand${N_RANDOM_SUBSAMPLES}_nell${N_ELL_BINS}_sw${STENCIL_WIDTH}_job${SLURM_JOB_ID}"
 WORK_DIR="${BASE_DIR}/sfunctor_results/results_${SIM_NAME}/${RUN_NAME}"
 SLICE_LIST="${BASE_DIR}/sfunctor_results/slice_list_${SIM_NAME}.txt"
@@ -161,6 +162,7 @@ echo "======================================"
 python $SFUNCTOR_DIR/scripts/production/generate_displacements.py \
     --n_disp_total $N_DISP_TOTAL \
     --n_ell_bins $N_ELL_BINS \
+    --stencil_width $STENCIL_WIDTH \
     --Nres $NRES \
     --seed $SEED
 

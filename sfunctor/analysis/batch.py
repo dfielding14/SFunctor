@@ -165,8 +165,9 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
     # Histogram bin setup
     n_theta_bins = 18
     theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
-    n_phi_bins = 18
-    phi_bin_edges = np.linspace(0, np.pi, n_phi_bins + 1)
+    n_phi_bins = 16  # keep phi resolution similar to theta
+    # Phi only needs to cover 0–90° because the angle is built from |cos phi|
+    phi_bin_edges = np.linspace(0, np.pi / 2, n_phi_bins + 1)
     
     sf_bin_edges = np.logspace(-4, 1, 128)
     sf_channel_bin_edges = [sf_bin_edges.copy() for _ in MAG_CHANNELS]

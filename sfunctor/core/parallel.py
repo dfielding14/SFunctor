@@ -32,17 +32,17 @@ _GLOBAL_FIELDS: Dict[str, np.ndarray] = {}
 
 def _init_worker(shm_meta: Dict[str, Tuple[str, Tuple[int, ...], str]]) -> None:
     """Pool initializer that attaches numpy views to shared-memory segments.
-    
+
     This function is called once per worker process to set up access to
     shared memory arrays. It creates numpy array views that map to the
     same underlying memory, avoiding data duplication across processes.
-    
+
     Parameters
     ----------
     shm_meta : dict
         Metadata dictionary mapping field names to tuples of:
         (shared_memory_name, array_shape, dtype_string)
-    
+
     Notes
     -----
     Modifies the global _GLOBAL_FIELDS dictionary to store array references.
@@ -86,10 +86,10 @@ def _process_batch(
     n_phi_bins: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute histogram for a batch of displacement indices using globals.
-    
+
     Worker function that processes a subset of displacement vectors. Accesses
     field data from shared memory to avoid duplication across processes.
-    
+
     Parameters
     ----------
     batch_indices : sequence of int
@@ -120,7 +120,7 @@ def _process_batch(
         Number of theta bins.
     n_phi_bins : int
         Number of phi bins.
-    
+
     Returns
     -------
     hist_mag : np.ndarray
@@ -129,7 +129,7 @@ def _process_batch(
     hist_other : np.ndarray
         Histogram for cross-product channels with shape
         (N_OTHER_CHANNELS, n_ell_bins, n_sf_bins).
-    
+
     Notes
     -----
     This function is designed to be called by multiprocessing.Pool workers.
@@ -162,11 +162,11 @@ def _process_batch(
     jx = _GLOBAL_FIELDS["j_x"]
     jy = _GLOBAL_FIELDS["j_y"]
     jz = _GLOBAL_FIELDS["j_z"]
-    
+
     curvx = _GLOBAL_FIELDS["curv_x"]
     curvy = _GLOBAL_FIELDS["curv_y"]
     curvz = _GLOBAL_FIELDS["curv_z"]
-    
+
     gradrhox = _GLOBAL_FIELDS["grad_rho_x"]
     gradrhoy = _GLOBAL_FIELDS["grad_rho_y"]
     gradrhoz = _GLOBAL_FIELDS["grad_rho_z"]
@@ -245,7 +245,7 @@ def compute_histograms_shared(
     n_processes: int | None = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute histograms using shared-memory Pool.
-    
+
     Main entry point for parallel histogram computation. Uses multiprocessing
     with shared memory to efficiently process large datasets without duplicating
     field arrays across worker processes.
@@ -298,7 +298,7 @@ def compute_histograms_shared(
     ------
     ValueError
         If required fields are missing from the fields dictionary.
-    
+
     Notes
     -----
     This function uses shared memory to avoid duplicating large field arrays
@@ -333,7 +333,7 @@ def compute_histograms_shared(
             f"Expected {N_MAG_CHANNELS} structure-function bin arrays, "
             f"got {len(sf_bins_prepped)}"
         )
-    
+
     # Special case: single process execution without shared memory
     if n_processes == 1:
         # Direct computation without multiprocessing overhead
@@ -355,7 +355,7 @@ def compute_histograms_shared(
             ),
             dtype=np.int64,
         )
-        
+
         # Process all displacements directly
         for idx in range(displacements.shape[0]):
             dx, dy = displacements[idx]
@@ -378,7 +378,7 @@ def compute_histograms_shared(
             )
             hist_mag_total += hm_part
             hist_other_total += ho_part
-        
+
         return hist_mag_total, hist_other_total
 
     # Create shared-memory segments ---------------------------------------
@@ -394,12 +394,12 @@ def compute_histograms_shared(
             shm_arr = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
             # Ensure complete copy with explicit memory order
             np.copyto(shm_arr, arr, casting='no')
-            # Verify the copy was successful
-            if not np.array_equal(shm_arr, arr):
+            # Verify the copy was successful (allow NaNs)
+            if not np.array_equal(shm_arr, arr, equal_nan=True):
                 raise RuntimeError(f"Failed to copy {key} to shared memory")
             shm_objects[key] = shm
             shm_meta[key] = (shm.name, arr.shape, str(arr.dtype))
-        
+
         # Small delay to ensure shared memory is synced
         time.sleep(0.01)
 
@@ -468,4 +468,4 @@ def compute_histograms_shared(
         for shm in shm_objects.values():
             with contextlib.suppress(FileNotFoundError):
                 shm.close()
-                shm.unlink() 
+                shm.unlink()
