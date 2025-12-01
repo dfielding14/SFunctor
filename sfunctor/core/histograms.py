@@ -72,6 +72,10 @@ class Channel(IntEnum):
     D_B_D_J_MAG = 27      # |δB||δj|
     D_CURV_D_GRAD_RHO_MAG = 28  # |δ(curv)||δ(∇ρ)|
 
+    # --- Elsasser alignment angle (θ^{z+,z-}) channels ------------------
+    D_Zplusperp_CROSS_Zminusperp = 29   # |δz⁺⊥ × δz⁻⊥| (numerator for sin θ^{z+,z-})
+    D_Zplusperp_D_Zminusperp_MAG = 30   # |δz⁺⊥||δz⁻⊥| (denominator for sin θ^{z+,z-})
+
 
 N_CHANNELS = len(Channel)
 
@@ -111,6 +115,8 @@ OTHER_CHANNELS = (
     Channel.D_B_D_J_MAG,
     Channel.D_CURV_CROSS_GRAD_RHO,
     Channel.D_CURV_D_GRAD_RHO_MAG,
+    Channel.D_Zplusperp_CROSS_Zminusperp,
+    Channel.D_Zplusperp_D_Zminusperp_MAG,
 )
 N_OTHER_CHANNELS = len(OTHER_CHANNELS)
 
@@ -432,6 +438,28 @@ def _compute_histogram_core(
     m_idx = find_bin_index_binary(MAG_curv_gradrho, product_bin_edges)
     if m_idx >= 0:
         hist_other[17, ell_idx, m_idx] += 1  # Channel.D_CURV_D_GRAD_RHO_MAG = 28
+
+    # Elsasser alignment angle: θ^{z+,z-} = <δz⊥+ × δz⊥-> / <|δz⊥+||δz⊥-|>
+    dZp_vec = np.array([dzpz, dzpy, dzpx])
+    dZm_vec = np.array([dzmz, dzmy, dzmx])
+
+    dZp_perp = _perp(dZp_vec, B_unit)
+    dZm_perp = _perp(dZm_vec, B_unit)
+
+    dZp_perp_mag = np.sqrt((dZp_perp**2).sum())
+    dZm_perp_mag = np.sqrt((dZm_perp**2).sum())
+
+    # Cross product magnitude (numerator for sin θ^{z+,z-})
+    cross_zp_zm_perp = np.sqrt((np.cross(dZp_perp, dZm_perp)**2).sum())
+    z_idx = find_bin_index_binary(cross_zp_zm_perp, product_bin_edges)
+    if z_idx >= 0:
+        hist_other[18, ell_idx, z_idx] += 1  # Channel.D_Zplusperp_CROSS_Zminusperp = 29
+
+    # Product of magnitudes (denominator for sin θ^{z+,z-})
+    MAG_zp_zm_perp = dZp_perp_mag * dZm_perp_mag
+    z_idx = find_bin_index_binary(MAG_zp_zm_perp, product_bin_edges)
+    if z_idx >= 0:
+        hist_other[19, ell_idx, z_idx] += 1  # Channel.D_Zplusperp_D_Zminusperp_MAG = 30
 
 
 # -----------------------------------------------------------------------------
