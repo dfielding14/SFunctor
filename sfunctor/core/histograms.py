@@ -64,6 +64,11 @@ class Channel(IntEnum):
     D_Bperp_D_Jperp_CROSS_MAG_RATIO = 21      # |δB_⊥ × δj_⊥| / |δB_⊥||δj_⊥|
     D_Omegaperp_D_Jperp_CROSS_MAG_RATIO = 22  # |δω_⊥ × δj_⊥| / |δω_⊥||δj_⊥|
 
+    # --- Elsasser alignment angle: θ^(z+,z-) = ⟨δz⁺_⊥ × δz⁻_⊥⟩ / ⟨|δz⁺_⊥||δz⁻_⊥|⟩
+    D_Zplusperp_CROSS_D_Zminusperp = 23       # |δz⁺_⊥ × δz⁻_⊥|
+    D_Zplusperp_D_Zminusperp_MAG = 24         # |δz⁺_⊥||δz⁻_⊥|
+    D_Zplusperp_D_Zminusperp_CROSS_MAG_RATIO = 25  # |δz⁺_⊥ × δz⁻_⊥| / |δz⁺_⊥||δz⁻_⊥|
+
 
 N_CHANNELS = len(Channel)
 
@@ -262,6 +267,9 @@ def _compute_histogram_core(
     c_ratio_v_omega = Channel.D_Vperp_D_Omegaperp_CROSS_MAG_RATIO.value
     c_ratio_b_j = Channel.D_Bperp_D_Jperp_CROSS_MAG_RATIO.value
     c_ratio_omega_j = Channel.D_Omegaperp_D_Jperp_CROSS_MAG_RATIO.value
+    c_cross_zp_zm = Channel.D_Zplusperp_CROSS_D_Zminusperp.value
+    c_mag_zp_zm = Channel.D_Zplusperp_D_Zminusperp_MAG.value
+    c_ratio_zp_zm = Channel.D_Zplusperp_D_Zminusperp_CROSS_MAG_RATIO.value
 
     # Magnitudes
     _accumulate_bin(dv, delta_bin_edges[c_D_V], hist, c_D_V, ell_idx, theta_idx, phi_idx)
@@ -320,6 +328,25 @@ def _compute_histogram_core(
         _accumulate_bin(cross_b_j / mag_b_j, delta_bin_edges[c_ratio_b_j], hist, c_ratio_b_j, ell_idx, theta_idx, phi_idx)
     if mag_omega_j > 0.0:
         _accumulate_bin(cross_omega_j / mag_omega_j, delta_bin_edges[c_ratio_omega_j], hist, c_ratio_omega_j, ell_idx, theta_idx, phi_idx)
+
+    # Elsasser alignment angle: θ^(z+,z-) = ⟨δz⁺_⊥ × δz⁻_⊥⟩ / ⟨|δz⁺_⊥||δz⁻_⊥|⟩
+    dZplus_vec = np.array([dzpz, dzpy, dzpx])
+    dZminus_vec = np.array([dzmz, dzmy, dzmx])
+
+    dZplus_perp = _perp(dZplus_vec, B_unit)
+    dZminus_perp = _perp(dZminus_vec, B_unit)
+
+    dZplus_perp_mag = np.sqrt((dZplus_perp**2).sum())
+    dZminus_perp_mag = np.sqrt((dZminus_perp**2).sum())
+
+    cross_zp_zm = np.sqrt((np.cross(dZplus_perp, dZminus_perp) ** 2).sum())
+    mag_zp_zm = dZplus_perp_mag * dZminus_perp_mag
+
+    _accumulate_bin(cross_zp_zm, delta_bin_edges[c_cross_zp_zm], hist, c_cross_zp_zm, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_zp_zm, delta_bin_edges[c_mag_zp_zm], hist, c_mag_zp_zm, ell_idx, theta_idx, phi_idx)
+
+    if mag_zp_zm > 0.0:
+        _accumulate_bin(cross_zp_zm / mag_zp_zm, delta_bin_edges[c_ratio_zp_zm], hist, c_ratio_zp_zm, ell_idx, theta_idx, phi_idx)
 
 
 # -----------------------------------------------------------------------------
