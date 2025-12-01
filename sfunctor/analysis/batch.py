@@ -56,8 +56,7 @@ from sfunctor.core.physics import compute_vA, compute_z_plus_minus
 from sfunctor.utils.displacements import find_ell_bin_edges, build_displacement_list
 from sfunctor.core.histograms import (
     Channel,
-    MAG_CHANNELS,
-    OTHER_CHANNELS,
+    N_CHANNELS,
 )
 from sfunctor.core.parallel import compute_histograms_shared
 
@@ -169,9 +168,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
     # Phi only needs to cover 0–90° because the angle is built from |cos phi|
     phi_bin_edges = np.linspace(0, np.pi / 2, n_phi_bins + 1)
     
-    sf_bin_edges = np.logspace(-4, 1, 128)
-    sf_channel_bin_edges = [sf_bin_edges.copy() for _ in MAG_CHANNELS]
-    product_bin_edges = np.logspace(-5, 5, 128)
+    delta_bin_edges = [np.logspace(-4, 1, 128) for _ in range(N_CHANNELS)]
 
     # Compute histograms
     fields = {
@@ -195,7 +192,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         "grad_rho_z": slice_data.get("grad_rho_z", np.full_like(rho, np.nan)),
     }
 
-    hist_mag, hist_other = compute_histograms_shared(
+    hist = compute_histograms_shared(
         fields,
         displacements,
         axis=axis,
@@ -203,21 +200,17 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_channel_bin_edges=sf_channel_bin_edges,
-        product_bin_edges=product_bin_edges,
+        delta_bin_edges=delta_bin_edges,
         stencil_width=cfg.stencil_width,
         n_processes=cfg.n_processes,
     )
 
     # MPI reduction
     if size > 1:
-        recv_mag = np.zeros_like(hist_mag) if rank == 0 else None
-        recv_other = np.zeros_like(hist_other) if rank == 0 else None
-        comm.Reduce(hist_mag, recv_mag, op=MPI.SUM, root=0)
-        comm.Reduce(hist_other, recv_other, op=MPI.SUM, root=0)
+        recv_hist = np.zeros_like(hist) if rank == 0 else None
+        comm.Reduce(hist, recv_hist, op=MPI.SUM, root=0)
         if rank == 0:
-            hist_mag = recv_mag
-            hist_other = recv_other
+            hist = recv_hist
 
     # Save results (rank 0 only)
     if rank == 0:
@@ -226,15 +219,12 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         
         np.savez_compressed(
             output_file,
-            hist_mag=hist_mag,
-            hist_other=hist_other,
-            mag_channels=[ch.name for ch in MAG_CHANNELS],
-            other_channels=[ch.name for ch in OTHER_CHANNELS],
+            hist=hist,
+            channels=[ch.name for ch in Channel],
             ell_bin_edges=ell_bin_edges,
             theta_bin_edges=theta_bin_edges,
             phi_bin_edges=phi_bin_edges,
-            sf_channel_bin_edges=np.array(sf_channel_bin_edges, dtype=object),
-            product_bin_edges=product_bin_edges,
+            delta_bin_edges=np.array(delta_bin_edges, dtype=object),
             displacements=displacements,
             metadata={
                 "n_slices": len(slice_paths_my_rank) if size == 1 else size,

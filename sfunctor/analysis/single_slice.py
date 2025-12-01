@@ -12,7 +12,7 @@ import numpy as np
 from sfunctor.core.physics import compute_vA, compute_z_plus_minus
 from sfunctor.utils.displacements import find_ell_bin_edges, build_displacement_list
 from sfunctor.core.parallel import compute_histograms_shared
-from sfunctor.core.histograms import MAG_CHANNELS, OTHER_CHANNELS
+from sfunctor.core.histograms import Channel, N_CHANNELS
 
 
 def analyze_slice(
@@ -53,23 +53,20 @@ def analyze_slice(
     -------
     dict[str, np.ndarray]
         Dictionary containing:
-        - 'hist_mag': Magnitude histogram array
-        - 'hist_other': Cross-product histogram array
+        - 'hist': Unified histogram array
         - 'ell_bin_edges': Displacement magnitude bin edges
         - 'theta_bin_edges': Theta angle bin edges
         - 'phi_bin_edges': Phi angle bin edges
-        - 'sf_bin_edges': Structure function value bin edges
-        - 'product_bin_edges': Cross-product value bin edges
+        - 'delta_bin_edges': Per-channel Δ bin edges
         - 'displacements': Array of displacement vectors used
-        - 'mag_channels': List of magnitude channel names
-        - 'other_channels': List of cross-product channel names
+        - 'channels': List of channel names
     
     Examples
     --------
     >>> from sfunctor.io import load_slice_npz
     >>> data = load_slice_npz("slice.npz")
     >>> results = analyze_slice(data, n_displacements=5000)
-    >>> print(results['hist_mag'].shape)
+    >>> print(results['hist'].shape)
     """
     # Extract fields
     rho = slice_data["rho"]
@@ -104,8 +101,7 @@ def analyze_slice(
     n_phi_bins = 16  # keep phi resolution similar to theta
     # Phi only needs to distinguish orientations up to 90° because we use |cos phi|
     phi_bin_edges = np.linspace(0, np.pi / 2, n_phi_bins + 1)
-    sf_bin_edges = np.logspace(-4, 1, 128)
-    product_bin_edges = np.logspace(-5, 5, 128)
+    delta_bin_edges = [np.logspace(-4, 1, 128) for _ in range(N_CHANNELS)]
     
     # Prepare fields dictionary
     fields = {
@@ -130,7 +126,7 @@ def analyze_slice(
     }
     
     # Compute histograms
-    hist_mag, hist_other = compute_histograms_shared(
+    hist = compute_histograms_shared(
         fields,
         displacements,
         axis=axis,
@@ -138,22 +134,18 @@ def analyze_slice(
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_bin_edges=sf_bin_edges,
-        product_bin_edges=product_bin_edges,
+        delta_bin_edges=delta_bin_edges,
         stencil_width=stencil_width,
         n_processes=n_processes,
     )
     
     # Return results dictionary
     return {
-        "hist_mag": hist_mag,
-        "hist_other": hist_other,
+        "hist": hist,
         "ell_bin_edges": ell_bin_edges,
         "theta_bin_edges": theta_bin_edges,
         "phi_bin_edges": phi_bin_edges,
-        "sf_bin_edges": sf_bin_edges,
-        "product_bin_edges": product_bin_edges,
+        "delta_bin_edges": delta_bin_edges,
         "displacements": displacements,
-        "mag_channels": [ch.name for ch in MAG_CHANNELS],
-        "other_channels": [ch.name for ch in OTHER_CHANNELS],
+        "channels": [ch.name for ch in Channel],
     }

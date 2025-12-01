@@ -17,11 +17,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from sfunctor.io.slice_io import load_slice_npz
 from sfunctor.core.physics import compute_vA, compute_z_plus_minus
 from sfunctor.core.histograms import (
-    compute_histogram_for_disp_2D,
-    N_MAG_CHANNELS,
-    N_OTHER_CHANNELS,
-    MAG_CHANNELS,
-    OTHER_CHANNELS,
+    Channel,
+    N_CHANNELS,
 )
 from sfunctor.core.parallel import compute_histograms_shared
 
@@ -47,23 +44,27 @@ def main():
     parser.add_argument("--n_processes", type=int, default=0,
                         help="Number of processes (0=auto)")
 
-    # Bin edge parameters for sf_bin_edges - now channel-specific
-    parser.add_argument("--log_sf_bin_edges_min", type=float, nargs='+',
-                        default=[-5, -5, -5, -5, -5, -5, -2, -2, -2, -2, -5],
-                        help="Log10 of minimum sf bin edge for each channel (11 values)")
-    parser.add_argument("--log_sf_bin_edges_max", type=float, nargs='+',
-                        default=[1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 3],
-                        help="Log10 of maximum sf bin edge for each channel (11 values)")
-    parser.add_argument("--N_sf_bin_edges", type=int, default=201,
-                        help="Number of sf bins (default: 201)")
-
-    # Bin edge parameters for product_bin_edges
-    parser.add_argument("--log_product_bin_edges_min", type=float, default=-5,
-                        help="Log10 of minimum product bin edge (default: -5)")
-    parser.add_argument("--log_product_bin_edges_max", type=float, default=5,
-                        help="Log10 of maximum product bin edge (default: 5)")
-    parser.add_argument("--N_product_bin_edges", type=int, default=201,
-                        help="Number of product bins (default: 201)")
+    # Bin edge parameters for unified Δ bins (per channel)
+    log_delta_min_defaults = [
+        -5, -5, -5, -5, -5, -5, -2, -2, -2, -2, -5,  # magnitudes
+        -5, -5, -5, -5,                              # cross products
+        -5, -5, -5, -5,                              # product magnitudes
+        -6, -6, -6, -6,                              # ratios (0–1)
+    ]
+    log_delta_max_defaults = [
+        1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 3,             # magnitudes
+        5, 5, 5, 5,                                  # cross products
+        5, 5, 5, 5,                                  # product magnitudes
+        0, 0, 0, 0,                                  # ratios
+    ]
+    parser.add_argument("--log_delta_bin_edges_min", type=float, nargs='+',
+                        default=log_delta_min_defaults,
+                        help=f"Log10 of minimum Δ bin edge for each channel ({N_CHANNELS} values)")
+    parser.add_argument("--log_delta_bin_edges_max", type=float, nargs='+',
+                        default=log_delta_max_defaults,
+                        help=f"Log10 of maximum Δ bin edge for each channel ({N_CHANNELS} values)")
+    parser.add_argument("--N_delta_bin_edges", type=int, default=201,
+                        help="Number of Δ bins (applied to every channel)")
 
     args = parser.parse_args()
 
@@ -129,24 +130,20 @@ def main():
     }
 
     # Validate bin edge arguments
-    if len(args.log_sf_bin_edges_min) != N_MAG_CHANNELS:
-        raise ValueError(f"Expected {N_MAG_CHANNELS} values for log_sf_bin_edges_min, got {len(args.log_sf_bin_edges_min)}")
-    if len(args.log_sf_bin_edges_max) != N_MAG_CHANNELS:
-        raise ValueError(f"Expected {N_MAG_CHANNELS} values for log_sf_bin_edges_max, got {len(args.log_sf_bin_edges_max)}")
+    if len(args.log_delta_bin_edges_min) != N_CHANNELS:
+        raise ValueError(f"Expected {N_CHANNELS} values for log_delta_bin_edges_min, got {len(args.log_delta_bin_edges_min)}")
+    if len(args.log_delta_bin_edges_max) != N_CHANNELS:
+        raise ValueError(f"Expected {N_CHANNELS} values for log_delta_bin_edges_max, got {len(args.log_delta_bin_edges_max)}")
 
-    # Set up histogram bins
-    n_theta_bins = 18
-    theta_bin_edges = np.linspace(0, np.pi / 2, n_theta_bins + 1)
-    n_phi_bins = 16
-    phi_bin_edges = np.linspace(0, np.pi / 2, n_phi_bins + 1)
+    # Set up histogram bins (explicit angular bins in degrees, converted to radians)
+    theta_bin_edges = np.deg2rad(np.array([0, 5, 15, 30, 45, 60, 75, 85, 90], dtype=float))
+    phi_bin_edges = np.deg2rad(np.array([0, 5, 15, 30, 60, 75, 85, 90], dtype=float))
 
-    # Create channel-specific bin edges
-    sf_channel_bin_edges = []
-    for i in range(N_MAG_CHANNELS):
-        bin_edges = np.logspace(args.log_sf_bin_edges_min[i], args.log_sf_bin_edges_max[i], args.N_sf_bin_edges)
-        sf_channel_bin_edges.append(bin_edges)
-
-    product_bin_edges = np.logspace(args.log_product_bin_edges_min, args.log_product_bin_edges_max, args.N_product_bin_edges)
+    # Create channel-specific Δ bin edges with shared bin count
+    delta_bin_edges = []
+    for i in range(N_CHANNELS):
+        bin_edges = np.logspace(args.log_delta_bin_edges_min[i], args.log_delta_bin_edges_max[i], args.N_delta_bin_edges)
+        delta_bin_edges.append(bin_edges)
 
     # Process using shared memory implementation
     print(f"Processing with shared memory ({n_processes} processes)...")
@@ -158,7 +155,7 @@ def main():
     print(f"  Processing {len(node_displacements)} displacements")
 
     # Use fixed compute_histograms_shared that handles channel-specific bins correctly
-    hist_mag, hist_other = compute_histograms_shared(
+    hist = compute_histograms_shared(
         fields=fields,
         displacements=node_displacements,
         axis=axis,
@@ -166,10 +163,9 @@ def main():
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_channel_bin_edges=sf_channel_bin_edges,  # Now passes the full list
-        product_bin_edges=product_bin_edges,
+        delta_bin_edges=delta_bin_edges,  # Per-channel Δ edges (shared bin count)
         stencil_width=args.stencil_width,
-        n_processes=n_processes
+        n_processes=n_processes,
     )
 
     # Save results
@@ -181,14 +177,12 @@ def main():
 
     np.savez_compressed(
         output_file,
-        hist_mag=hist_mag,
-        hist_other=hist_other,
-        mag_channels=[ch.name for ch in MAG_CHANNELS],
-        other_channels=[ch.name for ch in OTHER_CHANNELS],
+        hist=hist,
+        channels=[ch.name for ch in Channel],
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        # sf_channel_bin_edges and product_bin_edges removed - can be reconstructed from metadata
+        delta_bin_edges=np.array(delta_bin_edges, dtype=object),
         node_info={
             'node_id': args.node_id,
             'total_nodes': args.total_nodes,
@@ -203,12 +197,9 @@ def main():
             'stencil_width': args.stencil_width,
             'N_random_subsamples': args.N_random_subsamples,
             'n_processes': n_processes,
-            'log_sf_bin_edges_min': args.log_sf_bin_edges_min,
-            'log_sf_bin_edges_max': args.log_sf_bin_edges_max,
-            'N_sf_bin_edges': args.N_sf_bin_edges,
-            'log_product_bin_edges_min': args.log_product_bin_edges_min,
-            'log_product_bin_edges_max': args.log_product_bin_edges_max,
-            'N_product_bin_edges': args.N_product_bin_edges
+            'log_delta_bin_edges_min': args.log_delta_bin_edges_min,
+            'log_delta_bin_edges_max': args.log_delta_bin_edges_max,
+            'N_delta_bin_edges': args.N_delta_bin_edges,
         }
     )
 

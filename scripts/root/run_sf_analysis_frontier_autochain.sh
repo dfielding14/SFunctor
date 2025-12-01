@@ -604,7 +604,7 @@ EXISTING_PLOTS=$(ls -1 $WORK_DIR/*.png 2>/dev/null | wc -l)
 if [ $EXISTING_PLOTS -gt 10 ]; then
     echo " Plots already exist ($EXISTING_PLOTS found) - skipping generation"
 else
-    python $SFUNCTOR_DIR/scripts/production/plot_structure_functions.py \
+    python $SFUNCTOR_DIR/plotting_scripts/plot_structure_functions.py \
         $WORK_DIR/sf_results_all_slices.npz
 
     if [ $? -eq 0 ]; then

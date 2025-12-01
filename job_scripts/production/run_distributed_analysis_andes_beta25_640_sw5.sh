@@ -184,7 +184,7 @@ python "$SFUNCTOR_DIR/scripts/production/combine_histograms_fast.py" \
     --workers "${CPUS_PER_TASK}"
 
 log "Generating diagnostic plots"
-python "$SFUNCTOR_DIR/scripts/production/plot_structure_functions.py" \
+python "$SFUNCTOR_DIR/plotting_scripts/plot_structure_functions.py" \
     "$WORK_DIR/sf_results_all_slices.npz"
 
 SCRIPT_END=$(date +%s)

@@ -45,6 +45,8 @@ matplotlib.rcParams['text.usetex'] = True
 data = np.load("/lustre/orion/ast207/proj-shared/dfielding/Production_plm/sfunctor_results/results_Turb_5120_beta1_dedt025_plm/ndisp10_000_nrand1_000_nell128_sw2_job3652554/sf_results_all_slices.npz", allow_pickle=True)
 hist_mag = data['hist_mag']
 hist_other = data['hist_other']
+if hist_other.ndim == 5:
+    hist_other = hist_other.sum(axis=(2, 3))
 mag_channels = data['mag_channels']
 other_channels = data['other_channels']
 ell_bin_edges = data['ell_bin_edges']
@@ -73,6 +75,8 @@ def plot_histogram_from_file(npz_file, title):
     data = np.load(npz_file, allow_pickle=True)
     hist_mag = data['hist_mag']
     hist_other = data['hist_other']
+    if hist_other.ndim == 5:
+        hist_other = hist_other.sum(axis=(2, 3))
     mag_channels = data['mag_channels']
     other_channels = data['other_channels']
     ell_bin_edges = data['ell_bin_edges']
@@ -470,6 +474,5 @@ fig.savefig("bsf_median_comparison.pdf", dpi=300, bbox_inches='tight')
 
 
 # In[ ]:
-
 
 

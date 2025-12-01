@@ -79,7 +79,7 @@ fi
 # Generate plots
 if [ -f "${WORK_DIR}/sf_results_all_slices.npz" ]; then
     echo "Generating plots..."
-    python $SFUNCTOR_DIR/scripts/production/plot_structure_functions.py ${WORK_DIR}/sf_results_all_slices.npz
+    python $SFUNCTOR_DIR/plotting_scripts/plot_structure_functions.py ${WORK_DIR}/sf_results_all_slices.npz
     
     NUM_PLOTS=$(ls -1 ${WORK_DIR}/*.png 2>/dev/null | wc -l)
     echo "✓ Generated $NUM_PLOTS plots"
@@ -143,7 +143,7 @@ fi
 # Generate plots
 if [ -f "${WORK_DIR}/sf_results_all_slices.npz" ]; then
     echo "Generating plots..."
-    python $SFUNCTOR_DIR/scripts/production/plot_structure_functions.py ${WORK_DIR}/sf_results_all_slices.npz
+    python $SFUNCTOR_DIR/plotting_scripts/plot_structure_functions.py ${WORK_DIR}/sf_results_all_slices.npz
     
     NUM_PLOTS=$(ls -1 ${WORK_DIR}/*.png 2>/dev/null | wc -l)
     echo "✓ Generated $NUM_PLOTS plots"

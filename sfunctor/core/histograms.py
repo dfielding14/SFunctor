@@ -27,7 +27,7 @@ __all__ = [
 # Normalisation factors so that ⟨|Δu|²⟩ → 2σ² for uncorrelated samples
 NORM_2PT = 1.0
 NORM_3PT = 1.0 / np.sqrt(3.0)
-NORM_5PT = 1.0 / np.sqrt(707.0)
+NORM_5PT = 1.0 / np.sqrt(35.0)
 
 
 class Channel(IntEnum):
@@ -47,76 +47,25 @@ class Channel(IntEnum):
     D_B_over_Bmean_loc = 10  # |δB|/B_mean_local
 
     # --- Angle numerators: perpendicular components -----------------------
-    D_Vperp_CROSS_Bperp = 11      # |δv_⊥ × δB_⊥|
-    D_Vperp_CROSS_VAperp = 12     # |δv_⊥ × δv_A⊥|
-    D_Vperp_CROSS_Omegaperp = 13  # |δv_⊥ × δω_⊥|
-    D_Bperp_CROSS_Jperp = 14      # |δB_⊥ × δj_⊥|
+    D_Vperp_CROSS_D_Bperp = 11      # |δv_⊥ × δB_⊥|
+    D_Vperp_CROSS_D_Omegaperp = 12  # |δv_⊥ × δω_⊥|
+    D_Bperp_CROSS_D_Jperp = 13      # |δB_⊥ × δj_⊥|
+    D_Omegaperp_CROSS_D_Jperp = 14  # |δω_⊥ × δj_⊥|
 
     # --- MAG (product magnitudes) of perpendicular components -------------
-    D_Vperp_D_Bperp_MAG = 15       # |δv_⊥||δB_⊥|
-    D_Vperp_D_VAperp_MAG = 16      # |δv_⊥||δv_A⊥|
-    D_Vperp_D_Omegaperp_MAG = 17   # |δv_⊥||δω_⊥|
-    D_Bperp_D_Jperp_MAG = 18       # |δB_⊥||δj_⊥|
+    D_Vperp_D_Bperp_MAG = 15        # |δv_⊥||δB_⊥|
+    D_Vperp_D_Omegaperp_MAG = 16    # |δv_⊥||δω_⊥|
+    D_Bperp_D_Jperp_MAG = 17        # |δB_⊥||δj_⊥|
+    D_Omegaperp_D_Jperp_MAG = 18    # |δω_⊥||δj_⊥|
 
-    # --- Non-perpendicular (full-vector) numerators -----------------------
-    D_V_CROSS_B = 19               # |δv × δB|
-    D_V_CROSS_VA = 20              # |δv × δv_A|
-    D_V_CROSS_OMEGA = 21           # |δv × δω|
-    D_B_CROSS_J = 22               # |δB × δj|
-    D_CURV_CROSS_GRAD_RHO = 23     # |δ(curv) × δ(∇ρ)|
-
-    # --- MAG (product magnitudes) of full vectors ------------------------
-    D_V_D_B_MAG = 24      # |δv||δB|
-    D_V_D_VA_MAG = 25     # |δv||δv_A|
-    D_V_D_OMEGA_MAG = 26  # |δv||δω|
-    D_B_D_J_MAG = 27      # |δB||δj|
-    D_CURV_D_GRAD_RHO_MAG = 28  # |δ(curv)||δ(∇ρ)|
+    # --- Cross product to magnitude ratios ---------------------------------
+    D_Vperp_D_Bperp_CROSS_MAG_RATIO = 19      # |δv_⊥ × δB_⊥| / |δv_⊥||δB_⊥|
+    D_Vperp_D_Omegaperp_CROSS_MAG_RATIO = 20  # |δv_⊥ × δω_⊥| / |δv_⊥||δω_⊥|
+    D_Bperp_D_Jperp_CROSS_MAG_RATIO = 21      # |δB_⊥ × δj_⊥| / |δB_⊥||δj_⊥|
+    D_Omegaperp_D_Jperp_CROSS_MAG_RATIO = 22  # |δω_⊥ × δj_⊥| / |δω_⊥||δj_⊥|
 
 
 N_CHANNELS = len(Channel)
-
-# Channels that go into the (ℓ, θ, φ, sf) histogram
-MAG_CHANNELS = (
-    Channel.D_V,
-    Channel.D_B,
-    Channel.D_RHO,
-    Channel.D_VA,
-    Channel.D_ZPLUS,
-    Channel.D_ZMINUS,
-    Channel.D_OMEGA,
-    Channel.D_J,
-    Channel.D_CURV,
-    Channel.D_GRAD_RHO,
-    Channel.D_B_over_Bmean_loc,
-)
-N_MAG_CHANNELS = len(MAG_CHANNELS)
-
-# Channels that go into the (ℓ, product) histogram
-OTHER_CHANNELS = (
-    Channel.D_Vperp_CROSS_Bperp,
-    Channel.D_Vperp_CROSS_VAperp,
-    Channel.D_Vperp_CROSS_Omegaperp,
-    Channel.D_Bperp_CROSS_Jperp,
-    Channel.D_Vperp_D_Bperp_MAG,
-    Channel.D_Vperp_D_VAperp_MAG,
-    Channel.D_Vperp_D_Omegaperp_MAG,
-    Channel.D_Bperp_D_Jperp_MAG,
-    Channel.D_V_CROSS_B,
-    Channel.D_V_CROSS_VA,
-    Channel.D_V_CROSS_OMEGA,
-    Channel.D_B_CROSS_J,
-    Channel.D_V_D_B_MAG,
-    Channel.D_V_D_VA_MAG,
-    Channel.D_V_D_OMEGA_MAG,
-    Channel.D_B_D_J_MAG,
-    Channel.D_CURV_CROSS_GRAD_RHO,
-    Channel.D_CURV_D_GRAD_RHO_MAG,
-)
-N_OTHER_CHANNELS = len(OTHER_CHANNELS)
-
-# Maps from Channel enum to the index within each histogram type
-MAG_IDX = {ch: i for i, ch in enumerate(MAG_CHANNELS)}
-OTHER_IDX = {ch: i for i, ch in enumerate(OTHER_CHANNELS)}
 
 
 # -----------------------------------------------------------------------------
@@ -159,11 +108,11 @@ def _diff_3pt(arr, jp, ip, j, i, jm, im):
 def _diff_5pt(arr, jp2, ip2, jp, ip, j, i, jm, im, jm2, im2):
     """5-point stencil difference."""
     return NORM_5PT * (
-        -arr[jp2, ip2]
-        + 16.0 * arr[jp, ip]
-        - 30.0 * arr[j, i]
-        + 16.0 * arr[jm, im]
-        - arr[jm2, im2]
+        arr[jm2, im2]
+        - 4.0 * arr[jm, im]
+        + 6.0 * arr[j, i]
+        - 4.0 * arr[jp, ip]
+        + arr[jp2, ip2]
     )
 
 
@@ -182,13 +131,27 @@ def _mean_B_3pt(B_plus, B_center, B_minus):
 @njit(inline="always")
 def _mean_B_5pt(B_plus2, B_plus, B_center, B_minus, B_minus2):
     """Mean B for 5-point stencil."""
-    return (B_plus2 + B_plus + B_center + B_minus + B_minus2) / 5.0
+    return (
+        B_plus2
+        + 4.0 * B_plus
+        + 6.0 * B_center
+        + 4.0 * B_minus
+        + B_minus2
+    ) / 16.0
 
 
 @njit(inline="always")
 def _perp(vec, B_unit):
     """Component of *vec* perpendicular to *B_unit*."""
     return vec - (vec @ B_unit) * B_unit
+
+
+@njit(inline="always")
+def _accumulate_bin(value, edges, hist, channel_idx, ell_idx, theta_idx, phi_idx):
+    """Accumulate a single sample into the provided channel histogram."""
+    bin_idx = find_bin_index_binary(value, edges)
+    if bin_idx >= 0:
+        hist[channel_idx, ell_idx, theta_idx, phi_idx, bin_idx] += 1
 
 
 # -----------------------------------------------------------------------------
@@ -206,10 +169,13 @@ def _compute_histogram_core(
     Bmx, Bmy, Bmz,
     dx, dy, dz, r,
     ell_idx, theta_bin_edges, phi_bin_edges,
-    sf_channel_bin_edges, product_bin_edges,
-    hist_mag, hist_other
+    delta_bin_edges,
+    hist
 ):
-    """Common histogram computation logic shared by all stencil widths."""
+    """Common histogram computation logic shared by all stencil widths.
+
+    All channels are binned on (ℓ, θ, ϕ, Δ) using per-channel Δ bin edges.
+    """
 
     Bmean_mag = (Bmx * Bmx + Bmy * Bmy + Bmz * Bmz) ** 0.5
     if Bmean_mag < 1e-10:  # Use small epsilon instead of exact zero
@@ -272,166 +238,88 @@ def _compute_histogram_core(
     if theta_idx < 0 or phi_idx < 0:
         return
 
-    # Update histograms for magnitude channels
-    v_idx = find_bin_index_binary(dv, sf_channel_bin_edges[0])
-    if v_idx >= 0:
-        hist_mag[0, ell_idx, theta_idx, phi_idx, v_idx] += 1  # Channel.D_V = 0
+    # Precompute integer channel indices for numba-friendly indexing
+    c_D_V = Channel.D_V.value
+    c_D_B = Channel.D_B.value
+    c_D_RHO = Channel.D_RHO.value
+    c_D_VA = Channel.D_VA.value
+    c_D_ZPLUS = Channel.D_ZPLUS.value
+    c_D_ZMINUS = Channel.D_ZMINUS.value
+    c_D_OMEGA = Channel.D_OMEGA.value
+    c_D_J = Channel.D_J.value
+    c_D_CURV = Channel.D_CURV.value
+    c_D_GRAD_RHO = Channel.D_GRAD_RHO.value
+    c_D_B_ratio = Channel.D_B_over_Bmean_loc.value
+    c_cross_v_b = Channel.D_Vperp_CROSS_D_Bperp.value
+    c_cross_v_omega = Channel.D_Vperp_CROSS_D_Omegaperp.value
+    c_cross_b_j = Channel.D_Bperp_CROSS_D_Jperp.value
+    c_cross_omega_j = Channel.D_Omegaperp_CROSS_D_Jperp.value
+    c_mag_v_b = Channel.D_Vperp_D_Bperp_MAG.value
+    c_mag_v_omega = Channel.D_Vperp_D_Omegaperp_MAG.value
+    c_mag_b_j = Channel.D_Bperp_D_Jperp_MAG.value
+    c_mag_omega_j = Channel.D_Omegaperp_D_Jperp_MAG.value
+    c_ratio_v_b = Channel.D_Vperp_D_Bperp_CROSS_MAG_RATIO.value
+    c_ratio_v_omega = Channel.D_Vperp_D_Omegaperp_CROSS_MAG_RATIO.value
+    c_ratio_b_j = Channel.D_Bperp_D_Jperp_CROSS_MAG_RATIO.value
+    c_ratio_omega_j = Channel.D_Omegaperp_D_Jperp_CROSS_MAG_RATIO.value
 
-    b_idx = find_bin_index_binary(dB, sf_channel_bin_edges[1])
-    if b_idx >= 0:
-        hist_mag[1, ell_idx, theta_idx, phi_idx, b_idx] += 1  # Channel.D_B = 1
+    # Magnitudes
+    _accumulate_bin(dv, delta_bin_edges[c_D_V], hist, c_D_V, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dB, delta_bin_edges[c_D_B], hist, c_D_B, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(drho, delta_bin_edges[c_D_RHO], hist, c_D_RHO, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dVA, delta_bin_edges[c_D_VA], hist, c_D_VA, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dZp, delta_bin_edges[c_D_ZPLUS], hist, c_D_ZPLUS, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dZm, delta_bin_edges[c_D_ZMINUS], hist, c_D_ZMINUS, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dOmega, delta_bin_edges[c_D_OMEGA], hist, c_D_OMEGA, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dJ, delta_bin_edges[c_D_J], hist, c_D_J, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dCurv, delta_bin_edges[c_D_CURV], hist, c_D_CURV, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dGradRho, delta_bin_edges[c_D_GRAD_RHO], hist, c_D_GRAD_RHO, ell_idx, theta_idx, phi_idx)
 
-    rho_idx = find_bin_index_binary(drho, sf_channel_bin_edges[2])
-    if rho_idx >= 0:
-        hist_mag[2, ell_idx, theta_idx, phi_idx, rho_idx] += 1  # Channel.D_RHO = 2
-
-    va_idx = find_bin_index_binary(dVA, sf_channel_bin_edges[3])
-    if va_idx >= 0:
-        hist_mag[3, ell_idx, theta_idx, phi_idx, va_idx] += 1  # Channel.D_VA = 3
-
-    zp_idx = find_bin_index_binary(dZp, sf_channel_bin_edges[4])
-    if zp_idx >= 0:
-        hist_mag[4, ell_idx, theta_idx, phi_idx, zp_idx] += 1  # Channel.D_ZPLUS = 4
-
-    zm_idx = find_bin_index_binary(dZm, sf_channel_bin_edges[5])
-    if zm_idx >= 0:
-        hist_mag[5, ell_idx, theta_idx, phi_idx, zm_idx] += 1  # Channel.D_ZMINUS = 5
-
-    om_idx = find_bin_index_binary(dOmega, sf_channel_bin_edges[6])
-    if om_idx >= 0:
-        hist_mag[6, ell_idx, theta_idx, phi_idx, om_idx] += 1  # Channel.D_OMEGA = 6
-
-    j_idx = find_bin_index_binary(dJ, sf_channel_bin_edges[7])
-    if j_idx >= 0:
-        hist_mag[7, ell_idx, theta_idx, phi_idx, j_idx] += 1  # Channel.D_J = 7
-
-    curv_idx = find_bin_index_binary(dCurv, sf_channel_bin_edges[8])
-    if curv_idx >= 0:
-        hist_mag[8, ell_idx, theta_idx, phi_idx, curv_idx] += 1  # Channel.D_CURV = 8
-
-    gradrho_idx = find_bin_index_binary(dGradRho, sf_channel_bin_edges[9])
-    if gradrho_idx >= 0:
-        hist_mag[9, ell_idx, theta_idx, phi_idx, gradrho_idx] += 1  # Channel.D_GRAD_RHO = 9
-
-    # Calculate normalized B difference
+    # Normalized |δB| / |B_mean|
     dB_over_Bmean = dB / Bmean_mag
-    b_ratio_idx = find_bin_index_binary(dB_over_Bmean, sf_channel_bin_edges[10])
-    if b_ratio_idx >= 0:
-        hist_mag[10, ell_idx, theta_idx, phi_idx, b_ratio_idx] += 1  # Channel.D_B_over_Bmean_loc = 10
+    _accumulate_bin(dB_over_Bmean, delta_bin_edges[c_D_B_ratio], hist, c_D_B_ratio, ell_idx, theta_idx, phi_idx)
 
-    # Update histograms for cross product channels
-    x_idx = find_bin_index_binary(vperp_cross_bperp, product_bin_edges)
-    if x_idx >= 0:
-        hist_other[0, ell_idx, x_idx] += 1  # Channel.D_Vperp_CROSS_Bperp = 11
-
-    p_idx = find_bin_index_binary(vperp_bperp, product_bin_edges)
-    if p_idx >= 0:
-        hist_other[4, ell_idx, p_idx] += 1  # Channel.D_Vperp_D_Bperp_MAG = 15
-
-    # Compute perpendicular components for other fields
-    dVA_vec = np.array([dvAz, dvAy, dvAx])
+    # Perpendicular field components for cross/product channels
     dOmega_vec = np.array([domegaz, domegay, domegax])
     dJ_vec = np.array([dJz, dJy, dJx])
 
-    dVA_perp = _perp(dVA_vec, B_unit)
     dOmega_perp = _perp(dOmega_vec, B_unit)
     dJ_perp = _perp(dJ_vec, B_unit)
 
-    dVA_perp_mag = np.sqrt((dVA_perp**2).sum())
     dOmega_perp_mag = np.sqrt((dOmega_perp**2).sum())
     dJ_perp_mag = np.sqrt((dJ_perp**2).sum())
 
-    # Cross products and magnitudes
-    cross_v_va = np.sqrt((np.cross(dv_perp, dVA_perp)**2).sum())
-    cross_v_omega = np.sqrt((np.cross(dv_perp, dOmega_perp)**2).sum())
-    cross_B_j = np.sqrt((np.cross(dB_perp, dJ_perp)**2).sum())
+    # Cross products (perpendicular)
+    cross_v_b = np.sqrt((np.cross(dv_perp, dB_perp) ** 2).sum())
+    cross_v_omega = np.sqrt((np.cross(dv_perp, dOmega_perp) ** 2).sum())
+    cross_b_j = np.sqrt((np.cross(dB_perp, dJ_perp) ** 2).sum())
+    cross_omega_j = np.sqrt((np.cross(dOmega_perp, dJ_perp) ** 2).sum())
 
-    c_idx = find_bin_index_binary(cross_v_va, product_bin_edges)
-    if c_idx >= 0:
-        hist_other[1, ell_idx, c_idx] += 1  # Channel.D_Vperp_CROSS_VAperp = 12
+    _accumulate_bin(cross_v_b, delta_bin_edges[c_cross_v_b], hist, c_cross_v_b, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_v_omega, delta_bin_edges[c_cross_v_omega], hist, c_cross_v_omega, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_b_j, delta_bin_edges[c_cross_b_j], hist, c_cross_b_j, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_omega_j, delta_bin_edges[c_cross_omega_j], hist, c_cross_omega_j, ell_idx, theta_idx, phi_idx)
 
-    c_idx = find_bin_index_binary(cross_v_omega, product_bin_edges)
-    if c_idx >= 0:
-        hist_other[2, ell_idx, c_idx] += 1  # Channel.D_Vperp_CROSS_Omegaperp = 13
+    # Magnitude products (perpendicular)
+    mag_v_b = dv_perp_mag * dB_perp_mag
+    mag_v_omega = dv_perp_mag * dOmega_perp_mag
+    mag_b_j = dB_perp_mag * dJ_perp_mag
+    mag_omega_j = dOmega_perp_mag * dJ_perp_mag
 
-    c_idx = find_bin_index_binary(cross_B_j, product_bin_edges)
-    if c_idx >= 0:
-        hist_other[3, ell_idx, c_idx] += 1  # Channel.D_Bperp_CROSS_Jperp = 14
+    _accumulate_bin(mag_v_b, delta_bin_edges[c_mag_v_b], hist, c_mag_v_b, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_v_omega, delta_bin_edges[c_mag_v_omega], hist, c_mag_v_omega, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_b_j, delta_bin_edges[c_mag_b_j], hist, c_mag_b_j, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_omega_j, delta_bin_edges[c_mag_omega_j], hist, c_mag_omega_j, ell_idx, theta_idx, phi_idx)
 
-    # Product magnitudes
-    MAG_v_va = dv_perp_mag * dVA_perp_mag
-    MAG_v_omega = dv_perp_mag * dOmega_perp_mag
-    MAG_B_j = dB_perp_mag * dJ_perp_mag
-
-    d_idx = find_bin_index_binary(MAG_v_va, product_bin_edges)
-    if d_idx >= 0:
-        hist_other[5, ell_idx, d_idx] += 1  # Channel.D_Vperp_D_VAperp_MAG = 16
-
-    d_idx = find_bin_index_binary(MAG_v_omega, product_bin_edges)
-    if d_idx >= 0:
-        hist_other[6, ell_idx, d_idx] += 1  # Channel.D_Vperp_D_Omegaperp_MAG = 17
-
-    d_idx = find_bin_index_binary(MAG_B_j, product_bin_edges)
-    if d_idx >= 0:
-        hist_other[7, ell_idx, d_idx] += 1  # Channel.D_Bperp_D_Jperp_MAG = 18
-
-    # Full vector cross products
-    cross_v_B_full = np.sqrt((np.cross(dv_vec, dB_vec)**2).sum())
-    cross_v_VA_full = np.sqrt((np.cross(dv_vec, dVA_vec)**2).sum())
-    cross_v_Omega_full = np.sqrt((np.cross(dv_vec, dOmega_vec)**2).sum())
-    cross_B_J_full = np.sqrt((np.cross(dB_vec, dJ_vec)**2).sum())
-
-    f_idx = find_bin_index_binary(cross_v_B_full, product_bin_edges)
-    if f_idx >= 0:
-        hist_other[8, ell_idx, f_idx] += 1  # Channel.D_V_CROSS_B = 19
-
-    f_idx = find_bin_index_binary(cross_v_VA_full, product_bin_edges)
-    if f_idx >= 0:
-        hist_other[9, ell_idx, f_idx] += 1  # Channel.D_V_CROSS_VA = 20
-
-    f_idx = find_bin_index_binary(cross_v_Omega_full, product_bin_edges)
-    if f_idx >= 0:
-        hist_other[10, ell_idx, f_idx] += 1  # Channel.D_V_CROSS_OMEGA = 21
-
-    f_idx = find_bin_index_binary(cross_B_J_full, product_bin_edges)
-    if f_idx >= 0:
-        hist_other[11, ell_idx, f_idx] += 1  # Channel.D_B_CROSS_J = 22
-
-    # Full vector product magnitudes
-    MAG_v_B_full = dv * dB
-    MAG_v_VA_full = dv * dVA
-    MAG_v_Omega_full = dv * dOmega
-    MAG_B_J_full = dB * dJ
-
-    g_idx = find_bin_index_binary(MAG_v_B_full, product_bin_edges)
-    if g_idx >= 0:
-        hist_other[12, ell_idx, g_idx] += 1  # Channel.D_V_D_B_MAG = 24
-
-    g_idx = find_bin_index_binary(MAG_v_VA_full, product_bin_edges)
-    if g_idx >= 0:
-        hist_other[13, ell_idx, g_idx] += 1  # Channel.D_V_D_VA_MAG = 25
-
-    g_idx = find_bin_index_binary(MAG_v_Omega_full, product_bin_edges)
-    if g_idx >= 0:
-        hist_other[14, ell_idx, g_idx] += 1  # Channel.D_V_D_OMEGA_MAG = 26
-
-    g_idx = find_bin_index_binary(MAG_B_J_full, product_bin_edges)
-    if g_idx >= 0:
-        hist_other[15, ell_idx, g_idx] += 1  # Channel.D_B_D_J_MAG = 27
-
-    # Curvature and gradient cross product and magnitude product
-    dCurv_vec = np.array([dcurvz, dcurvy, dcurvx])
-    dGradRho_vec = np.array([dgradrhoz, dgradrhoy, dgradrhox])
-
-    cross_curv_gradrho = np.sqrt((np.cross(dCurv_vec, dGradRho_vec)**2).sum())
-    c_idx = find_bin_index_binary(cross_curv_gradrho, product_bin_edges)
-    if c_idx >= 0:
-        hist_other[16, ell_idx, c_idx] += 1  # Channel.D_CURV_CROSS_GRAD_RHO = 23
-
-    MAG_curv_gradrho = dCurv * dGradRho
-    m_idx = find_bin_index_binary(MAG_curv_gradrho, product_bin_edges)
-    if m_idx >= 0:
-        hist_other[17, ell_idx, m_idx] += 1  # Channel.D_CURV_D_GRAD_RHO_MAG = 28
+    # Ratios (cross/product) – only bin when denominator is positive
+    if mag_v_b > 0.0:
+        _accumulate_bin(cross_v_b / mag_v_b, delta_bin_edges[c_ratio_v_b], hist, c_ratio_v_b, ell_idx, theta_idx, phi_idx)
+    if mag_v_omega > 0.0:
+        _accumulate_bin(cross_v_omega / mag_v_omega, delta_bin_edges[c_ratio_v_omega], hist, c_ratio_v_omega, ell_idx, theta_idx, phi_idx)
+    if mag_b_j > 0.0:
+        _accumulate_bin(cross_b_j / mag_b_j, delta_bin_edges[c_ratio_b_j], hist, c_ratio_b_j, ell_idx, theta_idx, phi_idx)
+    if mag_omega_j > 0.0:
+        _accumulate_bin(cross_omega_j / mag_omega_j, delta_bin_edges[c_ratio_omega_j], hist, c_ratio_omega_j, ell_idx, theta_idx, phi_idx)
 
 
 # -----------------------------------------------------------------------------
@@ -455,16 +343,15 @@ def compute_histogram_for_disp_2D_stencil2(
     ell_bin_edges: np.ndarray,
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
-    sf_channel_bin_edges: list,
-    product_bin_edges: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+    delta_bin_edges: list,
+) -> np.ndarray:
     """2-point stencil version of histogram computation."""
 
     N, M = v_x.shape
     n_ell_bins = ell_bin_edges.shape[0] - 1
     n_theta_bins = theta_bin_edges.shape[0] - 1
     n_phi_bins = phi_bin_edges.shape[0] - 1
-    n_sf_bins = sf_channel_bin_edges[0].shape[0] - 1
+    n_delta_bins = delta_bin_edges[0].shape[0] - 1
 
     if slice_axis == 1:
         dx, dy, dz = 0, delta_i, delta_j
@@ -473,14 +360,12 @@ def compute_histogram_for_disp_2D_stencil2(
     else:
         dx, dy, dz = delta_i, delta_j, 0
 
-    hist_mag = np.zeros((N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
-    n_product_bins = product_bin_edges.shape[0] - 1
-    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_product_bins), dtype=np.int64)
+    hist = np.zeros((N_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
 
     r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
     if ell_idx == -1:
-        return hist_mag, hist_other
+        return hist
 
     flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
     random_points_y = flat_indices // M
@@ -547,11 +432,11 @@ def compute_histogram_for_disp_2D_stencil2(
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
-            sf_channel_bin_edges, product_bin_edges,
-            hist_mag, hist_other
+            delta_bin_edges,
+            hist,
         )
 
-    return hist_mag, hist_other
+    return hist
 
 
 @njit(cache=True)
@@ -571,16 +456,15 @@ def compute_histogram_for_disp_2D_stencil3(
     ell_bin_edges: np.ndarray,
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
-    sf_channel_bin_edges: list,
-    product_bin_edges: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+    delta_bin_edges: list,
+) -> np.ndarray:
     """3-point stencil version of histogram computation."""
 
     N, M = v_x.shape
     n_ell_bins = ell_bin_edges.shape[0] - 1
     n_theta_bins = theta_bin_edges.shape[0] - 1
     n_phi_bins = phi_bin_edges.shape[0] - 1
-    n_sf_bins = sf_channel_bin_edges[0].shape[0] - 1
+    n_delta_bins = delta_bin_edges[0].shape[0] - 1
 
     if slice_axis == 1:
         dx, dy, dz = 0, delta_i, delta_j
@@ -589,14 +473,12 @@ def compute_histogram_for_disp_2D_stencil3(
     else:
         dx, dy, dz = delta_i, delta_j, 0
 
-    hist_mag = np.zeros((N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
-    n_product_bins = product_bin_edges.shape[0] - 1
-    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_product_bins), dtype=np.int64)
+    hist = np.zeros((N_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
 
     r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
     if ell_idx == -1:
-        return hist_mag, hist_other
+        return hist
 
     flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
     random_points_y = flat_indices // M
@@ -666,11 +548,11 @@ def compute_histogram_for_disp_2D_stencil3(
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
-            sf_channel_bin_edges, product_bin_edges,
-            hist_mag, hist_other
+            delta_bin_edges,
+            hist,
         )
 
-    return hist_mag, hist_other
+    return hist
 
 
 @njit(cache=True)
@@ -690,16 +572,15 @@ def compute_histogram_for_disp_2D_stencil5(
     ell_bin_edges: np.ndarray,
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
-    sf_channel_bin_edges: list,
-    product_bin_edges: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+    delta_bin_edges: list,
+) -> np.ndarray:
     """5-point stencil version of histogram computation."""
 
     N, M = v_x.shape
     n_ell_bins = ell_bin_edges.shape[0] - 1
     n_theta_bins = theta_bin_edges.shape[0] - 1
     n_phi_bins = phi_bin_edges.shape[0] - 1
-    n_sf_bins = sf_channel_bin_edges[0].shape[0] - 1
+    n_delta_bins = delta_bin_edges[0].shape[0] - 1
 
     if slice_axis == 1:
         dx, dy, dz = 0, delta_i, delta_j
@@ -708,14 +589,12 @@ def compute_histogram_for_disp_2D_stencil5(
     else:
         dx, dy, dz = delta_i, delta_j, 0
 
-    hist_mag = np.zeros((N_MAG_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_sf_bins), dtype=np.int64)
-    n_product_bins = product_bin_edges.shape[0] - 1
-    hist_other = np.zeros((N_OTHER_CHANNELS, n_ell_bins, n_product_bins), dtype=np.int64)
+    hist = np.zeros((N_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
 
     r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
     if ell_idx == -1:
-        return hist_mag, hist_other
+        return hist
 
     flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
     random_points_y = flat_indices // M
@@ -789,11 +668,11 @@ def compute_histogram_for_disp_2D_stencil5(
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
             ell_idx, theta_bin_edges, phi_bin_edges,
-            sf_channel_bin_edges, product_bin_edges,
-            hist_mag, hist_other
+            delta_bin_edges,
+            hist,
         )
 
-    return hist_mag, hist_other
+    return hist
 
 
 def compute_histogram_for_disp_2D(
@@ -812,11 +691,13 @@ def compute_histogram_for_disp_2D(
     ell_bin_edges: np.ndarray,
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
-    sf_channel_bin_edges: list,
-    product_bin_edges: np.ndarray,
+    delta_bin_edges: list,
     stencil_width: int = 2,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """Dispatch to appropriate stencil-specific function."""
+
+    # Convert to tuple so numba sees a fixed, indexable container
+    delta_bin_edges = tuple(delta_bin_edges)
 
     if stencil_width == 2:
         return compute_histogram_for_disp_2D_stencil2(
@@ -827,7 +708,7 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, sf_channel_bin_edges, product_bin_edges
+            phi_bin_edges, delta_bin_edges,
         )
     elif stencil_width == 3:
         return compute_histogram_for_disp_2D_stencil3(
@@ -838,7 +719,7 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, sf_channel_bin_edges, product_bin_edges
+            phi_bin_edges, delta_bin_edges,
         )
     elif stencil_width == 5:
         return compute_histogram_for_disp_2D_stencil5(
@@ -849,7 +730,7 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, sf_channel_bin_edges, product_bin_edges
+            phi_bin_edges, delta_bin_edges,
         )
     else:
         raise ValueError(f"Unsupported stencil_width: {stencil_width}")

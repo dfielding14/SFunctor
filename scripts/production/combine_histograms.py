@@ -45,12 +45,10 @@ def combine_node_histograms(histogram_files, args):
     """Combine histograms from different nodes for a single slice."""
     # Load first file to get structure
     first_data = np.load(histogram_files[0], allow_pickle=True)
-    hist_mag_total = first_data['hist_mag'].copy()
-    hist_other_total = first_data['hist_other'].copy()
+    hist_total = first_data['hist'].astype(np.float64, copy=True)
 
     # Get metadata from first file
-    mag_channels = first_data['mag_channels']
-    other_channels = first_data['other_channels']
+    channels = first_data['channels']
     ell_bin_edges = first_data['ell_bin_edges']
     theta_bin_edges = first_data['theta_bin_edges']
     phi_bin_edges = first_data['phi_bin_edges']
@@ -58,47 +56,20 @@ def combine_node_histograms(histogram_files, args):
     # Get metadata to reconstruct bin edges
     metadata = dict(first_data['metadata'].item())
 
-    # Reconstruct sf_channel_bin_edges from metadata if not in file
-    sf_channel_bin_edges = first_data.get('sf_channel_bin_edges', None)
-    if sf_channel_bin_edges is None:
-        # Check if we have the metadata for reconstruction
-        if 'log_sf_bin_edges_min' in metadata and 'log_sf_bin_edges_max' in metadata:
-            sf_channel_bin_edges = []
-            for i in range(11):  # 11 channels
+    # Reconstruct delta_bin_edges from metadata if not in file
+    delta_bin_edges = first_data.get('delta_bin_edges', None)
+    if delta_bin_edges is None:
+        if 'log_delta_bin_edges_min' in metadata and 'log_delta_bin_edges_max' in metadata:
+            delta_bin_edges = []
+            for i in range(len(metadata['log_delta_bin_edges_min'])):
                 edges = np.logspace(
-                    metadata['log_sf_bin_edges_min'][i],
-                    metadata['log_sf_bin_edges_max'][i],
-                    metadata['N_sf_bin_edges']
+                    metadata['log_delta_bin_edges_min'][i],
+                    metadata['log_delta_bin_edges_max'][i],
+                    metadata['N_delta_bin_edges']
                 )
-                sf_channel_bin_edges.append(edges)
+                delta_bin_edges.append(edges)
         else:
-            # Old format fallback
-            sf_bin_edges = first_data.get('sf_bin_edges', None)
-            if sf_bin_edges is not None:
-                sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)
-                # Create channel-specific bins based on old structure
-                sf_channel_bin_edges = []
-                for i in range(11):  # Assuming 11 MAG_CHANNELS
-                    if i < 6:  # D_V through D_ZMINUS use sf_bin_edges
-                        sf_channel_bin_edges.append(sf_bin_edges)
-                    else:  # D_OMEGA and later use sf_derivative_bin_edges
-                        sf_channel_bin_edges.append(sf_derivative_bin_edges)
-            else:
-                # Can't reconstruct, raise informative error
-                raise KeyError("Cannot find or reconstruct sf_channel_bin_edges. File needs metadata with log_sf_bin_edges_min/max/N_sf_bin_edges.")
-
-    # Reconstruct product_bin_edges from metadata if not in file
-    product_bin_edges = first_data.get('product_bin_edges', None)
-    if product_bin_edges is None:
-        if 'log_product_bin_edges_min' in metadata and 'log_product_bin_edges_max' in metadata:
-            product_bin_edges = np.logspace(
-                metadata['log_product_bin_edges_min'],
-                metadata['log_product_bin_edges_max'],
-                metadata['N_product_bin_edges']
-            )
-        else:
-            # Default values if not specified
-            product_bin_edges = np.logspace(-5, 5, 201)
+            raise KeyError("Cannot find or reconstruct delta_bin_edges; metadata with log_delta_bin_edges_min/max/N_delta_bin_edges is required.")
 
     # Keep track of node info
     node_infos = [dict(first_data['node_info'].item())]
@@ -110,8 +81,7 @@ def combine_node_histograms(histogram_files, args):
     # Add histograms from remaining files
     for i, hist_file in enumerate(histogram_files[1:], 1):
         data = np.load(hist_file, allow_pickle=True)
-        hist_mag_total += data['hist_mag']
-        hist_other_total += data['hist_other']
+        hist_total += data['hist']
 
         node_info = dict(data['node_info'].item())
         node_infos.append(node_info)
@@ -148,21 +118,18 @@ def combine_node_histograms(histogram_files, args):
     # Save combined results
     np.savez_compressed(
         output_file,
-        hist_mag=hist_mag_total,
-        hist_other=hist_other_total,
-        mag_channels=mag_channels,
-        other_channels=other_channels,
+        hist=hist_total,
+        channels=channels,
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_channel_bin_edges=sf_channel_bin_edges,
-        product_bin_edges=product_bin_edges,
+        delta_bin_edges=delta_bin_edges,
         metadata=metadata,
         node_infos=node_infos
     )
 
     print(f"\nCombined results saved to {output_file}")
-    print(f"Total counts in histograms: {hist_mag_total.sum() + hist_other_total.sum()}")
+    print(f"Total counts in histograms: {hist_total.sum()}")
 
     return 0
 
@@ -171,12 +138,10 @@ def merge_slice_results(slice_files, args):
     """Merge sf_results from different slices into a combined result."""
     # Load first file to get structure
     first_data = np.load(slice_files[0], allow_pickle=True)
-    hist_mag_total = first_data['hist_mag'].copy()
-    hist_other_total = first_data['hist_other'].copy()
+    hist_total = first_data['hist'].astype(np.float64, copy=True)
 
     # Get metadata from first file
-    mag_channels = first_data['mag_channels']
-    other_channels = first_data['other_channels']
+    channels = first_data['channels']
     ell_bin_edges = first_data['ell_bin_edges']
     theta_bin_edges = first_data['theta_bin_edges']
     phi_bin_edges = first_data['phi_bin_edges']
@@ -184,47 +149,20 @@ def merge_slice_results(slice_files, args):
     # Get metadata to reconstruct bin edges
     metadata = dict(first_data['metadata'].item()) if 'metadata' in first_data else {}
 
-    # Reconstruct sf_channel_bin_edges from metadata if not in file
-    sf_channel_bin_edges = first_data.get('sf_channel_bin_edges', None)
-    if sf_channel_bin_edges is None:
-        # Check if we have the metadata for reconstruction
-        if 'log_sf_bin_edges_min' in metadata and 'log_sf_bin_edges_max' in metadata:
-            sf_channel_bin_edges = []
-            for i in range(11):  # 11 channels
+    # Reconstruct delta_bin_edges from metadata if not in file
+    delta_bin_edges = first_data.get('delta_bin_edges', None)
+    if delta_bin_edges is None:
+        if 'log_delta_bin_edges_min' in metadata and 'log_delta_bin_edges_max' in metadata:
+            delta_bin_edges = []
+            for i in range(len(metadata['log_delta_bin_edges_min'])):
                 edges = np.logspace(
-                    metadata['log_sf_bin_edges_min'][i],
-                    metadata['log_sf_bin_edges_max'][i],
-                    metadata['N_sf_bin_edges']
+                    metadata['log_delta_bin_edges_min'][i],
+                    metadata['log_delta_bin_edges_max'][i],
+                    metadata['N_delta_bin_edges']
                 )
-                sf_channel_bin_edges.append(edges)
+                delta_bin_edges.append(edges)
         else:
-            # Old format fallback
-            sf_bin_edges = first_data.get('sf_bin_edges', None)
-            if sf_bin_edges is not None:
-                sf_derivative_bin_edges = first_data.get('sf_derivative_bin_edges', sf_bin_edges)
-                # Create channel-specific bins based on old structure
-                sf_channel_bin_edges = []
-                for i in range(11):  # Assuming 11 MAG_CHANNELS
-                    if i < 6:  # D_V through D_ZMINUS use sf_bin_edges
-                        sf_channel_bin_edges.append(sf_bin_edges)
-                    else:  # D_OMEGA and later use sf_derivative_bin_edges
-                        sf_channel_bin_edges.append(sf_derivative_bin_edges)
-            else:
-                # Can't reconstruct, raise informative error
-                raise KeyError("Cannot find or reconstruct sf_channel_bin_edges. File needs metadata with log_sf_bin_edges_min/max/N_sf_bin_edges.")
-
-    # Reconstruct product_bin_edges from metadata if not in file
-    product_bin_edges = first_data.get('product_bin_edges', None)
-    if product_bin_edges is None:
-        if 'log_product_bin_edges_min' in metadata and 'log_product_bin_edges_max' in metadata:
-            product_bin_edges = np.logspace(
-                metadata['log_product_bin_edges_min'],
-                metadata['log_product_bin_edges_max'],
-                metadata['N_product_bin_edges']
-            )
-        else:
-            # Default values if not specified
-            product_bin_edges = np.logspace(-5, 5, 201)
+            raise KeyError("Cannot find or reconstruct delta_bin_edges. File needs metadata with log_delta_bin_edges_min/max/N_delta_bin_edges.")
 
     # Keep track of slice info
     slice_names = [Path(slice_files[0]).stem]
@@ -243,8 +181,7 @@ def merge_slice_results(slice_files, args):
     # Add histograms from remaining files
     for i, slice_file in enumerate(slice_files[1:], 1):
         data = np.load(slice_file, allow_pickle=True)
-        hist_mag_total += data['hist_mag']
-        hist_other_total += data['hist_other']
+        hist_total += data['hist']
 
         slice_name = Path(slice_file).stem
         slice_names.append(slice_name)
@@ -272,7 +209,7 @@ def merge_slice_results(slice_files, args):
     # Include common metadata from first file
     if all_metadata:
         for key in ['stride', 'N_random_subsamples', 'stencil_width', 'n_ell_bins',
-                    'log_sf_bin_edges_min', 'log_sf_bin_edges_max', 'N_sf_bin_edges']:
+                    'log_delta_bin_edges_min', 'log_delta_bin_edges_max', 'N_delta_bin_edges']:
             if key in all_metadata[0]:
                 combined_metadata[key] = all_metadata[0][key]
 
@@ -286,21 +223,18 @@ def merge_slice_results(slice_files, args):
     # Save merged results
     np.savez_compressed(
         output_file,
-        hist_mag=hist_mag_total,
-        hist_other=hist_other_total,
-        mag_channels=mag_channels,
-        other_channels=other_channels,
+        hist=hist_total,
+        channels=channels,
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
         phi_bin_edges=phi_bin_edges,
-        sf_channel_bin_edges=sf_channel_bin_edges,
-        product_bin_edges=product_bin_edges,
+        delta_bin_edges=delta_bin_edges,
         metadata=combined_metadata,
         slice_metadata=all_metadata  # Keep individual slice metadata
     )
 
     print(f"\nMerged results saved to {output_file}")
-    print(f"Total counts in histograms: {hist_mag_total.sum() + hist_other_total.sum()}")
+    print(f"Total counts in histograms: {hist_total.sum()}")
 
     # List slice names for confirmation
     if args.verbose:

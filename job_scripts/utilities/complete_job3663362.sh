@@ -79,7 +79,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "======================================"
     echo "Regenerating plots with complete data..."
-    python ${SFUNCTOR_DIR}/scripts/production/plot_structure_functions.py \
+    python ${SFUNCTOR_DIR}/plotting_scripts/plot_structure_functions.py \
         ${JOB_DIR}/sf_results_all_slices.npz
     
     if [ $? -eq 0 ]; then

@@ -149,7 +149,7 @@ python $SFUNCTOR_DIR/scripts/production/combine_histograms_fast.py \
 
 # Generate plots
 echo " Generating plots..."
-python $SFUNCTOR_DIR/scripts/production/plot_structure_functions.py $WORK_DIR/sf_results_all_slices.npz
+python $SFUNCTOR_DIR/plotting_scripts/plot_structure_functions.py $WORK_DIR/sf_results_all_slices.npz
 
 echo ""
 echo "============================================================================"

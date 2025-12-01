@@ -17,6 +17,7 @@ import matplotlib.patheffects as pe
 import cmasher as cmr  # type: ignore
 from scipy.optimize import curve_fit
 from scipy.ndimage import gaussian_filter
+from sfunctor.core.histograms import Channel
 
 # LaTeX labels for channels
 CHANNEL_LABELS = {
@@ -31,15 +32,35 @@ CHANNEL_LABELS = {
     'D_CURV': r'$\delta K$',
     'D_GRAD_RHO': r'$\delta |\nabla \rho|$',
     'D_B_over_Bmean_loc': r'$\delta B_\ell / \overline{B}_\ell$',
-    # Cross products
-    'D_Vperp_CROSS_Bperp': r'$\delta v_\perp \times \delta B_\perp$',
-    'D_Vperp_CROSS_VAperp': r'$\delta v_\perp \times \delta v_{A\perp}$',
-    'D_Vperp_CROSS_Omegaperp': r'$\delta v_\perp \times \delta \omega_\perp$',
-    'D_Bperp_CROSS_Jperp': r'$\delta B_\perp \times \delta j_\perp$',
+    # Cross products and ratios
+    'D_Vperp_CROSS_D_Bperp': r'$|\delta v_\perp \times \delta B_\perp|$',
+    'D_Vperp_CROSS_D_Omegaperp': r'$|\delta v_\perp \times \delta \omega_\perp|$',
+    'D_Bperp_CROSS_D_Jperp': r'$|\delta B_\perp \times \delta j_\perp|$',
+    'D_Omegaperp_CROSS_D_Jperp': r'$|\delta \omega_\perp \times \delta j_\perp|$',
     'D_Vperp_D_Bperp_MAG': r'$|\delta v_\perp| |\delta B_\perp|$',
-    'D_Vperp_D_VAperp_MAG': r'$|\delta v_\perp| |\delta v_{A\perp}|$',
     'D_Vperp_D_Omegaperp_MAG': r'$|\delta v_\perp| |\delta \omega_\perp|$',
     'D_Bperp_D_Jperp_MAG': r'$|\delta B_\perp| |\delta j_\perp|$',
+    'D_Omegaperp_D_Jperp_MAG': r'$|\delta \omega_\perp| |\delta j_\perp|$',
+    'D_Vperp_D_Bperp_CROSS_MAG_RATIO': r'$\sin \theta_{vB}$',
+    'D_Vperp_D_Omegaperp_CROSS_MAG_RATIO': r'$\sin \theta_{v\omega}$',
+    'D_Bperp_D_Jperp_CROSS_MAG_RATIO': r'$\sin \theta_{Bj}$',
+    'D_Omegaperp_D_Jperp_CROSS_MAG_RATIO': r'$\sin \theta_{\omega j}$',
+}
+
+# Channels to skip for individual/aniso SF plotting (cross, mag, ratio variants)
+SKIP_PLOT_CHANNELS = {
+    'D_Vperp_CROSS_D_Bperp',
+    'D_Vperp_CROSS_D_Omegaperp',
+    'D_Bperp_CROSS_D_Jperp',
+    'D_Omegaperp_CROSS_D_Jperp',
+    'D_Vperp_D_Bperp_MAG',
+    'D_Vperp_D_Omegaperp_MAG',
+    'D_Bperp_D_Jperp_MAG',
+    'D_Omegaperp_D_Jperp_MAG',
+    'D_Vperp_D_Bperp_CROSS_MAG_RATIO',
+    'D_Vperp_D_Omegaperp_CROSS_MAG_RATIO',
+    'D_Bperp_D_Jperp_CROSS_MAG_RATIO',
+    'D_Omegaperp_D_Jperp_CROSS_MAG_RATIO',
 }
 
 def get_channel_label(channel_name):
@@ -243,13 +264,14 @@ def make_subdir(base: Path, name: str) -> Path:
 
 
 def build_anisotropic_masks(n_theta_bins: int, n_phi_bins: int, theta_wedge_bins: int, phi_wedge_bins: int):
-    """Return masks for L, perp, xi, and lambda bins using wedge sizes."""
-    t_wedge = min(theta_wedge_bins, n_theta_bins)
-    p_wedge = min(phi_wedge_bins, n_phi_bins)
-    theta_L_idx = np.arange(t_wedge)
-    theta_perp_idx = np.arange(max(n_theta_bins - t_wedge, 0), n_theta_bins)
-    phi_xi_idx = np.arange(p_wedge)
-    phi_lambda_idx = np.arange(max(n_phi_bins - p_wedge, 0), n_phi_bins)
+    """Return masks for L, perp, xi, and lambda bins.
+
+    With explicit angular bins, we take only the first (≈0°) and last (≈90°) bins.
+    """
+    theta_L_idx = np.array([0])
+    theta_perp_idx = np.array([n_theta_bins - 1])
+    phi_xi_idx = np.array([0])
+    phi_lambda_idx = np.array([n_phi_bins - 1])
 
     L_mask = np.zeros((n_theta_bins, n_phi_bins), dtype=bool)
     perp_mask = np.zeros_like(L_mask)
@@ -314,6 +336,79 @@ def compute_anisotropic_s2(hist_mag: np.ndarray,
     return results
 
 
+def _mean_product_from_hist(counts_theta_phi_prod: np.ndarray, product_centers: np.ndarray, mask: np.ndarray) -> float:
+    """Weighted mean over product centers with theta/phi mask."""
+    masked = counts_theta_phi_prod * mask[..., None]
+    weights = masked.sum(axis=(0, 1))
+    total = weights.sum()
+    if total <= 0:
+        return np.nan
+    return float(np.average(product_centers, weights=weights))
+
+
+def compute_anisotropic_alignment(hist_other_angle: np.ndarray,
+                                  alignment_ratio_sum: np.ndarray | None,
+                                  alignment_ratio_count: np.ndarray | None,
+                                  product_centers: np.ndarray,
+                                  other_channels,
+                                  theta_bin_edges: np.ndarray,
+                                  phi_bin_edges: np.ndarray,
+                                  theta_wedge_bins: int,
+                                  phi_wedge_bins: int,
+                                  alignment_ratio_pairs=None):
+    """Compute ~θ and θ over anisotropic wedges (L, perp, xi, lambda, iso)."""
+    n_theta_bins = theta_bin_edges.shape[0] - 1
+    n_phi_bins = phi_bin_edges.shape[0] - 1
+    L_mask, perp_mask, xi_mask, lambda_mask = build_anisotropic_masks(
+        n_theta_bins, n_phi_bins, theta_wedge_bins, phi_wedge_bins
+    )
+    masks = {
+        "iso": np.ones((n_theta_bins, n_phi_bins), dtype=bool),
+        "L": L_mask,
+        "perp": perp_mask,
+        "xi": xi_mask,
+        "lambda": lambda_mask,
+    }
+
+    ratio_map = {}
+    if alignment_ratio_pairs is not None:
+        ratio_map = {cross: idx for idx, (cross, _) in enumerate(alignment_ratio_pairs)}
+
+    results = {}
+    for cross_name, mag_name in alignment_ratio_pairs or []:
+        if cross_name not in other_channels or mag_name not in other_channels:
+            continue
+        cross_idx = list(other_channels).index(cross_name)
+        mag_idx = list(other_channels).index(mag_name)
+
+        tilde_stats = {k: np.full(hist_other_angle.shape[1], np.nan, dtype=float) for k in masks}
+        theta_stats = {k: np.full(hist_other_angle.shape[1], np.nan, dtype=float) for k in masks}
+
+        ratio_idx = ratio_map.get(cross_name, None)
+
+        for ell_i in range(hist_other_angle.shape[1]):
+            cross_counts = hist_other_angle[cross_idx, ell_i]
+            mag_counts = hist_other_angle[mag_idx, ell_i]
+
+            for name, mask in masks.items():
+                mean_cross = _mean_product_from_hist(cross_counts, product_centers, mask)
+                mean_mag = _mean_product_from_hist(mag_counts, product_centers, mask)
+                if np.isfinite(mean_cross) and np.isfinite(mean_mag) and mean_mag > 0:
+                    tilde_stats[name][ell_i] = mean_cross / mean_mag
+
+                if ratio_idx is not None and alignment_ratio_sum is not None and alignment_ratio_count is not None:
+                    rs = alignment_ratio_sum[ratio_idx, ell_i]
+                    rc = alignment_ratio_count[ratio_idx, ell_i]
+                    masked_rs = np.where(mask, rs, 0.0)
+                    masked_rc = np.where(mask, rc, 0)
+                    total_c = masked_rc.sum()
+                    if total_c > 0:
+                        theta_stats[name][ell_i] = masked_rs.sum() / total_c
+
+        results[cross_name] = {"tilde": tilde_stats, "theta": theta_stats}
+    return results
+
+
 def plot_anisotropic_s2(ell_centers: np.ndarray,
                         ell_bin_edges: np.ndarray,
                         channel_name: str,
@@ -368,28 +463,76 @@ def plot_anisotropic_s2(ell_centers: np.ndarray,
                     break
         return matches
 
-    def fit_and_plot(ax, x_vals, y_vals, label, color):
+    def choose_best_powerlaw_fit(x_vals: np.ndarray, y_vals: np.ndarray):
+        """Return mask, slope, intercept for best 8× window in [32, ell_max/2]."""
         mask = np.isfinite(x_vals) & np.isfinite(y_vals) & (x_vals > 0) & (y_vals > 0)
-        mask &= (x_vals > 32.0) & (x_vals < ell_max / 8.0)
-        if np.count_nonzero(mask) < 3:
-            return
-        log_x = np.log10(x_vals[mask])
-        log_y = np.log10(y_vals[mask])
-        m, b = np.polyfit(log_x, log_y, 1)
-        x_fit = np.logspace(np.log10(x_vals[mask].min()), np.log10(x_vals[mask].max()), 100)
-        y_fit = 10 ** (b + m * np.log10(x_fit))
-        ax.loglog(
-            x_fit,
-            y_fit,
-            linestyle="--",
-            color=color,
-            linewidth=2.0,
-            alpha=0.75,
-            label=fr"{label} \propto \ell_\parallel^{{{m:.2f}}}",
-        )
+        if not np.any(mask):
+            return None, None, None, None, None
+        max_end = ell_max / 2.0
+        # Enforce full 8× dynamic range: start * 8 <= max_end
+        start_candidates = np.unique(x_vals[mask & (x_vals >= 32.0) & (x_vals * 8.0 <= max_end)])
+        start_candidates = np.sort(start_candidates)
+        best = None
+        for start in start_candidates:
+            end_limit = start * 8.0
+            fit_mask = mask & (x_vals >= start) & (x_vals <= end_limit)
+            if np.count_nonzero(fit_mask) < 3:
+                continue
+            log_x = np.log10(x_vals[fit_mask])
+            log_y = np.log10(y_vals[fit_mask])
+            m, b = np.polyfit(log_x, log_y, 1)
+            residual = log_y - (m * log_x + b)
+            chi2 = np.sum(residual ** 2)
+            end_actual = x_vals[fit_mask].max()
+            if best is None or chi2 < best[0] - 1e-12 or (
+                np.isclose(chi2, best[0]) and (start < best[3] - 1e-12 or end_actual > best[4])
+            ):
+                best = (chi2, m, b, start, end_actual, fit_mask)
+        if best is None:
+            return None, None, None, None, None
+        return best[5], best[1], best[2], best[3], best[4]
 
-    # Theta anisotropy with matching panel
-    fig, (ax_top, ax_right) = plt.subplots(1, 2, figsize=(10, 4.3))
+    def plot_match(ax, x_vals, y_vals, base_label, color):
+        """Plot matching curve and best-fit power law over the chosen 8× window."""
+        mask = np.isfinite(x_vals) & np.isfinite(y_vals) & (x_vals > 0) & (y_vals > 0)
+        if not np.any(mask):
+            return None
+        label = base_label
+        base_math = base_label[1:-1] if base_label.startswith("$") and base_label.endswith("$") else base_label
+        fit_mask, m, b, start_fit, end_fit = choose_best_powerlaw_fit(x_vals, y_vals)
+        if fit_mask is not None:
+            x_fit = np.logspace(np.log10(start_fit), np.log10(end_fit), 100)
+            y_fit = 10 ** (b + m * np.log10(x_fit))
+            ax.loglog(
+                x_fit,
+                y_fit,
+                linestyle="--",
+                color=color,
+                linewidth=3.0,
+                alpha=0.5,
+                label=None,
+            )
+            label = rf"${base_math} \propto \ell_\parallel^{{{m:.2f}}}$"
+        ax.loglog(x_vals[mask], y_vals[mask], color=color, lw=2.0, label=label)
+        return mask
+
+    def plot_zeta(ax, x_vals, y_vals, color, label):
+        """Plot local log–log slope using a wider stencil for smoothness."""
+        slopes = compute_local_powerlaw_slopes(x_vals, y_vals, window=16)
+        mask = np.isfinite(x_vals) & np.isfinite(slopes) & (x_vals > 0)
+        if not np.any(mask):
+            return
+        ax.plot(x_vals[mask], slopes[mask], color=color, lw=1.6, label=label)
+        ax.set_xscale("log")
+        ax.grid(True, which="both", alpha=0.3)
+
+    # Theta anisotropy with matching/zeta panels
+    fig = plt.figure(figsize=(11.0, 5.0))
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.15, 1.0], wspace=0.25)
+    ax_top = fig.add_subplot(gs[0, 0])
+    right_gs = gs[0, 1].subgridspec(2, 1, height_ratios=[1, 3], hspace=0.0)
+    ax_zeta = fig.add_subplot(right_gs[0, 0])
+    ax_right = fig.add_subplot(right_gs[1, 0], sharex=ax_zeta)
     _loglog_safe(ax_top, ell_centers, s2_iso, label=r"isotropic ($\ell$)", color="k", lw=2)
     _loglog_safe(ax_top, ell_centers, s2_L, label=r"$\ell_\parallel$", color="tab:blue")
     _loglog_safe(ax_top, ell_centers, s2_perp, label=r"$\ell_\perp$", color="tab:orange")
@@ -397,12 +540,15 @@ def plot_anisotropic_s2(ell_centers: np.ndarray,
     ax_top.set_ylabel(y_label)
     ax_top.grid(True, which="both", alpha=0.3)
     ax_top.legend()
-
     ell_match_perp = find_matching_scales(ell_centers, s2_L, ell_centers, s2_perp)
-    _loglog_safe(ax_right, ell_centers, ell_match_perp, label=r"$\ell_\perp(\ell_\parallel)$", color="tab:orange")
-    fit_and_plot(ax_right, ell_centers, ell_match_perp, r"$\ell_\perp$", "tab:orange")
+    plot_zeta(ax_zeta, ell_centers, ell_match_perp, "tab:orange", r"$\ell_\perp$")
+    plot_match(ax_right, ell_centers, ell_match_perp, r"$\ell_\perp$", "tab:orange")
+    ax_zeta.set_ylabel(r"$\zeta$")
+    ax_zeta.tick_params(labelbottom=False)
     ax_right.set_xlabel(r"$\ell_\parallel$")
     ax_right.set_ylabel(r"$\ell_\perp$")
+    ax_right.set_xscale("log")
+    ax_right.set_yscale("log")
     ax_right.grid(True, which="both", alpha=0.3)
     ax_right.legend()
 
@@ -412,8 +558,13 @@ def plot_anisotropic_s2(ell_centers: np.ndarray,
     plt.close(fig)
     print(f"  Created: {fname}")
 
-    # Xi/Lambda anisotropy with matching panel
-    fig, (ax_top2, ax_right2) = plt.subplots(1, 2, figsize=(10, 4.3))
+    # Xi/Lambda anisotropy with matching/zeta panels
+    fig = plt.figure(figsize=(11.0, 5.0))
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.15, 1.0], wspace=0.25)
+    ax_top2 = fig.add_subplot(gs[0, 0])
+    right_gs2 = gs[0, 1].subgridspec(2, 1, height_ratios=[1, 3], hspace=0.0)
+    ax_zeta2 = fig.add_subplot(right_gs2[0, 0])
+    ax_right2 = fig.add_subplot(right_gs2[1, 0], sharex=ax_zeta2)
     _loglog_safe(ax_top2, ell_centers, s2_L, label=r"$\ell_\parallel$", color="tab:blue")
     _loglog_safe(ax_top2, ell_centers, s2_xi, label=r"$\xi$", color="tab:green")
     _loglog_safe(ax_top2, ell_centers, s2_lambda, label=r"$\lambda$", color="tab:red")
@@ -424,12 +575,16 @@ def plot_anisotropic_s2(ell_centers: np.ndarray,
 
     ell_match_xi = find_matching_scales(ell_centers, s2_L, ell_centers, s2_xi)
     ell_match_lambda = find_matching_scales(ell_centers, s2_L, ell_centers, s2_lambda)
-    _loglog_safe(ax_right2, ell_centers, ell_match_xi, label=r"$\xi(\ell_\parallel)$", color="tab:green")
-    fit_and_plot(ax_right2, ell_centers, ell_match_xi, r"\xi", "tab:green")
-    _loglog_safe(ax_right2, ell_centers, ell_match_lambda, label=r"$\lambda(\ell_\parallel)$", color="tab:red")
-    fit_and_plot(ax_right2, ell_centers, ell_match_lambda, r"\lambda", "tab:red")
+    plot_zeta(ax_zeta2, ell_centers, ell_match_xi, "tab:green", r"$\xi$")
+    plot_zeta(ax_zeta2, ell_centers, ell_match_lambda, "tab:red", r"$\lambda$")
+    plot_match(ax_right2, ell_centers, ell_match_xi, r"$\xi$", "tab:green")
+    plot_match(ax_right2, ell_centers, ell_match_lambda, r"$\lambda$", "tab:red")
+    ax_zeta2.set_ylabel(r"$\zeta$")
+    ax_zeta2.tick_params(labelbottom=False)
     ax_right2.set_xlabel(r"$\ell_\parallel$")
     ax_right2.set_ylabel(r"$\ell$")
+    ax_right2.set_xscale("log")
+    ax_right2.set_yscale("log")
     ax_right2.grid(True, which="both", alpha=0.3)
     ax_right2.legend()
 
@@ -443,9 +598,10 @@ def plot_anisotropic_s2(ell_centers: np.ndarray,
 def estimate_taylor_scale(hist_mag: np.ndarray, mag_channels: np.ndarray,
                           ell_centers: np.ndarray, sf_channel_bin_edges) -> float | None:
     """Estimate λ_T from the velocity second-order structure function."""
-    if 'D_V' not in mag_channels:
+    names = list(mag_channels)
+    if 'D_V' not in names:
         return None
-    dv_idx = int(np.where(mag_channels == 'D_V')[0][0])
+    dv_idx = names.index('D_V')
     sf_edges = sf_channel_bin_edges[dv_idx]
     sf_centers = geometric_centers(sf_edges)
     hist_2d = hist_mag[dv_idx].sum(axis=(1, 2))
@@ -513,43 +669,37 @@ def main():
     # Load data
     print(f"Loading data from {args.input_file}...")
     data = np.load(args.input_file, allow_pickle=True)
+    metadata = dict(data['metadata'].item()) if 'metadata' in data else {}
 
-    # Extract arrays
-    hist_mag = data['hist_mag']
-    hist_other = data['hist_other']
-    mag_channels = data['mag_channels']
-    other_channels = data['other_channels']
+    hist = data['hist']
+    channels = list(data['channels'])
     ell_bin_edges = data['ell_bin_edges']
     theta_bin_edges = data['theta_bin_edges']
     phi_bin_edges = data['phi_bin_edges']
-    product_bin_edges = data['product_bin_edges']
 
-    # Handle channel-specific bin edges
-    if 'sf_channel_bin_edges' in data:
-        # New format with channel-specific bins
-        sf_channel_bin_edges = data['sf_channel_bin_edges']
-        # For backward compatibility in plotting, use the first channel's bins as default
-        sf_bin_edges = sf_channel_bin_edges[0]
+    delta_bin_edges = data.get('delta_bin_edges', None)
+    if delta_bin_edges is None:
+        if 'log_delta_bin_edges_min' in metadata and 'log_delta_bin_edges_max' in metadata:
+            delta_bin_edges = []
+            for lo, hi in zip(metadata['log_delta_bin_edges_min'], metadata['log_delta_bin_edges_max']):
+                delta_bin_edges.append(np.logspace(lo, hi, metadata['N_delta_bin_edges']))
+        else:
+            raise KeyError("delta_bin_edges missing and metadata reconstruction unavailable.")
+    # Force numeric dtype to avoid object arrays leaking from saved files
+    delta_bin_edges = [np.asarray(edges, dtype=float) for edges in delta_bin_edges]
 
-        # Also extract metadata if available
-        if 'metadata' in data:
-            metadata = dict(data['metadata'].item())
-            if 'log_sf_bin_edges_min' in metadata:
-                print(f"Bin edge parameters found:")
-                print(f"  log_sf_bin_edges_min: {metadata['log_sf_bin_edges_min']}")
-                print(f"  log_sf_bin_edges_max: {metadata['log_sf_bin_edges_max']}")
-                print(f"  N_sf_bin_edges: {metadata['N_sf_bin_edges']}")
-    else:
-        # Old format - single set of bins
-        sf_bin_edges = data['sf_bin_edges']
-        sf_channel_bin_edges = [sf_bin_edges] * len(mag_channels)
+    # Order channels according to the Enum definition and slice hist/edges accordingly
+    channel_index = {name: idx for idx, name in enumerate(channels)}
+    mag_channels = [name for name in [ch.name for ch in Channel] if name in channel_index]
+    hist_mag = np.stack([hist[channel_index[name]] for name in mag_channels], axis=0)
+    sf_channel_bin_edges = [delta_bin_edges[channel_index[name]] for name in mag_channels]
 
     # Compute bin centers
     ell_centers = 0.5 * (ell_bin_edges[:-1] + ell_bin_edges[1:])  # Arithmetic mean for ell
     theta_centers = 0.5 * (theta_bin_edges[:-1] + theta_bin_edges[1:])  # Arithmetic mean (linear bins)
     phi_centers = 0.5 * (phi_bin_edges[:-1] + phi_bin_edges[1:])  # Arithmetic mean (linear bins)
+    sf_bin_edges = sf_channel_bin_edges[0]
     sf_centers = np.sqrt(sf_bin_edges[:-1] * sf_bin_edges[1:])  # Geometric mean for SF (logarithmic bins)
-    product_centers = np.sqrt(np.abs(product_bin_edges[:-1] * product_bin_edges[1:]))  # Geometric mean with abs for negative values
     taylor_scale = estimate_taylor_scale(hist_mag, mag_channels, ell_centers, sf_channel_bin_edges)
 
     # Setup output directory
@@ -565,8 +715,8 @@ def main():
         "individual_raw": make_subdir(output_root, "individual_2d_raw"),
         "individual_kde": make_subdir(output_root, "individual_2d_kde"),
         "angular": make_subdir(output_root, "angular_distributions"),
-        "alignment": make_subdir(output_root, "alignment_angles"),
         "anisotropic": make_subdir(output_root, "anisotropic_S2"),
+        "alignment": make_subdir(output_root, "alignment_angles"),
     }
 
     base_name = Path(args.input_file).stem
@@ -609,28 +759,7 @@ def main():
         args.dpi,
     )
 
-    # 4. Plot cross-product ratios
-    plot_cross_products(
-        hist_other,
-        other_channels,
-        ell_centers,
-        product_centers,
-        subdirs["alignment"],
-        base_name,
-        args.format,
-        args.dpi,
-        taylor_scale=taylor_scale,
-    )
-    plot_alignment_comparison(
-        hist_other,
-        other_channels,
-        ell_centers,
-        product_centers,
-        subdirs["alignment"],
-        args.format,
-    )
-
-    # 6. Anisotropic S2 directional cuts
+    # 4. Anisotropic S2 directional cuts
     anisotropic_results = compute_anisotropic_s2(
         hist_mag,
         sf_channel_bin_edges,
@@ -639,37 +768,48 @@ def main():
         args.theta_wedge_bins,
         args.phi_wedge_bins,
     )
+    anisotropic_npz = {
+        "ell_centers": ell_centers,
+        "ell_bin_edges": ell_bin_edges,
+        "theta_bin_edges": theta_bin_edges,
+        "phi_bin_edges": phi_bin_edges,
+        "theta_wedge_bins": args.theta_wedge_bins,
+        "phi_wedge_bins": args.phi_wedge_bins,
+    }
     for channel_idx, channel_name in enumerate(mag_channels):
         s2_stats = anisotropic_results[channel_idx]
-        # Save arrays
-        safe_name = channel_name.replace("_", "").lower()
-        fname = subdirs["anisotropic"] / f"{safe_name}_S2_arrays.npz"
-        np.savez(
-            fname,
-            ell_centers=ell_centers,
-            S2_iso=s2_stats["iso"],
-            S2_L=s2_stats["L"],
-            S2_perp=s2_stats["perp"],
-            S2_xi=s2_stats["xi"],
-            S2_lambda=s2_stats["lambda"],
-            theta_wedge_bins=args.theta_wedge_bins,
-            phi_wedge_bins=args.phi_wedge_bins,
-            theta_bin_edges=theta_bin_edges,
-            phi_bin_edges=phi_bin_edges,
-            channel=channel_name,
-            ell_bin_edges=ell_bin_edges,
-        )
-        print(f"  Saved: {fname}")
-        plot_anisotropic_s2(
-            ell_centers,
-            ell_bin_edges,
-            channel_name,
-            get_channel_label(channel_name),
-            s2_stats,
-            subdirs["anisotropic"],
-            args.format,
-            args.dpi,
-        )
+        anisotropic_npz[f"{channel_name}_iso"] = s2_stats["iso"]
+        anisotropic_npz[f"{channel_name}_L"] = s2_stats["L"]
+        anisotropic_npz[f"{channel_name}_perp"] = s2_stats["perp"]
+        anisotropic_npz[f"{channel_name}_xi"] = s2_stats["xi"]
+        anisotropic_npz[f"{channel_name}_lambda"] = s2_stats["lambda"]
+        if channel_name not in SKIP_PLOT_CHANNELS:
+            plot_anisotropic_s2(
+                ell_centers,
+                ell_bin_edges,
+                channel_name,
+                get_channel_label(channel_name),
+                s2_stats,
+                subdirs["anisotropic"],
+                args.format,
+                args.dpi,
+            )
+    np.savez(subdirs["anisotropic"] / f"{base_name}_anisotropic_S2.npz", **anisotropic_npz)
+    print(f"  Saved anisotropic S2 master: {subdirs['anisotropic'] / (base_name + '_anisotropic_S2.npz')}")
+
+    # 5. Alignment angles (perpendicular cross/product ratios) in multiple projections
+    plot_alignment_angles_new(
+        hist,
+        channels,
+        delta_bin_edges,
+        ell_bin_edges,
+        theta_bin_edges,
+        phi_bin_edges,
+        subdirs["alignment"],
+        base_name,
+        args.format,
+        args.dpi,
+    )
 
     print(f"\nPlots saved to {output_root}")
 
@@ -748,6 +888,38 @@ def plot_mean_structure_functions(hist_mag, mag_channels, ell_centers, sf_channe
     plt.savefig(filename, dpi=dpi, bbox_inches='tight')
     plt.close()
     print(f"  Created: {filename}")
+
+    # Save 2nd/3rd-order structure functions for reuse
+    s2 = np.full((len(mag_channels), len(ell_centers)), np.nan, dtype=float)
+    s3 = np.full_like(s2, np.nan, dtype=float)
+    for idx, channel_name in enumerate(mag_channels):
+        bin_edges = sf_channel_bin_edges[idx]
+        bin_centers = np.sqrt(bin_edges[:-1] * bin_edges[1:])
+        hist_2d = hist_mag[idx].sum(axis=(1, 2))  # sum over theta, phi
+        totals = hist_2d.sum(axis=1)
+        with np.errstate(invalid="ignore"):
+            s2[idx] = np.where(
+                totals > 0,
+                (hist_2d * (bin_centers ** 2)).sum(axis=1) / totals,
+                np.nan,
+            )
+            s3[idx] = np.where(
+                totals > 0,
+                (hist_2d * (bin_centers ** 3)).sum(axis=1) / totals,
+                np.nan,
+            )
+    np.savez(
+        output_dir / f"{base_name}_structure_functions_2nd.npz",
+        ell_centers=ell_centers,
+        channels=np.array(mag_channels, dtype=object),
+        S2=s2,
+    )
+    np.savez(
+        output_dir / f"{base_name}_structure_functions_3rd.npz",
+        ell_centers=ell_centers,
+        channels=np.array(mag_channels, dtype=object),
+        S3=s3,
+    )
 
 
 def plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_channel_bin_edges,
@@ -899,6 +1071,8 @@ def plot_individual_2d_histograms_with_fits(hist_mag, mag_channels, ell_centers,
     ell_norm = ell_centers / ell_bin_edges[-1]
 
     for channel_idx, channel_name in enumerate(mag_channels):
+        if channel_name in SKIP_PLOT_CHANNELS:
+            continue
         bin_edges = sf_channel_bin_edges[channel_idx]
         bin_centers = geometric_centers(bin_edges)
         hist_2d = hist_mag[channel_idx].sum(axis=(1, 2))  # Sum over theta, phi
@@ -1278,7 +1452,7 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, ell_bin_edge
     phi_deg_edges = np.rad2deg(phi_bin_edges)
     phi_deg_centers = np.rad2deg(phi_centers)
 
-    def render_ang_plot(hist_data_func, x_centers, x_edges, xlabel, file_suffix, smooth=False):
+    def render_ang_plot(hist_data_func, x_centers, x_edges, xlabel, file_suffix, smooth=False, sum_over_label=r"$\phi$"):
         fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
         for ax, (channel_name, idx) in zip(axes, targets):
             hist_raw = hist_data_func(hist_mag[idx])
@@ -1303,8 +1477,7 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, ell_bin_edge
             ax.set_xlim(x_edges.min(), x_edges.max())
             ax.set_yscale("log")
             cbar = fig.colorbar(pcm, ax=ax, pad=0.01, extend="both")
-            sum_over = r"$\phi$" if "theta" in file_suffix else r"$\theta$"
-            cbar.set_label(f"{get_channel_label(channel_name)} counts (sum over {sum_over}, SF bins)")
+            cbar.set_label(f"{get_channel_label(channel_name)} counts (sum over {sum_over_label}, SF bins)")
             decade_ticks = 10 ** np.arange(np.floor(log_min), np.ceil(log_max) + 1)
             cbar.set_ticks(decade_ticks)
             cbar.ax.yaxis.set_major_locator(LogLocator(base=10, subs=(1.0,)))
@@ -1334,27 +1507,31 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, ell_bin_edge
         smooth=True,
     )
 
-    # ℓ–φ distributions (sum over θ and SF)
+    # ℓ–φ distributions (restrict θ near 90° to emphasize ℓ_perp; sum over SF)
+    theta_high_mask = (theta_deg_centers >= 75.0)
     render_ang_plot(
-        hist_data_func=lambda h: np.sum(h, axis=(1, 3)),
+        hist_data_func=lambda h: np.sum(h[:, theta_high_mask, :, :], axis=(1, 3)),
         x_centers=phi_deg_centers,
         x_edges=phi_deg_edges,
-        xlabel=r"$\phi$ (degrees)",
-        file_suffix="phi_distribution",
+        xlabel=r"$\phi$",
+        file_suffix="phi_distribution_perp",
         smooth=False,
+        sum_over_label=r"$\theta \approx 90^\circ$",
     )
     render_ang_plot(
-        hist_data_func=lambda h: np.sum(h, axis=(1, 3)),
+        hist_data_func=lambda h: np.sum(h[:, theta_high_mask, :, :], axis=(1, 3)),
         x_centers=phi_deg_centers,
         x_edges=phi_deg_edges,
-        xlabel=r"$\phi$ (degrees)",
-        file_suffix="phi_distribution",
+        xlabel=r"$\phi$",
+        file_suffix="phi_distribution_perp",
         smooth=True,
+        sum_over_label=r"$\theta \approx 90^\circ$",
     )
 
 
 def plot_cross_products(hist_other, other_channels, ell_centers, product_centers,
-                        output_dir, base_name, fmt, dpi, taylor_scale=None):
+                        output_dir, base_name, fmt, dpi, taylor_scale=None,
+                        alignment_ratio_sum=None, alignment_ratio_count=None, alignment_ratio_pairs=None):
     """Plot ratios of cross-products to their corresponding MAG products with power law fits.
 
     By default plots the perpendicular versions; if full-vector counterparts exist,
@@ -1365,6 +1542,10 @@ def plot_cross_products(hist_other, other_channels, ell_centers, product_centers
     edge_trim = 4
     min_fraction = 0.9
     min_counts = 200
+
+    ratio_map = {}
+    if alignment_ratio_pairs is not None and alignment_ratio_sum is not None and alignment_ratio_count is not None:
+        ratio_map = {cross: idx for idx, (cross, _) in enumerate(alignment_ratio_pairs)}
 
     # Define cross product / MAG pairs
     ratio_pairs = [
@@ -1385,6 +1566,12 @@ def plot_cross_products(hist_other, other_channels, ell_centers, product_centers
 
         mean_cross = np.full(len(ell_centers), np.nan, dtype=float)
         mean_mag = np.full(len(ell_centers), np.nan, dtype=float)
+        sin_ratio = None
+        if ratio_map and cross_name in ratio_map:
+            idx_ratio = ratio_map[cross_name]
+            counts = alignment_ratio_count[idx_ratio]
+            with np.errstate(divide="ignore", invalid="ignore"):
+                sin_ratio = np.where(counts > 0, alignment_ratio_sum[idx_ratio] / counts, np.nan)
 
         for i in range(len(ell_centers)):
             cross_row = hist_other[cross_idx][i]
@@ -1410,7 +1597,7 @@ def plot_cross_products(hist_other, other_channels, ell_centers, product_centers
             ell_valid = ell_centers[mask]
 
             # Plot ratio
-            ax.plot(ell_valid, ratio, 'o-', markersize=6, label='Data')
+            ax.plot(ell_valid, ratio, 'o-', markersize=6, label='~$\\theta$ (mean cross/product)')
             if taylor_scale is not None and np.isfinite(taylor_scale):
                 ax.axvline(taylor_scale, color='0.6', lw=1.0, ls='--', label=r'$\lambda_T$')
 
@@ -1445,6 +1632,19 @@ def plot_cross_products(hist_other, other_channels, ell_centers, product_centers
 
                 # Add shaded region to show fit range
                 ax.axvspan(ell_min_fit, ell_max_fit, alpha=0.1, color='gray')
+
+        # Plot instantaneous θ if available
+        if sin_ratio is not None:
+            mask_theta = np.isfinite(sin_ratio) & (sin_ratio > 0)
+            if np.any(mask_theta):
+                ax.plot(
+                    ell_centers[mask_theta],
+                    sin_ratio[mask_theta],
+                    linestyle="-.",
+                    color="tab:purple",
+                    linewidth=2.0,
+                    label=r"$\theta$ (instantaneous ratio)",
+                )
 
         # Optionally overlay full-vector version if available
         if full_cross_name in other_channels and full_mag_name in other_channels:
@@ -1508,11 +1708,17 @@ def plot_alignment_comparison(
     product_centers,
     output_dir: Path,
     fmt: str,
+    alignment_ratio_sum=None,
+    alignment_ratio_count=None,
+    alignment_ratio_pairs=None,
 ):
-    """Compare theta_(Q,P)(ell) for v-B, v-omega, B-j using only perp versions."""
+    """Compare theta_(Q,P)(ell) for v-B, v-omega, B-j using both ~θ (tilde) and θ (ratio)."""
     edge_trim = 4
     min_fraction = 0.9
     min_counts = 200
+    ratio_map = {}
+    if alignment_ratio_pairs is not None and alignment_ratio_sum is not None and alignment_ratio_count is not None:
+        ratio_map = {cross: idx for idx, (cross, _) in enumerate(alignment_ratio_pairs)}
 
     pairs = [
         ("D_Vperp_CROSS_Bperp", "D_Vperp_D_Bperp_MAG", "v,B", "tab:blue"),
@@ -1529,6 +1735,13 @@ def plot_alignment_comparison(
         mag_idx = list(other_channels).index(mag_name)
 
         mean_ratio = np.full(len(ell_centers), np.nan, dtype=float)
+        sin_ratio = None
+        if ratio_map and cross_name in ratio_map:
+            idx_ratio = ratio_map[cross_name]
+            counts = alignment_ratio_count[idx_ratio]
+            with np.errstate(divide="ignore", invalid="ignore"):
+                sin_ratio = np.where(counts > 0, alignment_ratio_sum[idx_ratio] / counts, np.nan)
+
         for i in range(len(ell_centers)):
             cross_row = hist_other[cross_idx][i]
             mag_row = hist_other[mag_idx][i]
@@ -1580,6 +1793,20 @@ def plot_alignment_comparison(
             label=solid_label,
         )
 
+        # Plot instantaneous θ (ratio) if available
+        if sin_ratio is not None:
+            mask_theta = np.isfinite(sin_ratio) & (sin_ratio > 0)
+            if np.any(mask_theta):
+                ax.loglog(
+                    ell_centers[mask_theta],
+                    sin_ratio[mask_theta],
+                    color=color,
+                    lw=1.6,
+                    linestyle="-.",
+                    alpha=0.9,
+                    label=rf"$\theta_{{{subscript}}}$ (ratio)",
+                )
+
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlabel(r'$\ell$')
@@ -1591,5 +1818,348 @@ def plot_alignment_comparison(
     plt.savefig(filename, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Created: {filename}")
+
+
+def plot_alignment_anisotropy(
+    ell_centers: np.ndarray,
+    align_stats: dict,
+    output_dir: Path,
+    fmt: str,
+):
+    """Plot anisotropic alignment (~θ and θ) over L, perp, xi, lambda, iso for each pair."""
+    wedge_order = ["iso", "L", "perp", "xi", "lambda"]
+    wedge_styles = {
+        "iso": ("k", "-"),
+        "L": ("tab:blue", "-"),
+        "perp": ("tab:red", "-"),
+        "xi": ("tab:green", "-"),
+        "lambda": ("tab:purple", "-"),
+    }
+    for pair_name, stats in align_stats.items():
+        fig, ax = plt.subplots(figsize=(6.5, 4.5))
+        for wedge in wedge_order:
+            color, style = wedge_styles[wedge]
+            tilde_vals = stats["tilde"].get(wedge, None)
+            theta_vals = stats["theta"].get(wedge, None)
+            if tilde_vals is not None:
+                mask = np.isfinite(tilde_vals) & (tilde_vals > 0)
+                if np.any(mask):
+                    ax.loglog(
+                        ell_centers[mask],
+                        tilde_vals[mask],
+                        linestyle=style,
+                        color=color,
+                        linewidth=1.6,
+                        label=rf"{wedge} ~$\theta$",
+                    )
+            if theta_vals is not None:
+                mask_t = np.isfinite(theta_vals) & (theta_vals > 0)
+                if np.any(mask_t):
+                    ax.loglog(
+                        ell_centers[mask_t],
+                        theta_vals[mask_t],
+                        linestyle="--",
+                        color=color,
+                        linewidth=1.6,
+                        alpha=0.9,
+                        label=rf"{wedge} $\theta$",
+                    )
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel(r'$\ell$')
+        ax.set_ylabel(r'$\theta$')
+        ax.grid(True, which="both", alpha=0.3)
+        ax.legend()
+        fig.tight_layout()
+        filename = output_dir / f"alignment_anisotropy_{pair_name}.{fmt}"
+        plt.savefig(filename, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Created: {filename}")
+
+
+# -----------------------------------------------------------------------------
+# New alignment plots from unified histograms ---------------------------------
+# -----------------------------------------------------------------------------
+
+def _mean_from_hist(hist_chan: np.ndarray, bin_edges: np.ndarray, axis_sum=(2, 3)):
+    """Weighted mean of a histogram over specified axes using geometric centers."""
+    centers = geometric_centers(bin_edges)
+    # move last axis (delta bins) to end for broadcasting
+    counts = hist_chan
+    # Collapse over requested axes, leaving ell (and optionally theta)
+    weights = np.sum(counts, axis=axis_sum)
+    with np.errstate(invalid="ignore"):
+        num = np.sum(counts * centers, axis=axis_sum)
+        mean = np.where(weights > 0, num / weights, np.nan)
+    return mean, weights
+
+
+def plot_alignment_angles_new(
+    hist: np.ndarray,
+    channels: list,
+    delta_bin_edges,
+    ell_bin_edges: np.ndarray,
+    theta_bin_edges: np.ndarray,
+    phi_bin_edges: np.ndarray,
+    output_dir: Path,
+    base_name: str,
+    fmt: str,
+    dpi: int,
+):
+    """Plot θ_{x,y} vs ℓ, ℓ_parallel, ℓ_perp, ξ, λ using cross/mag channels."""
+    output_dir.mkdir(exist_ok=True)
+    ch_index = {name: idx for idx, name in enumerate(channels)}
+    n_theta_bins = theta_bin_edges.shape[0] - 1
+    n_phi_bins = phi_bin_edges.shape[0] - 1
+    # Use explicit edge-based masks: first (~0°) and last (~90°) bins only.
+    L_mask, perp_mask, xi_mask, lambda_mask = build_anisotropic_masks(
+        n_theta_bins, n_phi_bins, theta_wedge_bins=1, phi_wedge_bins=1
+    )
+    pairs = [
+        ("D_Vperp_CROSS_D_Bperp", "D_Vperp_D_Bperp_MAG", "D_Vperp_D_Bperp_CROSS_MAG_RATIO", "v,B", "tab:blue"),
+        ("D_Bperp_CROSS_D_Jperp", "D_Bperp_D_Jperp_MAG", "D_Bperp_D_Jperp_CROSS_MAG_RATIO", "B,j", "tab:red"),
+        ("D_Vperp_CROSS_D_Omegaperp", "D_Vperp_D_Omegaperp_MAG", "D_Vperp_D_Omegaperp_CROSS_MAG_RATIO", "v,\\omega", "tab:green"),
+        ("D_Omegaperp_CROSS_D_Jperp", "D_Omegaperp_D_Jperp_MAG", "D_Omegaperp_D_Jperp_CROSS_MAG_RATIO", "\\omega,j", "tab:purple"),
+    ]
+
+    ell_centers = 0.5 * (ell_bin_edges[:-1] + ell_bin_edges[1:])
+    theta_centers = 0.5 * (theta_bin_edges[:-1] + theta_bin_edges[1:])
+    phi_centers = 0.5 * (phi_bin_edges[:-1] + phi_bin_edges[1:])
+    cos_theta = np.cos(theta_centers)
+    sin_theta = np.sin(theta_centers)
+    cos_phi = np.cos(phi_centers)
+    sin_phi = np.sin(phi_centers)
+
+    def choose_best_powerlaw_fit(x_vals: np.ndarray, y_vals: np.ndarray):
+        """Return slope/intercept for best 8× window in [32, max/2] minimizing chi^2."""
+        mask = np.isfinite(x_vals) & np.isfinite(y_vals) & (x_vals > 0) & (y_vals > 0)
+        if not np.any(mask):
+            return None
+        xmax = np.nanmax(x_vals[mask])
+        max_end = xmax / 2.0
+        # Require full 8× span
+        start_candidates = np.unique(x_vals[mask & (x_vals >= 32.0) & (x_vals * 8.0 <= max_end)])
+        start_candidates = np.sort(start_candidates)
+        best = None
+        for start in start_candidates:
+            end_limit = start * 8.0
+            fit_mask = mask & (x_vals >= start) & (x_vals <= end_limit)
+            if np.count_nonzero(fit_mask) < 3:
+                continue
+            logx = np.log10(x_vals[fit_mask])
+            logy = np.log10(y_vals[fit_mask])
+            slope, intercept = np.polyfit(logx, logy, 1)
+            resid = logy - (slope * logx + intercept)
+            chi2 = np.sum(resid ** 2)
+            end_actual = x_vals[fit_mask].max()
+            if best is None or chi2 < best[0] - 1e-12 or (
+                np.isclose(chi2, best[0]) and (start < best[3] - 1e-12 or end_actual > best[4])
+            ):
+                best = (chi2, slope, intercept, start, end_actual)
+        return best
+
+    def plot_variant(x_vals, ratios, xlabel, suffix, y_label, prime=False):
+        fig, ax = plt.subplots(figsize=(6.8, 4.6))
+        for (_, _, _, sub, color), ratio in zip(pairs, ratios):
+            mask = np.isfinite(ratio) & (ratio > 0)
+            if not np.any(mask):
+                continue
+            label = rf"$\theta_{{{sub}}}$" if not prime else rf"$\theta'_{{{sub}}}$"
+            best = choose_best_powerlaw_fit(x_vals, ratio)
+            if best is not None:
+                _, slope, intercept, start_fit, end_fit = best
+                x_fit = np.logspace(np.log10(start_fit), np.log10(end_fit), 200)
+                y_fit = 10 ** (intercept) * x_fit ** slope
+                ax.loglog(
+                    x_fit,
+                    y_fit,
+                    linestyle="--",
+                    color=color,
+                    alpha=0.5,
+                    linewidth=3.0,
+                    label=None,
+                )
+                if not prime:
+                    label = rf"$\theta_{{{sub}}} \propto \ell^{{{slope:.2f}}}$"
+                else:
+                    label = rf"$\theta'_{{{sub}}} \propto \ell^{{{slope:.2f}}}$"
+            ax.loglog(x_vals[mask], ratio[mask], color=color, lw=1.8, label=label)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(y_label)
+        ax.grid(True, which="both", alpha=0.3)
+        ax.legend()
+        fig.tight_layout()
+        fname = output_dir / f"alignment_angles_{suffix}.{fmt}"
+        plt.savefig(fname, dpi=dpi, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Created: {fname}")
+
+    ratios_ell = []
+    ratios_par = []
+    ratios_perp = []
+    ratios_xi = []
+    ratios_lambda = []
+    ratios_prime_ell = []
+    ratios_prime_par = []
+    ratios_prime_perp = []
+    ratios_prime_xi = []
+    ratios_prime_lambda = []
+    x_xi = None
+    x_lambda = None
+    for cross_name, mag_name, ratio_name, _, _ in pairs:
+        if cross_name not in ch_index or mag_name not in ch_index:
+            ratios_ell.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_par.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_perp.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_xi.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_lambda.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_prime_ell.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_prime_par.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_prime_perp.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_prime_xi.append(np.full_like(ell_centers, np.nan, dtype=float))
+            ratios_prime_lambda.append(np.full_like(ell_centers, np.nan, dtype=float))
+            continue
+        cross_idx = ch_index[cross_name]
+        mag_idx = ch_index[mag_name]
+        ratio_idx = ch_index.get(ratio_name, None)
+        cross_hist = hist[cross_idx]
+        mag_hist = hist[mag_idx]
+        ratio_hist = hist[ratio_idx] if ratio_idx is not None else None
+        cross_edges = delta_bin_edges[cross_idx]
+        mag_edges = delta_bin_edges[mag_idx]
+        ratio_edges = delta_bin_edges[ratio_idx] if ratio_idx is not None else None
+
+        # Mean over theta, phi
+        mean_cross_ell, w_cross_ell = _mean_from_hist(cross_hist, cross_edges, axis_sum=(1, 2, 3))
+        mean_mag_ell, w_mag_ell = _mean_from_hist(mag_hist, mag_edges, axis_sum=(1, 2, 3))
+        mean_ratio_ell = None
+        if ratio_hist is not None and ratio_edges is not None:
+            mean_ratio_ell, _ = _mean_from_hist(ratio_hist, ratio_edges, axis_sum=(1, 2, 3))
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ratio_ell = np.where((mean_mag_ell > 0) & (mean_cross_ell > 0),
+                                 mean_cross_ell / mean_mag_ell,
+                                 np.nan)
+        ratios_ell.append(ratio_ell)
+        ratios_prime_ell.append(mean_ratio_ell if mean_ratio_ell is not None else np.full_like(ratio_ell, np.nan))
+
+        # Mean per (ell, theta), collapsing phi
+        mean_cross_theta, w_cross_theta = _mean_from_hist(cross_hist, cross_edges, axis_sum=(2, 3))
+        mean_mag_theta, w_mag_theta = _mean_from_hist(mag_hist, mag_edges, axis_sum=(2, 3))
+        mean_ratio_theta = None
+        weights_ratio_theta = None
+        if ratio_hist is not None and ratio_edges is not None:
+            mean_ratio_theta, weights_ratio_theta = _mean_from_hist(ratio_hist, ratio_edges, axis_sum=(2, 3))
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ratio_theta = np.where((mean_mag_theta > 0) & (mean_cross_theta > 0),
+                                   mean_cross_theta / mean_mag_theta,
+                                   np.nan)
+        # Weighted average over theta to build parallel/perp curves (masked)
+        weights_theta = np.where(np.isfinite(ratio_theta), w_mag_theta, 0.0)
+        weights_ratio_theta = np.where(np.isfinite(mean_ratio_theta), weights_ratio_theta, 0.0) if mean_ratio_theta is not None else None
+        ell_par = ell_centers[:, None] * cos_theta[None, :]
+        ell_perp = ell_centers[:, None] * sin_theta[None, :]
+        theta_L = L_mask.any(axis=1)
+        theta_perp = perp_mask.any(axis=1)
+        ratio_prime_par = np.full_like(ratio_theta, np.nan)
+        ratio_prime_perp = np.full_like(ratio_theta, np.nan)
+        with np.errstate(invalid="ignore"):
+            denom_par = (weights_theta * theta_L[None, :]).sum(axis=1)
+            ratio_par = np.where(
+                denom_par > 0,
+                np.nansum(ratio_theta * weights_theta * theta_L[None, :], axis=1) / denom_par,
+                np.nan,
+            )
+            if mean_ratio_theta is not None and weights_ratio_theta is not None:
+                denom_par_p = (weights_ratio_theta * theta_L[None, :]).sum(axis=1)
+                ratio_prime_par = np.where(
+                    denom_par_p > 0,
+                    np.nansum(mean_ratio_theta * weights_ratio_theta * theta_L[None, :], axis=1) / denom_par_p,
+                    np.nan,
+                )
+            denom_perp = (weights_theta * theta_perp[None, :]).sum(axis=1)
+            ratio_perp = np.where(
+                denom_perp > 0,
+                np.nansum(ratio_theta * weights_theta * theta_perp[None, :], axis=1) / denom_perp,
+                np.nan,
+            )
+            if mean_ratio_theta is not None and weights_ratio_theta is not None:
+                denom_perp_p = (weights_ratio_theta * theta_perp[None, :]).sum(axis=1)
+                ratio_prime_perp = np.where(
+                    denom_perp_p > 0,
+                    np.nansum(mean_ratio_theta * weights_ratio_theta * theta_perp[None, :], axis=1) / denom_perp_p,
+                    np.nan,
+                )
+        ratios_par.append(ratio_par)
+        ratios_perp.append(ratio_perp)
+        ratios_prime_par.append(ratio_prime_par if mean_ratio_theta is not None else np.full_like(ratio_par, np.nan))
+        ratios_prime_perp.append(ratio_prime_perp if mean_ratio_theta is not None else np.full_like(ratio_perp, np.nan))
+        # ξ and λ components using phi decomposition of ℓ_perp (masked)
+        mean_cross_tp, w_cross_tp = _mean_from_hist(cross_hist, cross_edges, axis_sum=(3,))
+        mean_mag_tp, w_mag_tp = _mean_from_hist(mag_hist, mag_edges, axis_sum=(3,))
+        mean_ratio_tp = _mean_from_hist(ratio_hist, ratio_edges, axis_sum=(3)) if ratio_hist is not None and ratio_edges is not None else (None, None)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ratio_tp = np.where((mean_mag_tp > 0) & (mean_cross_tp > 0),
+                                mean_cross_tp / mean_mag_tp,
+                                np.nan)
+        weights_tp = np.where(np.isfinite(ratio_tp), w_mag_tp, 0.0)
+        mean_ratio_tp_vals, w_ratio_tp = mean_ratio_tp
+        weights_ratio_tp = np.where(np.isfinite(mean_ratio_tp_vals), w_ratio_tp, 0.0) if mean_ratio_tp_vals is not None else None
+        xi_grid = ell_perp[:, :, None] * cos_phi[None, None, :]
+        lambda_grid = ell_perp[:, :, None] * sin_phi[None, None, :]
+        ratio_prime_xi = np.full_like(ratio_tp, np.nan)
+        ratio_prime_lambda = np.full_like(ratio_tp, np.nan)
+        with np.errstate(invalid="ignore"):
+            denom_xi = (weights_tp * xi_mask[None, :, :]).sum(axis=(1, 2))
+            ratio_xi = np.where(
+                denom_xi > 0,
+                np.nansum(ratio_tp * weights_tp * xi_mask[None, :, :], axis=(1, 2)) / denom_xi,
+                np.nan,
+            )
+            if mean_ratio_tp_vals is not None and weights_ratio_tp is not None:
+                denom_xi_p = (weights_ratio_tp * xi_mask[None, :, :]).sum(axis=(1, 2))
+                ratio_prime_xi = np.where(
+                    denom_xi_p > 0,
+                    np.nansum(mean_ratio_tp_vals * weights_ratio_tp * xi_mask[None, :, :], axis=(1, 2)) / denom_xi_p,
+                    np.nan,
+                )
+            denom_lambda = (weights_tp * lambda_mask[None, :, :]).sum(axis=(1, 2))
+            ratio_lambda = np.where(
+                denom_lambda > 0,
+                np.nansum(ratio_tp * weights_tp * lambda_mask[None, :, :], axis=(1, 2)) / denom_lambda,
+                np.nan,
+            )
+            if mean_ratio_tp_vals is not None and weights_ratio_tp is not None:
+                denom_lambda_p = (weights_ratio_tp * lambda_mask[None, :, :]).sum(axis=(1, 2))
+                ratio_prime_lambda = np.where(
+                    denom_lambda_p > 0,
+                    np.nansum(mean_ratio_tp_vals * weights_ratio_tp * lambda_mask[None, :, :], axis=(1, 2)) / denom_lambda_p,
+                    np.nan,
+                )
+            if x_xi is None:
+                x_xi = np.where(
+                    denom_xi > 0,
+                    np.nansum(xi_grid * weights_tp * xi_mask[None, :, :], axis=(1, 2)) / denom_xi,
+                    np.nan,
+                )
+                x_lambda = np.where(
+                    denom_lambda > 0,
+                    np.nansum(lambda_grid * weights_tp * lambda_mask[None, :, :], axis=(1, 2)) / denom_lambda,
+                    np.nan,
+                )
+        ratios_xi.append(ratio_xi)
+        ratios_lambda.append(ratio_lambda)
+        ratios_prime_xi.append(ratio_prime_xi if mean_ratio_tp_vals is not None else np.full_like(ratio_xi, np.nan))
+        ratios_prime_lambda.append(ratio_prime_lambda if mean_ratio_tp_vals is not None else np.full_like(ratio_lambda, np.nan))
+
+    plot_variant(ell_centers, ratios_ell, r"$\ell$", "ell", y_label=r"$\theta$")
+    plot_variant(ell_centers, ratios_par, r"$\ell_{\parallel}$", "ell_parallel", y_label=r"$\theta$")
+    plot_variant(ell_centers, ratios_perp, r"$\ell_{\perp}$", "ell_perp", y_label=r"$\theta$")
+    plot_variant(x_xi if x_xi is not None else ell_centers, ratios_xi, r"$\xi$", "xi", y_label=r"$\theta$")
+    plot_variant(x_lambda if x_lambda is not None else ell_centers, ratios_lambda, r"$\lambda$", "lambda", y_label=r"$\theta$")
+    plot_variant(ell_centers, ratios_prime_ell, r"$\ell$", "ell_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(ell_centers, ratios_prime_par, r"$\ell_{\parallel}$", "ell_parallel_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(ell_centers, ratios_prime_perp, r"$\ell_{\perp}$", "ell_perp_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(x_xi if x_xi is not None else ell_centers, ratios_prime_xi, r"$\xi$", "xi_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(x_lambda if x_lambda is not None else ell_centers, ratios_prime_lambda, r"$\lambda$", "lambda_prime", y_label=r"$\theta'$", prime=True)
 if __name__ == "__main__":
     exit(main())

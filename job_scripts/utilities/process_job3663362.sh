@@ -96,7 +96,7 @@ if [ -n "$SLICE_RESULTS" ]; then
         
         echo ""
         echo "Generating plots..."
-        python ${SFUNCTOR_DIR}/scripts/production/plot_structure_functions.py \
+        python ${SFUNCTOR_DIR}/plotting_scripts/plot_structure_functions.py \
             ${JOB_DIR}/sf_results_all_slices.npz
         
         if [ $? -eq 0 ]; then

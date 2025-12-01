@@ -225,7 +225,7 @@ python ${SFUNCTOR_DIR}/scripts/production/combine_histograms.py \
 echo "======================================"
 echo "Creating plots"
 echo "======================================"
-python ${SFUNCTOR_DIR}/scripts/production/plot_structure_functions.py \
+python ${SFUNCTOR_DIR}/plotting_scripts/plot_structure_functions.py \
     "${WORK_DIR}/sf_results_all_slices.npz" \
     --output_dir "${WORK_DIR}/plots" \
     --format png \

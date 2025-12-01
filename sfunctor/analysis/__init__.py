@@ -14,7 +14,13 @@ simple
 """
 
 from sfunctor.analysis.single_slice import analyze_slice
-from sfunctor.analysis.batch import main as batch_analyze
+
+
+def batch_analyze(*args, **kwargs):
+    """Lazy import wrapper for MPI batch analysis to avoid mpi4py at import time."""
+    from sfunctor.analysis import batch as _batch  # local import to defer mpi4py load
+    return _batch.main(*args, **kwargs)
+
 
 __all__ = [
     "analyze_slice",
