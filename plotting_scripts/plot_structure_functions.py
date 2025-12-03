@@ -45,6 +45,10 @@ CHANNEL_LABELS = {
     'D_Vperp_D_Omegaperp_CROSS_MAG_RATIO': r'$\sin \theta_{v\omega}$',
     'D_Bperp_D_Jperp_CROSS_MAG_RATIO': r'$\sin \theta_{Bj}$',
     'D_Omegaperp_D_Jperp_CROSS_MAG_RATIO': r'$\sin \theta_{\omega j}$',
+    # Elsasser alignment angle
+    'D_Zplusperp_CROSS_D_Zminusperp': r'$|\delta z^+_\perp \times \delta z^-_\perp|$',
+    'D_Zplusperp_D_Zminusperp_MAG': r'$|\delta z^+_\perp| |\delta z^-_\perp|$',
+    'D_Zplusperp_D_Zminusperp_CROSS_MAG_RATIO': r'$\sin \theta_{z^+z^-}$',
 }
 
 # Channels to skip for individual/aniso SF plotting (cross, mag, ratio variants)
@@ -61,6 +65,10 @@ SKIP_PLOT_CHANNELS = {
     'D_Vperp_D_Omegaperp_CROSS_MAG_RATIO',
     'D_Bperp_D_Jperp_CROSS_MAG_RATIO',
     'D_Omegaperp_D_Jperp_CROSS_MAG_RATIO',
+    # Elsasser alignment channels
+    'D_Zplusperp_CROSS_D_Zminusperp',
+    'D_Zplusperp_D_Zminusperp_MAG',
+    'D_Zplusperp_D_Zminusperp_CROSS_MAG_RATIO',
 }
 
 def get_channel_label(channel_name):
@@ -743,7 +751,7 @@ def main():
         args.dpi,
     )
 
-    # 3. Plot angular distributions (2D histogram of D_V vs ell and theta)
+    # 3. Plot angular distributions (mean S1 and S2 vs ell and theta/phi)
     plot_angular_distributions(
         hist_mag,
         mag_channels,
@@ -753,6 +761,7 @@ def main():
         theta_bin_edges,
         phi_centers,
         phi_bin_edges,
+        sf_channel_bin_edges,
         subdirs["angular"],
         base_name,
         args.format,
@@ -1438,8 +1447,14 @@ def plot_qp_slopes_for_channel(channel_name: str,
 def plot_angular_distributions(hist_mag, mag_channels, ell_centers, ell_bin_edges,
                                theta_centers, theta_bin_edges,
                                phi_centers, phi_bin_edges,
+                               sf_channel_bin_edges,
                                output_dir, base_name, fmt, dpi):
-    """Plot ℓ–θ and ℓ–φ distributions for δv and δB side-by-side with ℓ on the y-axis."""
+    """Plot ℓ–θ and ℓ–φ distributions of mean SF values (S₁ and S₂) for δv and δB.
+
+    Creates separate plots for:
+    - S₁ = ⟨|δ|⟩ (first moment)
+    - S₂ = ⟨|δ|²⟩ (second moment)
+    """
     targets = []
     for name in ('D_V', 'D_B'):
         if name in mag_channels:
@@ -1452,22 +1467,109 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, ell_bin_edge
     phi_deg_edges = np.rad2deg(phi_bin_edges)
     phi_deg_centers = np.rad2deg(phi_centers)
 
-    def render_ang_plot(hist_data_func, x_centers, x_edges, xlabel, file_suffix, smooth=False, sum_over_label=r"$\phi$"):
+    # Compute delta bin centers for each channel (geometric mean for log-spaced bins)
+    delta_bin_centers_list = []
+    for edges in sf_channel_bin_edges:
+        centers = np.sqrt(edges[:-1] * edges[1:])  # geometric mean
+        delta_bin_centers_list.append(centers)
+
+    def compute_mean_sf(hist_4d, delta_centers, sum_axes, power=1):
+        """Compute weighted mean of |δ|^power from histogram.
+
+        Parameters
+        ----------
+        hist_4d : ndarray
+            Histogram with shape (n_ell, n_theta, n_phi, n_delta).
+        delta_centers : ndarray
+            Bin centers for the delta axis, shape (n_delta,).
+        sum_axes : tuple
+            Axes to sum over before computing mean (e.g., (2,) for φ).
+        power : int
+            Power of delta (1 for S₁, 2 for S₂).
+
+        Returns
+        -------
+        mean_sf : ndarray
+            Mean SF value with shape determined by remaining axes after sum.
+        """
+        # Weight by delta^power
+        weights = delta_centers ** power
+        # Weighted sum: Σ(counts × δ^p)
+        weighted_sum = np.sum(hist_4d * weights[None, None, None, :], axis=sum_axes + (3,))
+        # Total counts
+        total_counts = np.sum(hist_4d, axis=sum_axes + (3,))
+        # Mean
+        with np.errstate(divide='ignore', invalid='ignore'):
+            mean_sf = np.where(total_counts > 0, weighted_sum / total_counts, np.nan)
+        return mean_sf
+
+    # Mapping from channel name to the symbol for constructing labels
+    channel_symbols = {
+        'D_V': 'v', 'D_B': 'B', 'D_RHO': r'\rho', 'D_VA': 'v_A',
+        'D_ZPLUS': 'z^+', 'D_ZMINUS': 'z^-', 'D_OMEGA': r'\omega',
+        'D_J': 'j', 'D_CURV': 'K', 'D_GRAD_RHO': r'|\nabla\rho|',
+    }
+
+    def get_cbar_label(channel_name, moment, suffix=""):
+        """Construct proper colorbar label like ⟨|δv|⟩ or ⟨|δv|²⟩^{1/2}."""
+        sym = channel_symbols.get(channel_name, channel_name.replace('D_', ''))
+        if moment == 1:
+            return rf"$\langle|\delta {sym}|\rangle${suffix}"
+        elif moment == 2:
+            return rf"$\langle|\delta {sym}|^2\rangle^{{1/2}}${suffix}"
+        else:
+            return rf"$\langle|\delta {sym}|^{moment}\rangle${suffix}"
+
+    def render_ang_plot(mean_sf_func, x_centers, x_edges, xlabel, file_suffix,
+                        moment, smooth=False, cbar_suffix=""):
+        """Render angular distribution plot showing mean SF value.
+
+        Parameters
+        ----------
+        mean_sf_func : callable
+            Function that takes (hist_4d, delta_centers) and returns 2D mean SF array.
+        x_centers, x_edges : ndarray
+            Bin centers and edges for the x-axis (angular coordinate).
+        xlabel : str
+            Label for x-axis.
+        file_suffix : str
+            Suffix for output filename.
+        moment : int
+            Moment order (1 for S₁, 2 for S₂).
+        smooth : bool
+            Whether to apply Gaussian smoothing.
+        cbar_suffix : str
+            Additional suffix for colorbar label.
+        """
         fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
         for ax, (channel_name, idx) in zip(axes, targets):
-            hist_raw = hist_data_func(hist_mag[idx])
-            hist_use = gaussian_filter(hist_raw, sigma=1.0) if smooth else hist_raw
-            hist_plot = np.ma.masked_less_equal(hist_use, 0)
-            vmax = float(hist_plot.max()) if hist_plot.count() else 1.0
-            vmin = max(float(hist_plot.min()) if hist_plot.count() else 1.0, 1.0)
+            delta_centers = delta_bin_centers_list[idx]
+            mean_sf = mean_sf_func(hist_mag[idx], delta_centers)
+            # For moment=2, take square root to show ⟨|δ|²⟩^{1/2}
+            if moment == 2:
+                mean_sf = np.sqrt(mean_sf)
+            mean_sf_use = gaussian_filter(mean_sf, sigma=1.0) if smooth else mean_sf
+            mean_sf_plot = np.ma.masked_invalid(mean_sf_use)
+            mean_sf_plot = np.ma.masked_less_equal(mean_sf_plot, 0)
+
+            if mean_sf_plot.count() == 0:
+                ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
+                continue
+
+            vmax = float(mean_sf_plot.max())
+            vmin = float(mean_sf_plot.min())
+            if vmin <= 0:
+                vmin = float(mean_sf_plot[mean_sf_plot > 0].min()) if np.any(mean_sf_plot > 0) else 1e-10
+
             log_min, log_max = np.log10(vmin), np.log10(vmax)
             log_lo = np.floor(log_min) - 0.25
             log_hi = np.ceil(log_max) + 0.25
             levels = 10 ** np.arange(log_lo, log_hi + 1e-6, 0.25) if vmax > vmin else [vmin]
+
             pcm = ax.contourf(
                 x_centers,
                 ell_centers,
-                hist_plot,
+                mean_sf_plot,
                 levels=levels,
                 norm=colors.LogNorm(vmin=levels.min(), vmax=levels.max()),
                 cmap=cmr.rainforest,
@@ -1477,7 +1579,7 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, ell_bin_edge
             ax.set_xlim(x_edges.min(), x_edges.max())
             ax.set_yscale("log")
             cbar = fig.colorbar(pcm, ax=ax, pad=0.01, extend="both")
-            cbar.set_label(f"{get_channel_label(channel_name)} counts (sum over {sum_over_label}, SF bins)")
+            cbar.set_label(get_cbar_label(channel_name, moment, cbar_suffix))
             decade_ticks = 10 ** np.arange(np.floor(log_min), np.ceil(log_max) + 1)
             cbar.set_ticks(decade_ticks)
             cbar.ax.yaxis.set_major_locator(LogLocator(base=10, subs=(1.0,)))
@@ -1489,44 +1591,69 @@ def plot_angular_distributions(hist_mag, mag_channels, ell_centers, ell_bin_edge
         plt.close(fig)
         print(f"  Created: {filename}")
 
-    # ℓ–θ distributions (sum over φ and SF)
-    render_ang_plot(
-        hist_data_func=lambda h: np.sum(h, axis=(2, 3)),
-        x_centers=theta_deg_centers,
-        x_edges=theta_deg_edges,
-        xlabel=r"$\theta$ (degrees)",
-        file_suffix="theta_distribution",
-        smooth=False,
-    )
-    render_ang_plot(
-        hist_data_func=lambda h: np.sum(h, axis=(2, 3)),
-        x_centers=theta_deg_centers,
-        x_edges=theta_deg_edges,
-        xlabel=r"$\theta$ (degrees)",
-        file_suffix="theta_distribution",
-        smooth=True,
-    )
+    # --- ℓ–θ distributions (average over φ) ---
+    # S₁ = ⟨|δ|⟩
+    for smooth in [False, True]:
+        render_ang_plot(
+            mean_sf_func=lambda h, dc: compute_mean_sf(h, dc, sum_axes=(2,), power=1),
+            x_centers=theta_deg_centers,
+            x_edges=theta_deg_edges,
+            xlabel=r"$\theta$ (degrees)",
+            file_suffix="theta_S1",
+            moment=1,
+            smooth=smooth,
+        )
+    # S₂ = ⟨|δ|²⟩^{1/2}
+    for smooth in [False, True]:
+        render_ang_plot(
+            mean_sf_func=lambda h, dc: compute_mean_sf(h, dc, sum_axes=(2,), power=2),
+            x_centers=theta_deg_centers,
+            x_edges=theta_deg_edges,
+            xlabel=r"$\theta$ (degrees)",
+            file_suffix="theta_S2",
+            moment=2,
+            smooth=smooth,
+        )
 
-    # ℓ–φ distributions (restrict θ near 90° to emphasize ℓ_perp; sum over SF)
+    # --- ℓ–φ distributions (restrict θ near 90° to emphasize ℓ_perp) ---
     theta_high_mask = (theta_deg_centers >= 75.0)
-    render_ang_plot(
-        hist_data_func=lambda h: np.sum(h[:, theta_high_mask, :, :], axis=(1, 3)),
-        x_centers=phi_deg_centers,
-        x_edges=phi_deg_edges,
-        xlabel=r"$\phi$",
-        file_suffix="phi_distribution_perp",
-        smooth=False,
-        sum_over_label=r"$\theta \approx 90^\circ$",
-    )
-    render_ang_plot(
-        hist_data_func=lambda h: np.sum(h[:, theta_high_mask, :, :], axis=(1, 3)),
-        x_centers=phi_deg_centers,
-        x_edges=phi_deg_edges,
-        xlabel=r"$\phi$",
-        file_suffix="phi_distribution_perp",
-        smooth=True,
-        sum_over_label=r"$\theta \approx 90^\circ$",
-    )
+
+    def compute_mean_sf_phi(hist_4d, delta_centers, power):
+        """Compute mean SF for φ plot (restricted to high θ)."""
+        # Select high-θ bins first
+        hist_selected = hist_4d[:, theta_high_mask, :, :]
+        weights = delta_centers ** power
+        # Sum over selected θ bins (axis 1 after selection)
+        weighted_sum = np.sum(hist_selected * weights[None, None, None, :], axis=(1, 3))
+        total_counts = np.sum(hist_selected, axis=(1, 3))
+        with np.errstate(divide='ignore', invalid='ignore'):
+            mean_sf = np.where(total_counts > 0, weighted_sum / total_counts, np.nan)
+        return mean_sf
+
+    # S₁ for φ
+    for smooth in [False, True]:
+        render_ang_plot(
+            mean_sf_func=lambda h, dc: compute_mean_sf_phi(h, dc, power=1),
+            x_centers=phi_deg_centers,
+            x_edges=phi_deg_edges,
+            xlabel=r"$\phi$ (degrees)",
+            file_suffix="phi_S1_perp",
+            moment=1,
+            smooth=smooth,
+            cbar_suffix=r" ($\theta \geq 75°$)",
+        )
+    # S₂ for φ
+    for smooth in [False, True]:
+        render_ang_plot(
+            mean_sf_func=lambda h, dc: compute_mean_sf_phi(h, dc, power=2),
+            x_centers=phi_deg_centers,
+            x_edges=phi_deg_edges,
+            xlabel=r"$\phi$ (degrees)",
+            file_suffix="phi_S2_perp",
+            moment=2,
+            smooth=smooth,
+            cbar_suffix=r" ($\theta \geq 75°$)",
+        )
 
 
 def plot_cross_products(hist_other, other_channels, ell_centers, product_centers,
@@ -1724,6 +1851,7 @@ def plot_alignment_comparison(
         ("D_Vperp_CROSS_Bperp", "D_Vperp_D_Bperp_MAG", "v,B", "tab:blue"),
         ("D_Vperp_CROSS_Omegaperp", "D_Vperp_D_Omegaperp_MAG", "v,\\omega", "tab:green"),
         ("D_Bperp_CROSS_Jperp", "D_Bperp_D_Jperp_MAG", "B,j", "tab:red"),
+        ("D_Zplusperp_CROSS_D_Zminusperp", "D_Zplusperp_D_Zminusperp_MAG", "z^+,z^-", "tab:orange"),
     ]
 
     fig, ax = plt.subplots(figsize=(6.5, 4.5))
@@ -1920,6 +2048,7 @@ def plot_alignment_angles_new(
         ("D_Bperp_CROSS_D_Jperp", "D_Bperp_D_Jperp_MAG", "D_Bperp_D_Jperp_CROSS_MAG_RATIO", "B,j", "tab:red"),
         ("D_Vperp_CROSS_D_Omegaperp", "D_Vperp_D_Omegaperp_MAG", "D_Vperp_D_Omegaperp_CROSS_MAG_RATIO", "v,\\omega", "tab:green"),
         ("D_Omegaperp_CROSS_D_Jperp", "D_Omegaperp_D_Jperp_MAG", "D_Omegaperp_D_Jperp_CROSS_MAG_RATIO", "\\omega,j", "tab:purple"),
+        ("D_Zplusperp_CROSS_D_Zminusperp", "D_Zplusperp_D_Zminusperp_MAG", "D_Zplusperp_D_Zminusperp_CROSS_MAG_RATIO", "z^+,z^-", "tab:orange"),
     ]
 
     ell_centers = 0.5 * (ell_bin_edges[:-1] + ell_bin_edges[1:])
