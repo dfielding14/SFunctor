@@ -42,9 +42,26 @@ STENCIL_WIDTH=3           # Stencil width 3 (changed from 2)
 NRES=10240                # 10240 resolution
 SEED=42
 
-# Custom bin edges as specified (space-separated for argparse)
-LOG_SF_BIN_EDGES_MIN="-5 -5 -5 -5 -5 -5 -2 -2 -2 -2 -5"
-LOG_SF_BIN_EDGES_MAX="1 1 1 1 1 1 4 4 4 4 3"
+# Strip '_' separators before passing to argparse
+N_DISP_TOTAL_ARG=${N_DISP_TOTAL//_/}
+N_RANDOM_SUBSAMPLES_ARG=${N_RANDOM_SUBSAMPLES//_/}
+
+# Optional: per-channel Δ bin edges (requires 26 values to override defaults)
+LOG_DELTA_BIN_EDGES_MIN=""
+LOG_DELTA_BIN_EDGES_MAX=""
+N_DELTA_BIN_EDGES=""
+
+EXTRA_BINS_ARGS=()
+if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ] && [ -z "$LOG_DELTA_BIN_EDGES_MAX" ]; then
+    echo "ERROR: LOG_DELTA_BIN_EDGES_MIN set but LOG_DELTA_BIN_EDGES_MAX is empty"
+    exit 1
+fi
+if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ]; then
+    EXTRA_BINS_ARGS+=(--log_delta_bin_edges_min $LOG_DELTA_BIN_EDGES_MIN --log_delta_bin_edges_max $LOG_DELTA_BIN_EDGES_MAX)
+fi
+if [ -n "$N_DELTA_BIN_EDGES" ]; then
+    EXTRA_BINS_ARGS+=(--N_delta_bin_edges $N_DELTA_BIN_EDGES)
+fi
 
 # Resume from previous run (optional)
 # If RESUME_FROM_DIR not set, check for previous job results
@@ -160,9 +177,9 @@ echo "  STENCIL_WIDTH: $STENCIL_WIDTH (3-point stencil)"
 echo "  NRES: $NRES"
 echo "  Nodes: $SLURM_JOB_NUM_NODES (128 nodes for 10240 data)"
 echo "  CPUs per node: 56 (using ALL cores with shared memory fix)"
-echo "  Custom bin edges:"
-echo "    log_sf_bin_edges_min: $LOG_SF_BIN_EDGES_MIN"
-echo "    log_sf_bin_edges_max: $LOG_SF_BIN_EDGES_MAX"
+if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ]; then
+    echo "  Custom Δ bin edges enabled"
+fi
 echo ""
 
 # Generate displacements if not already copied from resume
@@ -171,7 +188,7 @@ if [ ! -f "$WORK_DIR/displacements.npz" ]; then
     echo "Generating Displacements"
     echo "======================================"
 python $SFUNCTOR_DIR/scripts/production/generate_displacements.py \
-    --n_disp_total $N_DISP_TOTAL \
+    --n_disp_total $N_DISP_TOTAL_ARG \
     --n_ell_bins $N_ELL_BINS \
     --stencil_width $STENCIL_WIDTH \
     --Nres $NRES \
@@ -226,14 +243,13 @@ for SLICE_PATH in "${ALL_SLICES[@]}"; do
             --node_id $NODE_ID \
             --total_nodes $TOTAL_NODES \
             --output_dir $SLICE_OUTPUT_DIR \
-            --stride $STRIDE \
-            --N_random_subsamples $N_RANDOM_SUBSAMPLES \
-            --stencil_width $STENCIL_WIDTH \
-            --n_processes 56 \
-            --log_sf_bin_edges_min $LOG_SF_BIN_EDGES_MIN \
-            --log_sf_bin_edges_max $LOG_SF_BIN_EDGES_MAX \
-            > $LOG_FILE 2>&1 &
-    done
+	            --stride $STRIDE \
+	            --N_random_subsamples $N_RANDOM_SUBSAMPLES_ARG \
+	            --stencil_width $STENCIL_WIDTH \
+	            --n_processes 56 \
+                "${EXTRA_BINS_ARGS[@]}" \
+	            > $LOG_FILE 2>&1 &
+	    done
 
     # Wait for all nodes to complete
     echo "Waiting for all 128 nodes to complete..."
@@ -315,7 +331,7 @@ echo "  Stencil Width: 3"
 echo "  Displacements: 100,000"
 echo "  Random Subsamples: 100,000 (10x more - production level)"
 echo "  Ell Bins: 128"
-echo "  Nodes: 64"
-echo "  Custom bin edges:"
-echo "    Min: [$LOG_SF_BIN_EDGES_MIN]"
-echo "    Max: [$LOG_SF_BIN_EDGES_MAX]"
+echo "  Nodes: ${SLURM_JOB_NUM_NODES}"
+if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ]; then
+    echo "  Custom Δ bin edges enabled"
+fi

@@ -29,18 +29,26 @@ RAW_PATH = (
 def load_raw_qp(dataset: Dataset) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return ell centers, ratio centers, and qP(q) from raw histograms."""
     data = np.load(dataset.path, allow_pickle=True)
-    mag_channels = data["mag_channels"]
-    if CHANNEL_NAME not in mag_channels:
+    channels = list(data["channels"])
+    if CHANNEL_NAME not in channels:
         raise ValueError(f"{CHANNEL_NAME} not available in {dataset.path}")
-    channel_index = int(np.where(mag_channels == CHANNEL_NAME)[0][0])
+    channel_index = channels.index(CHANNEL_NAME)
 
     ell_edges = data["ell_bin_edges"]
     ell_centers = 0.5 * (ell_edges[1:] + ell_edges[:-1])
 
-    ratio_edges = data["sf_channel_bin_edges"][channel_index]
+    delta_bin_edges = data.get("delta_bin_edges", None)
+    if delta_bin_edges is None:
+        metadata = dict(data["metadata"].item()) if "metadata" in data else {}
+        if "log_delta_bin_edges_min" not in metadata or "log_delta_bin_edges_max" not in metadata:
+            raise KeyError("delta_bin_edges missing and metadata reconstruction unavailable.")
+        delta_bin_edges = []
+        for lo, hi in zip(metadata["log_delta_bin_edges_min"], metadata["log_delta_bin_edges_max"]):
+            delta_bin_edges.append(np.logspace(lo, hi, metadata["N_delta_bin_edges"]))
+    ratio_edges = np.asarray(delta_bin_edges[channel_index], dtype=float)
     ratio_centers = np.sqrt(ratio_edges[1:] * ratio_edges[:-1])
 
-    counts = data["hist_mag"][channel_index].sum(axis=(1, 2))
+    counts = data["hist"][channel_index].sum(axis=(1, 2))
     totals = counts.sum(axis=1, keepdims=True)
     widths = np.diff(ratio_edges)
 

@@ -223,7 +223,9 @@ def load_slice_npz(file_path: Union[str, Path], *, stride: int = 1) -> Dict[str,
                     f"({min(ny_full, nx_full)}). Arrays have shape {ref_arr.shape}"
                 )
             
-            ny, nx = ny_full // stride, nx_full // stride
+            # `arr[::stride]` yields ceil(n/stride) samples, not floor.
+            ny = (ny_full + stride - 1) // stride
+            nx = (nx_full + stride - 1) // stride
             
             if ny == 0 or nx == 0:
                 raise ValueError(
@@ -260,4 +262,4 @@ def load_slice_npz(file_path: Union[str, Path], *, stride: int = 1) -> Dict[str,
             raise RuntimeError(f"Unexpected error loading '{file_path}': {e}") from e
         raise
 
-    return out 
+    return out

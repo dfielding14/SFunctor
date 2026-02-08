@@ -11,8 +11,8 @@ from pathlib import Path
 from multiprocessing import cpu_count
 import sys
 
-# Add sfunctor to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add repository root to path so `import sfunctor` works when running script directly.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from sfunctor.io.slice_io import load_slice_npz
 from sfunctor.core.physics import compute_vA, compute_z_plus_minus
@@ -50,12 +50,14 @@ def main():
         -5, -5, -5, -5,                              # cross products
         -5, -5, -5, -5,                              # product magnitudes
         -6, -6, -6, -6,                              # ratios (0–1)
+        -5, -5, -6,                                  # z± alignment (cross, mag, ratio)
     ]
     log_delta_max_defaults = [
         1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 3,             # magnitudes
         5, 5, 5, 5,                                  # cross products
         5, 5, 5, 5,                                  # product magnitudes
         0, 0, 0, 0,                                  # ratios
+        5, 5, 0,                                      # z± alignment (cross, mag, ratio)
     ]
     parser.add_argument("--log_delta_bin_edges_min", type=float, nargs='+',
                         default=log_delta_min_defaults,

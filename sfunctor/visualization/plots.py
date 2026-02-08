@@ -140,8 +140,9 @@ def plot_structure_functions(sf_file):
     plt.tight_layout()
     
     # Save the plot
-    plot_file = sf_file.replace('.npz', '_plot.png')
-    plt.savefig(plot_file, dpi=150, bbox_inches='tight')
+    sf_path = Path(sf_file)
+    plot_file = sf_path.with_name(f"{sf_path.stem}_plot.png")
+    plt.savefig(plot_file, dpi=150, bbox_inches="tight")
     print(f"Saved plot: {plot_file}")
     
     plt.show()
@@ -171,4 +172,4 @@ def main():
     plot_structure_functions(sf_file)
 
 if __name__ == "__main__":
-    main() 
+    main()

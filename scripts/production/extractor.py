@@ -4,12 +4,12 @@ Simple script to extract a single 2D slice from 3D simulation data.
 Called by SLURM script with command-line arguments.
 """
 
-import sys
-import os
 import argparse
+import sys
+from pathlib import Path
 
-# Add SFunctor to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add repository root to path so `import sfunctor` works when running script directly.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from sfunctor.io.extract import extract_2d_slice
 

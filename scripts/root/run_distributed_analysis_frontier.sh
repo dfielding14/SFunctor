@@ -191,18 +191,12 @@ for i in "${!SLICES[@]}"; do
             --node_id $node_id \
             --total_nodes $SLURM_JOB_NUM_NODES \
             --output_dir $SLICE_OUTPUT_DIR \
-            --stride $STRIDE \
-            --N_random_subsamples $N_RANDOM_SUBSAMPLES \
-            --stencil_width $STENCIL_WIDTH \
-            --n_processes 56 \
-            --log_sf_bin_edges_min -5 -5 -5 -5 -5 -5 -2 -2 -2 -2 -6 \
-            --log_sf_bin_edges_max 1 1 1 1 1 1 4 4 4 4 4 \
-            --N_sf_bin_edges 201 \
-            --log_product_bin_edges_min -8 \
-            --log_product_bin_edges_max 5 \
-            --N_product_bin_edges 201" \
-            > ${SLICE_OUTPUT_DIR}/node_${node_id}.log 2>&1 &
-    done
+	            --stride $STRIDE \
+	            --N_random_subsamples $N_RANDOM_SUBSAMPLES \
+	            --stencil_width $STENCIL_WIDTH \
+	            --n_processes 56" \
+	            > ${SLICE_OUTPUT_DIR}/node_${node_id}.log 2>&1 &
+	    done
     
     # Wait for all nodes to complete
     wait

@@ -9,6 +9,11 @@ of displacements for consistent results.
 import argparse
 import numpy as np
 from pathlib import Path
+import sys
+
+# Add repository root to path so `import sfunctor` works when running script directly.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from sfunctor.utils.displacements import find_ell_bin_edges, build_displacement_list
 
 

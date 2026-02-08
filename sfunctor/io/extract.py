@@ -1,28 +1,20 @@
-import matplotlib
-matplotlib.rc('font', family='serif')
-matplotlib.rc('mathtext', fontset='cm')
-matplotlib.rcParams['xtick.direction'] = 'in'
-matplotlib.rcParams['ytick.direction'] = 'in'
-matplotlib.rcParams['xtick.top'] = True
-matplotlib.rcParams['ytick.right'] = True
-matplotlib.rcParams['xtick.minor.visible'] = True
-matplotlib.rcParams['ytick.minor.visible'] = True
-matplotlib.rcParams['lines.dash_capstyle'] = 'round'
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-from matplotlib.colors import SymLogNorm
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import glob
-import numpy as np
-import cmasher as cmr
-import subprocess
 import os
-import sys
-import matplotlib.patheffects as patheffects
-import time
 import socket
+import time
 
-from sfunctor.io import bin_convert_new as bc
+import numpy as np
+
+# NOTE: this module historically depended on a local `bin_convert_new` reader that is
+# not shipped in this repository.  Keep extraction importable and raise a clear error
+# only when extraction is invoked.
+try:
+    from . import bin_convert_new as bc  # type: ignore[attr-defined]
+except Exception:  # noqa: BLE001 - optional dependency, allow any import failure
+    try:
+        import bin_convert_new as bc  # type: ignore[import-not-found]
+    except Exception:  # noqa: BLE001
+        bc = None
 
 
 def _safe_float_to_str(val: float) -> str:
@@ -211,6 +203,13 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     cache_status = "computed"
     lock_path = None
     lock_acquired = False
+
+    if bc is None:
+        raise ImportError(
+            "Slice extraction requires the `bin_convert_new` AthenaK reader, "
+            "but it could not be imported. Provide it as `sfunctor.io.bin_convert_new` "
+            "or as a top-level `bin_convert_new` module on PYTHONPATH."
+        )
 
     input_file_name = f"inputs/{sim_name}.athinput"
     input_file = bc.athinput(input_file_name)

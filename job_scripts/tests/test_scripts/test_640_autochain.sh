@@ -37,8 +37,9 @@ STRIDE=1
 SEED=42
 
 # Custom bin edges (leave empty for defaults)
-LOG_SF_BIN_EDGES_MIN=""
-LOG_SF_BIN_EDGES_MAX=""
+LOG_DELTA_BIN_EDGES_MIN=""
+LOG_DELTA_BIN_EDGES_MAX=""
+N_DELTA_BIN_EDGES=""
 
 # HPC Configuration
 N_NODES=2

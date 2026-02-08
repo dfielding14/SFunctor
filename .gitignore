@@ -48,6 +48,7 @@ test_*.py
 # Generated results
 demo_sf_results.npz
 results_sf.npz
+test_suite/results/
 
 # Temporary slice lists
 slice_data/my_slices.txt

@@ -76,12 +76,7 @@ if [ -f "$SLICE_PATH" ]; then
         --N_random_subsamples 100 \
         --stencil_width 2 \
         --n_processes 1 \
-        --log_sf_bin_edges_min -5 -5 -5 -5 -5 -5 -2 -2 -2 -2 -6 \
-        --log_sf_bin_edges_max 1 1 1 1 1 1 4 4 4 4 4 \
-        --N_sf_bin_edges 51 \
-        --log_product_bin_edges_min -8 \
-        --log_product_bin_edges_max 5 \
-        --N_product_bin_edges 51
+        --N_delta_bin_edges 51
     
     # Check if output was created
     HISTOGRAM_COUNT=$(ls -1 test_output/histogram_*.npz 2>/dev/null | wc -l)

@@ -3,6 +3,7 @@ numpy>=1.23.0
 numba>=0.58.0
 matplotlib>=3.8.0
 scipy>=1.11.0  # IMPORTANT: Required by numba for JIT compilation of certain operations
+pyyaml>=6.0
 
 # Visualization
 cmasher>=1.7.0

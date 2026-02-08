@@ -43,19 +43,13 @@ matplotlib.rcParams['text.usetex'] = True
 
 
 data = np.load("/lustre/orion/ast207/proj-shared/dfielding/Production_plm/sfunctor_results/results_Turb_5120_beta1_dedt025_plm/ndisp10_000_nrand1_000_nell128_sw2_job3652554/sf_results_all_slices.npz", allow_pickle=True)
-hist_mag = data['hist_mag']
-hist_other = data['hist_other']
-if hist_other.ndim == 5:
-    hist_other = hist_other.sum(axis=(2, 3))
-mag_channels = data['mag_channels']
-other_channels = data['other_channels']
+hist = data['hist']
+channels = list(data['channels'])
 ell_bin_edges = data['ell_bin_edges']
 theta_bin_edges = data['theta_bin_edges']
 phi_bin_edges = data['phi_bin_edges']
-sf_channel_bin_edges = data['sf_channel_bin_edges']
-product_bin_edges = data['product_bin_edges']
-metadata = data['metadata']
-slice_metadata = data['slice_metadata']
+delta_bin_edges = data.get('delta_bin_edges', None)
+metadata = data.get('metadata', None)
 
 
 # In[9]:
@@ -73,25 +67,22 @@ def plot_histogram_from_file(npz_file, title):
         Title for the plot.
     """
     data = np.load(npz_file, allow_pickle=True)
-    hist_mag = data['hist_mag']
-    hist_other = data['hist_other']
-    if hist_other.ndim == 5:
-        hist_other = hist_other.sum(axis=(2, 3))
-    mag_channels = data['mag_channels']
-    other_channels = data['other_channels']
+    hist = data['hist']
+    channels = list(data['channels'])
     ell_bin_edges = data['ell_bin_edges']
     theta_bin_edges = data['theta_bin_edges']
     phi_bin_edges = data['phi_bin_edges']
-    sf_channel_bin_edges = data['sf_channel_bin_edges']
-    product_bin_edges = data['product_bin_edges']
-    metadata = data['metadata']
-    slice_metadata = data['slice_metadata']
+    delta_bin_edges = data.get('delta_bin_edges', None)
+    metadata = data.get('metadata', None)
+
+    channel_idx = channels.index("D_B_over_Bmean_loc")
+    q_edges = np.asarray(delta_bin_edges[channel_idx], dtype=float)
 
     fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
     plot = ax.pcolormesh(
         ell_bin_edges,
-        sf_channel_bin_edges[-1],
-        ((np.sum(hist_mag[10], axis=(1,2)).T / np.sum(hist_mag[10], axis=(1,2,3))).T / np.diff(np.log10(sf_channel_bin_edges[-1]))).T,
+        q_edges,
+        ((np.sum(hist[channel_idx], axis=(1,2)).T / np.sum(hist[channel_idx], axis=(1,2,3))).T / np.diff(np.log10(q_edges))).T,
         norm=LogNorm(vmin=1e-4),
         cmap=cmr.ocean_r
     )
@@ -104,7 +95,7 @@ def plot_histogram_from_file(npz_file, title):
     ax.axhline(1, color='k', linestyle='--')
     ax.set_title(title)
 
-    return fig, ax, (((np.sum(hist_mag[10], axis=(1,2)).T / np.sum(hist_mag[10], axis=(1,2,3))).T / np.diff(np.log10(sf_channel_bin_edges[-1]))))[16], sf_channel_bin_edges
+    return fig, ax, (((np.sum(hist[channel_idx], axis=(1,2)).T / np.sum(hist[channel_idx], axis=(1,2,3))).T / np.diff(np.log10(q_edges))))[16], q_edges
 
 # In[10]:
 
@@ -145,10 +136,10 @@ fig.savefig('dBB_loc_beta100_5120.png')
 # In[11]:
 
 
-plt.loglog(np.sqrt(sf_channel_bin_edges_beta1[-1][1:]*sf_channel_bin_edges_beta1[-1][:-1]), q16_beta1, label=r'$\delta B / B_0 = 1/3$', color=cmr.guppy(0))
-plt.loglog(np.sqrt(sf_channel_bin_edges_beta6[-1][1:]*sf_channel_bin_edges_beta6[-1][:-1]), q16_beta6, label=r'$\delta B / B_0 = 1$', color=cmr.guppy(0.333))
-plt.loglog(np.sqrt(sf_channel_bin_edges_beta25[-1][1:]*sf_channel_bin_edges_beta25[-1][:-1]), q16_beta25, label=r'$\delta B / B_0 = 2$', color=cmr.guppy(0.666))
-plt.loglog(np.sqrt(sf_channel_bin_edges_beta100[-1][1:]*sf_channel_bin_edges_beta100[-1][:-1]), q16_beta100, label=r'$\delta B / B_0 = 4$', color=cmr.guppy(0.999))
+plt.loglog(np.sqrt(sf_channel_bin_edges_beta1[1:]*sf_channel_bin_edges_beta1[:-1]), q16_beta1, label=r'$\delta B / B_0 = 1/3$', color=cmr.guppy(0))
+plt.loglog(np.sqrt(sf_channel_bin_edges_beta6[1:]*sf_channel_bin_edges_beta6[:-1]), q16_beta6, label=r'$\delta B / B_0 = 1$', color=cmr.guppy(0.333))
+plt.loglog(np.sqrt(sf_channel_bin_edges_beta25[1:]*sf_channel_bin_edges_beta25[:-1]), q16_beta25, label=r'$\delta B / B_0 = 2$', color=cmr.guppy(0.666))
+plt.loglog(np.sqrt(sf_channel_bin_edges_beta100[1:]*sf_channel_bin_edges_beta100[:-1]), q16_beta100, label=r'$\delta B / B_0 = 4$', color=cmr.guppy(0.999))
 plt.legend()
 plt.xlabel(r'$\delta B (16 \Delta x) / B_{\rm mean, loc}(16 \Delta x)$')
 plt.ylabel(r'$\frac{N(q_{16 \Delta x} \big| {16 \Delta x}) }{N({16 \Delta x})} \frac{1}{\Delta \log q_{16 \Delta x}}$')
@@ -182,25 +173,23 @@ fig.savefig('dBB_loc_beta25_10240.png')
 
 
 data = np.load("/lustre/orion/ast207/proj-shared/dfielding/Production_plm/sfunctor_results/results_Turb_10240_beta25_dedt025_plm/ndisp100_000_nrand100_000_nell128_sw3_job3663362/sf_results_all_slices.npz", allow_pickle=True)
-hist_mag = data['hist_mag']
-hist_other = data['hist_other']
-mag_channels = data['mag_channels']
-other_channels = data['other_channels']
+hist = data['hist']
+channels = list(data['channels'])
 ell_bin_edges = data['ell_bin_edges']
 theta_bin_edges = data['theta_bin_edges']
 phi_bin_edges = data['phi_bin_edges']
-sf_channel_bin_edges = data['sf_channel_bin_edges']
-product_bin_edges = data['product_bin_edges']
-metadata = data['metadata']
-slice_metadata = data['slice_metadata']
+delta_bin_edges = data.get('delta_bin_edges', None)
+metadata = data.get('metadata', None)
 
-q =     ((np.sum(hist_mag[10], axis=(1,2)).T / np.sum(hist_mag[10], axis=(1,2,3))).T / np.diff(np.log10(sf_channel_bin_edges[-1]))).T
+channel_idx = channels.index("D_B_over_Bmean_loc")
+q_edges = np.asarray(delta_bin_edges[channel_idx], dtype=float)
+q =     ((np.sum(hist[channel_idx], axis=(1,2)).T / np.sum(hist[channel_idx], axis=(1,2,3))).T / np.diff(np.log10(q_edges))).T
 
 
 # In[92]:
 
 
-qbins = np.sqrt(sf_channel_bin_edges[-1][1:]*sf_channel_bin_edges[-1][:-1])
+qbins = np.sqrt(q_edges[1:]*q_edges[:-1])
 fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
 for i in range(len(ell_bin_edges)-1):
     ax.plot(qbins, q.T[i], color=cmr.guppy(i/(len(ell_bin_edges)-1)))
@@ -218,7 +207,7 @@ ax.set_ylabel(r'$P(q_\ell)$')
 
 from scipy.optimize import curve_fit
 slopes = np.zeros(len(ell_bin_edges)-1)
-qbins = np.sqrt(sf_channel_bin_edges[-1][1:]*sf_channel_bin_edges[-1][:-1])
+qbins = np.sqrt(q_edges[1:]*q_edges[:-1])
 fig, ax = plt.subplots(figsize=(5,4), constrained_layout=True)
 for i in range(len(ell_bin_edges)-1):
     ax.plot(qbins/qbins[np.argmax(q.T[i])], q.T[i], color=cmr.guppy(i/(len(ell_bin_edges)-1)))
@@ -276,32 +265,36 @@ Nres = 10240
 def load_data(data_file):
     data = np.load(data_file, allow_pickle=True)
 
-    hist_mag = data['hist_mag']
-    mag_channels = data['mag_channels']
-
-    hist_other = data['hist_other']
-    other_channels = data['other_channels']
+    hist = data["hist"]
+    channels = list(data["channels"])
 
     ell_bin_edges = data['ell_bin_edges']
     theta_bin_edges = data['theta_bin_edges']
     phi_bin_edges = data['phi_bin_edges']
-    sf_bin_edges = data['sf_bin_edges']
-    product_bin_edges = data['product_bin_edges']
+    delta_bin_edges = data.get("delta_bin_edges", None)
+    metadata = dict(data["metadata"].item()) if "metadata" in data else {}
+    if delta_bin_edges is None:
+        if "log_delta_bin_edges_min" not in metadata or "log_delta_bin_edges_max" not in metadata:
+            raise KeyError("delta_bin_edges missing and metadata reconstruction unavailable.")
+        delta_bin_edges = []
+        for lo, hi in zip(metadata["log_delta_bin_edges_min"], metadata["log_delta_bin_edges_max"]):
+            delta_bin_edges.append(np.logspace(lo, hi, metadata["N_delta_bin_edges"]))
 
-    print("sf_bin_edges", np.min(sf_bin_edges), np.max(sf_bin_edges), len(sf_bin_edges))
-    print("product_bin_edges", np.min(product_bin_edges), np.max(product_bin_edges), len(product_bin_edges))
+    channel_idx = channels.index("D_B")
+    sf_bin_edges = np.asarray(delta_bin_edges[channel_idx], dtype=float)
+    print("delta_bin_edges(D_B)", np.min(sf_bin_edges), np.max(sf_bin_edges), len(sf_bin_edges))
 
 
     ell_bin_centers = 0.5*(ell_bin_edges[1:] + ell_bin_edges[:-1])
     theta_bin_centers = 0.5*(theta_bin_edges[1:] + theta_bin_edges[:-1])
     phi_bin_centers = 0.5*(phi_bin_edges[1:] + phi_bin_edges[:-1])
     sf_bin_centers = 0.5*(sf_bin_edges[1:] + sf_bin_edges[:-1])
-    product_bin_centers = 0.5*(product_bin_edges[1:] + product_bin_edges[:-1])
 
     ell = ell_bin_centers/Nres
     dB  = (sf_bin_centers/np.sqrt(2))
-    hist = np.sum(hist_mag[1], axis=(1,2)).T/np.sum(np.sum(hist_mag[1], axis=(1,2)).T,axis=0)
-    bsf_median = np.array([ np.interp(0.5, np.cumsum(np.sum(hist_mag[1], axis=(1,2))[i]) / np.sum(hist_mag[1], axis=(1,2,3))[i], (sf_bin_centers/np.sqrt(2))) for i in range(hist_mag[1].shape[0])])
+    hist_2d = hist[channel_idx]
+    hist = np.sum(hist_2d, axis=(1,2)).T/np.sum(np.sum(hist_2d, axis=(1,2)).T,axis=0)
+    bsf_median = np.array([ np.interp(0.5, np.cumsum(np.sum(hist_2d, axis=(1,2))[i]) / np.sum(hist_2d, axis=(1,2,3))[i], (sf_bin_centers/np.sqrt(2))) for i in range(hist_2d.shape[0])])
 
     return ell, dB, hist, bsf_median
 
@@ -474,5 +467,3 @@ fig.savefig("bsf_median_comparison.pdf", dpi=300, bbox_inches='tight')
 
 
 # In[ ]:
-
-

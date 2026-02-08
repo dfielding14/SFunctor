@@ -171,18 +171,15 @@ if single_files and multi_files:
     single = np.load(single_files[0])
     multi = np.load(multi_files[0])
     
-    hist_mag_match = np.allclose(single['hist_mag'], multi['hist_mag'], rtol=1e-5)
-    hist_other_match = np.allclose(single['hist_other'], multi['hist_other'], rtol=1e-5)
+    hist_match = np.allclose(single['hist'], multi['hist'], rtol=1e-5)
     
-    if hist_mag_match and hist_other_match:
+    if hist_match:
         print("✓ Results match between single and multi-process!")
         print("  Shared memory implementation validated.")
     else:
         print("✗ Results differ between implementations")
-        mag_diff = np.max(np.abs(single['hist_mag'] - multi['hist_mag']))
-        other_diff = np.max(np.abs(single['hist_other'] - multi['hist_other']))
-        print(f"  Max diff (mag): {mag_diff}")
-        print(f"  Max diff (other): {other_diff}")
+        diff = np.max(np.abs(single['hist'] - multi['hist']))
+        print(f"  Max diff: {diff}")
 else:
     print("Warning: Could not find files to compare")
 EOF

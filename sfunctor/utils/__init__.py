@@ -9,8 +9,6 @@ cli
     Command-line interface parsing and configuration
 displacements
     Displacement vector generation for structure functions
-logging
-    Logging configuration and utilities
 """
 
 from sfunctor.utils.cli import parse_cli, RunConfig

@@ -14,7 +14,9 @@ import numpy as np
 def load_results(filepath):
     """Load SFunctor results from npz file."""
     try:
-        data = np.load(filepath)
+        # Unified outputs store object arrays (e.g., delta_bin_edges), so we
+        # need allow_pickle=True for reliable metadata comparison.
+        data = np.load(filepath, allow_pickle=True)
         return data
     except Exception as e:
         print(f"Error loading {filepath}: {e}")
@@ -22,7 +24,7 @@ def load_results(filepath):
 
 
 def compare_histograms(data1, data2, rtol=1e-10, atol=1e-12):
-    """Compare histogram data between two results.
+    """Compare histogram-like arrays between two results.
     
     Parameters
     ----------
@@ -43,8 +45,30 @@ def compare_histograms(data1, data2, rtol=1e-10, atol=1e-12):
     metrics = {}
     all_match = True
     
-    # Get histogram keys (mag_histograms, other_histograms)
-    hist_keys = [k for k in data1.keys() if 'histogram' in k]
+    # Unified output uses `hist` plus optional `hist_*` side products.
+    # Compare all histogram-like arrays present in either file.
+    hist_keys_1 = set()
+    hist_keys_2 = set()
+    if "hist" in data1:
+        hist_keys_1.add("hist")
+    if "hist" in data2:
+        hist_keys_2.add("hist")
+    hist_keys_1.update(k for k in data1.keys() if k.startswith("hist_"))
+    hist_keys_2.update(k for k in data2.keys() if k.startswith("hist_"))
+
+    only_in_1 = sorted(hist_keys_1 - hist_keys_2)
+    only_in_2 = sorted(hist_keys_2 - hist_keys_1)
+    for key in only_in_1:
+        print(f"WARNING: {key} present only in first file")
+        all_match = False
+    for key in only_in_2:
+        print(f"WARNING: {key} present only in second file")
+        all_match = False
+
+    hist_keys = sorted(hist_keys_1 & hist_keys_2)
+    if not hist_keys:
+        print("ERROR: No comparable histogram arrays found between files")
+        return False, {}
     
     for key in hist_keys:
         if key not in data2:
@@ -90,15 +114,29 @@ def compare_histograms(data1, data2, rtol=1e-10, atol=1e-12):
 
 def compare_metadata(data1, data2):
     """Compare metadata between two results."""
-    meta_keys = ['ell_bin_edges', 'theta_bin_edges', 'phi_bin_edges', 
-                 'sf_bin_edges', 'product_bin_edges']
+    meta_keys = ["channels", "ell_bin_edges", "theta_bin_edges", "phi_bin_edges", "delta_bin_edges"]
     
     all_match = True
     for key in meta_keys:
         if key in data1 and key in data2:
-            if not np.array_equal(data1[key], data2[key]):
-                print(f"WARNING: {key} differs between files")
-                all_match = False
+            if key == "delta_bin_edges":
+                try:
+                    edges1 = [np.asarray(e, dtype=float) for e in data1[key]]
+                    edges2 = [np.asarray(e, dtype=float) for e in data2[key]]
+                    if len(edges1) != len(edges2) or any(not np.array_equal(a, b) for a, b in zip(edges1, edges2)):
+                        print("WARNING: delta_bin_edges differs between files")
+                        all_match = False
+                except Exception:
+                    print("WARNING: Could not compare delta_bin_edges between files")
+                    all_match = False
+            elif key == "channels":
+                if list(data1[key]) != list(data2[key]):
+                    print("WARNING: channels differs between files")
+                    all_match = False
+            else:
+                if not np.array_equal(data1[key], data2[key]):
+                    print(f"WARNING: {key} differs between files")
+                    all_match = False
         elif key in data1 or key in data2:
             print(f"WARNING: {key} present in only one file")
             all_match = False
@@ -162,12 +200,17 @@ def compare_multiple_files(filepaths, reference_idx=0):
             all_comparisons_match = False
             continue
         
-        # Compare histograms
+        # Compare metadata and histograms
+        meta_match = compare_metadata(ref_data, data)
         match, metrics = compare_histograms(ref_data, data)
-        if not match:
+        if not (meta_match and match):
             all_comparisons_match = False
             
         # Print summary for this comparison
+        if meta_match:
+            print("  ✓ metadata: matches")
+        else:
+            print("  ✗ metadata: differs")
         for key, metric in metrics.items():
             if not metric['matches']:
                 print(f"  ✗ {key}: max_diff={metric['max_abs_diff']:.2e}")

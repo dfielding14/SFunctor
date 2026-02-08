@@ -36,8 +36,9 @@ STRIDE=1                             # Stride for sampling (1 = full resolution)
 SEED=42                              # Random seed for reproducibility
 
 # Custom bin edges (optional - leave empty to use defaults)
-LOG_SF_BIN_EDGES_MIN=""
-LOG_SF_BIN_EDGES_MAX=""
+LOG_DELTA_BIN_EDGES_MIN=""
+LOG_DELTA_BIN_EDGES_MAX=""
+N_DELTA_BIN_EDGES=""
 
 # HPC Configuration
 N_NODES=2                           # Number of nodes to request
@@ -242,7 +243,7 @@ echo "   Displacements:     $N_DISP_TOTAL"
 echo "   Random Samples:    $N_RANDOM_SUBSAMPLES"
 echo "   Ell Bins:          $N_ELL_BINS"
 echo "   Stride:            $STRIDE"
-if [ -n "$LOG_SF_BIN_EDGES_MIN" ]; then
+if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ]; then
 echo "   Custom Bin Edges:  Yes"
 fi
 echo "============================================================================"
@@ -296,8 +297,9 @@ N_RANDOM_SUBSAMPLES=$N_RANDOM_SUBSAMPLES
 N_ELL_BINS=$N_ELL_BINS
 STRIDE=$STRIDE
 N_NODES=$SLURM_JOB_NUM_NODES
-LOG_SF_BIN_EDGES_MIN=""
-LOG_SF_BIN_EDGES_MAX=""
+LOG_DELTA_BIN_EDGES_MIN=""
+LOG_DELTA_BIN_EDGES_MAX=""
+N_DELTA_BIN_EDGES=""
 AUTO_CONTINUE=$AUTO_CONTINUE
 MAX_CHAIN_JOBS=$MAX_CHAIN_JOBS
 EOF
@@ -453,9 +455,12 @@ for SLICE_PATH in "${ALL_SLICES[@]}"; do
         --stencil_width $STENCIL_WIDTH \
         --n_processes 56"
     
-    if [ -n "$LOG_SF_BIN_EDGES_MIN" ]; then
-        CMD_BASE="$CMD_BASE --log_sf_bin_edges_min $LOG_SF_BIN_EDGES_MIN"
-        CMD_BASE="$CMD_BASE --log_sf_bin_edges_max $LOG_SF_BIN_EDGES_MAX"
+    if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ]; then
+        CMD_BASE="$CMD_BASE --log_delta_bin_edges_min $LOG_DELTA_BIN_EDGES_MIN"
+        CMD_BASE="$CMD_BASE --log_delta_bin_edges_max $LOG_DELTA_BIN_EDGES_MAX"
+    fi
+    if [ -n "$N_DELTA_BIN_EDGES" ]; then
+        CMD_BASE="$CMD_BASE --N_delta_bin_edges $N_DELTA_BIN_EDGES"
     fi
     
     # Launch analysis on all nodes

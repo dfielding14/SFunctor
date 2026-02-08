@@ -158,10 +158,10 @@ if single_files and multi14_files and multi56_files:
     multi56 = np.load(multi56_files[0])
 
     # Compare single vs 14 procs
-    match_14 = np.allclose(single['hist_mag'], multi14['hist_mag'], rtol=1e-5)
+    match_14 = np.allclose(single['hist'], multi14['hist'], rtol=1e-5)
 
     # Compare single vs 56 procs
-    match_56 = np.allclose(single['hist_mag'], multi56['hist_mag'], rtol=1e-5)
+    match_56 = np.allclose(single['hist'], multi56['hist'], rtol=1e-5)
 
     if match_14 and match_56:
         print("✓ All results match perfectly!")
@@ -170,9 +170,9 @@ if single_files and multi14_files and multi56_files:
     else:
         print("✗ Results differ between process counts")
         if not match_14:
-            print(f"  14 proc diff: {np.max(np.abs(single['hist_mag'] - multi14['hist_mag']))}")
+            print(f"  14 proc diff: {np.max(np.abs(single['hist'] - multi14['hist']))}")
         if not match_56:
-            print(f"  56 proc diff: {np.max(np.abs(single['hist_mag'] - multi56['hist_mag']))}")
+            print(f"  56 proc diff: {np.max(np.abs(single['hist'] - multi56['hist']))}")
 else:
     print("Warning: Could not find all files to compare")
 EOF

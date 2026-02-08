@@ -50,8 +50,22 @@ STENCIL_WIDTH=5
 NRES=640
 SEED=42
 
-LOG_SF_BIN_EDGES_MIN="-5 -5 -5 -5 -5 -5 -2 -2 -2 -2 -5"
-LOG_SF_BIN_EDGES_MAX="1 1 1 1 1 1 4 4 4 4 3"
+# Optional: per-channel Δ bin edges (requires 26 values to override defaults)
+LOG_DELTA_BIN_EDGES_MIN=""
+LOG_DELTA_BIN_EDGES_MAX=""
+N_DELTA_BIN_EDGES=""
+
+EXTRA_BINS_ARGS=()
+if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ] && [ -z "$LOG_DELTA_BIN_EDGES_MAX" ]; then
+    log "ERROR: LOG_DELTA_BIN_EDGES_MIN set but LOG_DELTA_BIN_EDGES_MAX is empty"
+    exit 1
+fi
+if [ -n "$LOG_DELTA_BIN_EDGES_MIN" ]; then
+    EXTRA_BINS_ARGS+=(--log_delta_bin_edges_min $LOG_DELTA_BIN_EDGES_MIN --log_delta_bin_edges_max $LOG_DELTA_BIN_EDGES_MAX)
+fi
+if [ -n "$N_DELTA_BIN_EDGES" ]; then
+    EXTRA_BINS_ARGS+=(--N_delta_bin_edges $N_DELTA_BIN_EDGES)
+fi
 
 RUN_NAME="ndisp${N_DISP_TOTAL}_nrand${N_RANDOM_SUBSAMPLES}_nell${N_ELL_BINS}_sw${STENCIL_WIDTH}_job${SLURM_JOB_ID}"
 WORK_DIR="${BASE_DIR}/sfunctor_results/results_${SIM_NAME}/${RUN_NAME}"
@@ -146,18 +160,13 @@ for ((SLICE_IDX=0; SLICE_IDX<${#ALL_SLICES[@]}; SLICE_IDX++)); do
                 --node_id "$NODE_ID" \
                 --total_nodes "$TOTAL_NODES" \
                 --output_dir "$SLICE_OUTPUT_DIR" \
-                --stride "$STRIDE" \
-                --N_random_subsamples "$N_RANDOM_SUBSAMPLES" \
-                --stencil_width "$STENCIL_WIDTH" \
-                --n_processes "${CPUS_PER_TASK}" \
-                --log_sf_bin_edges_min $LOG_SF_BIN_EDGES_MIN \
-                --log_sf_bin_edges_max $LOG_SF_BIN_EDGES_MAX \
-                --N_sf_bin_edges 201 \
-                --log_product_bin_edges_min -5 \
-                --log_product_bin_edges_max 5 \
-                --N_product_bin_edges 201 \
-            > "$SLICE_OUTPUT_DIR/node_${NODE_ID}.log" 2>&1 &
-    done
+	                --stride "$STRIDE" \
+	                --N_random_subsamples "$N_RANDOM_SUBSAMPLES" \
+	                --stencil_width "$STENCIL_WIDTH" \
+	                --n_processes "${CPUS_PER_TASK}" \
+                    "${EXTRA_BINS_ARGS[@]}" \
+	            > "$SLICE_OUTPUT_DIR/node_${NODE_ID}.log" 2>&1 &
+	    done
     log "Waiting for node tasks to finish for slice ${SLICE_NAME}"
     wait
     log "Node tasks complete for slice ${SLICE_NAME}"

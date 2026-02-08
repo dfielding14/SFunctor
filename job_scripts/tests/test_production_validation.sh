@@ -231,15 +231,13 @@ if os.path.exists(f"{output_dir}/stride4_single") and os.path.exists(f"{output_d
             single = np.load(single_file)
             multi = np.load(multi_file)
 
-            hist_mag_match = np.allclose(single['hist_mag'], multi['hist_mag'], rtol=1e-5)
-            hist_other_match = np.allclose(single['hist_other'], multi['hist_other'], rtol=1e-5)
+            hist_match = np.allclose(single['hist'], multi['hist'], rtol=1e-5)
 
-            if hist_mag_match and hist_other_match:
+            if hist_match:
                 print("  ✓ Stride=4 results match between single and multi-process")
             else:
                 print("  ✗ Stride=4 results differ!")
-                print(f"    Max diff (mag): {np.max(np.abs(single['hist_mag'] - multi['hist_mag']))}")
-                print(f"    Max diff (other): {np.max(np.abs(single['hist_other'] - multi['hist_other']))}")
+                print(f"    Max diff: {np.max(np.abs(single['hist'] - multi['hist']))}")
         else:
             print(f"  Warning: Could not find histogram files")
     except Exception as e:

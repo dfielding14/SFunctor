@@ -24,11 +24,11 @@ for each displacement bin (\ell, \theta, \phi), accumulating both sum and count 
    - All stencil-specific `compute_histogram_for_disp_2D_stencil{2,3,5}` need to allocate and return the Ypm arrays, forwarding them into `_compute_histogram_core`.
 
 2) **sfunctor/core/parallel.py**
-   - `_process_batch`: allocate zeros for Ypm sum/count, receive them from `compute_histogram_for_disp_2D`, accumulate, and return four arrays (hist_mag, hist_other, hist_Ypm_sum, hist_Ypm_count).
+   - `_process_batch`: allocate zeros for Ypm sum/count, receive them from `compute_histogram_for_disp_2D`, accumulate, and return `(hist, hist_Ypm_sum, hist_Ypm_count)`.
    - `compute_histograms_shared`: update return signature to include Ypm; adjust multiprocessing reduction to sum the new arrays.
 
 3) **Drivers** (`sfunctor/analysis/single_slice.py`, `sfunctor/analysis/batch.py`, `scripts/production/run_node_analysis.py`)
-   - Expect four return values from `compute_histograms_shared`.
+   - Expect unified `hist` plus the two Ypm arrays from `compute_histograms_shared`.
    - Save `hist_Ypm_sum` and `hist_Ypm_count` into per-node NPZ outputs.
 
 4) **Combine scripts** (`scripts/production/combine_histograms.py`, `..._fast.py`)

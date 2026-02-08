@@ -12,7 +12,6 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from datetime import datetime
 
@@ -102,6 +101,15 @@ def main() -> None:
             # Single-rank run → process all slices sequentially
             slice_paths_my_rank = all_paths
     else:
+        # Single-slice mode. In MPI runs, avoid rank collisions on output files by
+        # letting rank 0 process the slice and having all other ranks exit.
+        if size > 1 and rank != 0:
+            if rank == 1:
+                print(
+                    "[sfunctor.batch] MPI + --file_name detected: only rank 0 will "
+                    "process the slice to avoid duplicate writes."
+                )
+            return
         slice_paths_my_rank = [cfg.file_name]
 
     if rank == 0:
@@ -121,8 +129,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
     2. Computes derived fields (Alfvén velocity, Elsasser variables)
     3. Generates displacement vectors
     4. Computes structure function histograms
-    5. Reduces results across MPI ranks
-    6. Saves output (rank 0 only)
+    5. Saves output
     
     Parameters
     ----------
@@ -134,15 +141,18 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
     Notes
     -----
     This function is called once per slice assigned to the current MPI rank.
-    Results are automatically aggregated across ranks using MPI reductions.
     """
     # Load slice
     axis, beta = parse_slice_metadata(slice_path)
     slice_data = load_slice_npz(slice_path, stride=cfg.stride)
 
     rho = slice_data["rho"]
-    B_x = slice_data["B_x"]; B_y = slice_data["B_y"]; B_z = slice_data["B_z"]
-    v_x = slice_data["v_x"]; v_y = slice_data["v_y"]; v_z = slice_data["v_z"]
+    B_x = slice_data["B_x"]
+    B_y = slice_data["B_y"]
+    B_z = slice_data["B_z"]
+    v_x = slice_data["v_x"]
+    v_y = slice_data["v_y"]
+    v_z = slice_data["v_z"]
 
     vA_x, vA_y, vA_z = compute_vA(B_x, B_y, B_z, rho)
     (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z) = compute_z_plus_minus(
@@ -205,37 +215,33 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
         n_processes=cfg.n_processes,
     )
 
-    # MPI reduction
-    if size > 1:
-        recv_hist = np.zeros_like(hist) if rank == 0 else None
-        comm.Reduce(hist, recv_hist, op=MPI.SUM, root=0)
-        if rank == 0:
-            hist = recv_hist
-
-    # Save results (rank 0 only)
-    if rank == 0:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"sf_results_{timestamp}.npz"
+    # Save results.
+    # When running with MPI, each rank processes a different slice (one line from
+    # --slice_list), so we do not reduce across ranks.
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"sf_results_{slice_path.stem}_{timestamp}.npz"
         
-        np.savez_compressed(
-            output_file,
-            hist=hist,
-            channels=[ch.name for ch in Channel],
-            ell_bin_edges=ell_bin_edges,
-            theta_bin_edges=theta_bin_edges,
-            phi_bin_edges=phi_bin_edges,
-            delta_bin_edges=np.array(delta_bin_edges, dtype=object),
-            displacements=displacements,
-            metadata={
-                "n_slices": len(slice_paths_my_rank) if size == 1 else size,
-                "stride": cfg.stride,
-                "stencil_width": cfg.stencil_width,
-                "N_random_subsamples": cfg.N_random_subsamples,
-                "axis": axis,
-                "beta": beta,
-            },
-        )
-        print(f"[sfunctor.batch] Results saved to {output_file}")
+    np.savez_compressed(
+        output_file,
+        hist=hist,
+        channels=[ch.name for ch in Channel],
+        ell_bin_edges=ell_bin_edges,
+        theta_bin_edges=theta_bin_edges,
+        phi_bin_edges=phi_bin_edges,
+        delta_bin_edges=np.array(delta_bin_edges, dtype=object),
+        displacements=displacements,
+        metadata={
+            "slice": str(slice_path),
+            "stride": cfg.stride,
+            "stencil_width": cfg.stencil_width,
+            "N_random_subsamples": cfg.N_random_subsamples,
+            "axis": axis,
+            "beta": beta,
+            "mpi_size": size,
+            "mpi_rank": rank,
+        },
+    )
+    print(f"[sfunctor.batch] Results saved to {output_file}")
 
 
 if __name__ == "__main__":

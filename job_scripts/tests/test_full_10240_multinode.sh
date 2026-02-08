@@ -205,12 +205,12 @@ if single_files and max_files:
     max_proc = np.load(max_files[0])
 
     # Compare single node vs max processes
-    match = np.allclose(single['hist_mag'], max_proc['hist_mag'], rtol=1e-3)
+    match = np.allclose(single['hist'], max_proc['hist'], rtol=1e-3)
 
     if match:
         print("✓ Results match between 14 and 56 processes")
     else:
-        diff = np.max(np.abs(single['hist_mag'] - max_proc['hist_mag']))
+        diff = np.max(np.abs(single['hist'] - max_proc['hist']))
         print(f"⚠ Small differences detected: max diff = {diff}")
         print("  (This is expected due to different random sampling)")
 
@@ -219,8 +219,8 @@ if single_files and max_files:
     if os.path.exists(combined_file):
         combined = np.load(combined_file)
         print(f"\nCombined multi-node results:")
-        print(f"  Total histograms processed: {combined['hist_mag'].sum()}")
-        print(f"  Shape: {combined['hist_mag'].shape}")
+        print(f"  Total histograms processed: {combined['hist'].sum()}")
+        print(f"  Shape: {combined['hist'].shape}")
 else:
     print("Warning: Could not find all files to compare")
 EOF
