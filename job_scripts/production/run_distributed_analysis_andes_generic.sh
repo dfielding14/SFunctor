@@ -69,9 +69,9 @@ TOTAL_SLICE_SECONDS=0
 SLICES_BASE="/lustre/orion/ast207/proj-shared/dfielding/Production_plm/sfunctor_results"
 RESULTS_BASE="${RESULTS_BASE:-/ccs/home/dfielding/SFunctor/Results}"
 
-# Δ-bin defaults per channel (shared bin count)
-LOG_DELTA_BIN_EDGES_MIN="-5 -5 -5 -5 -5 -5 -2 -2 -2 -2 -5 -5 -5 -5 -5 -5 -5 -5 -5 -6 -6 -6 -6"
-LOG_DELTA_BIN_EDGES_MAX="1 1 1 1 1 1 4 4 4 4 3 5 5 5 5 5 5 5 5 0 0 0 0"
+# Δ-bin defaults per channel (26 channels total)
+LOG_DELTA_BIN_EDGES_MIN="-5 -5 -5 -5 -5 -5 -2 -2 -2 -2 -5 -5 -5 -5 -5 -5 -5 -5 -5 -6 -6 -6 -6 -5 -5 -6"
+LOG_DELTA_BIN_EDGES_MAX="1 1 1 1 1 1 4 4 4 4 3 5 5 5 5 5 5 5 5 0 0 0 0 5 5 0"
 
 RUN_NAME="ndisp${N_DISP_TOTAL}_nrand${N_RANDOM_SUBSAMPLES}_nell${N_ELL_BINS}_sw${STENCIL_WIDTH}_job${SLURM_JOB_ID:-manual}"
 WORK_DIR="${RESULTS_BASE}/results_${SIM_NAME}/${RUN_NAME}"

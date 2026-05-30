@@ -44,7 +44,8 @@ BASE_DIR="/lustre/orion/ast207/proj-shared/dfielding/Production_plm"
 export PYTHONPATH="${SFUNCTOR_DIR}:${PYTHONPATH:-}"
 
 # Positions (fraction of box length) for axes 1/2; axis 3 scales by ELONG_Z_FACTOR if elongated.
-POS_LIST=(-0.375 -0.25 -0.125 0.0 0.125 0.25 0.375 0.5)
+# Added higher-resolution near-origin slices: 1/128, 1/64, 1/32, 1/16.
+POS_LIST=(-0.375 -0.25 -0.125 0.0 0.0078125 0.015625 0.03125 0.0625 0.125 0.25 0.375 0.5)
 
 log "Starting slice extraction for ${SIM_NAME}"
 log "File number: ${FILE_NUMBER}"

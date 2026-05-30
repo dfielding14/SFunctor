@@ -46,18 +46,18 @@ def main():
 
     # Bin edge parameters for unified Δ bins (per channel)
     log_delta_min_defaults = [
-        -5, -5, -5, -5, -5, -5, -2, -2, -2, -2, -5,  # magnitudes
-        -5, -5, -5, -5,                              # cross products
-        -5, -5, -5, -5,                              # product magnitudes
-        -6, -6, -6, -6,                              # ratios (0–1)
-        -5, -5, -6,                                  # z± alignment (cross, mag, ratio)
+        -5, -5, -5, -5, -5, -5, -2, -2, -2, -2, -5,  # magnitudes (11)
+        -5, -5, -5, -5,                              # cross products (4)
+        -5, -5, -5, -5,                              # product magnitudes (4)
+        -6, -6, -6, -6,                              # ratios (4)
+        -5, -5, -6,                                  # Elsasser: cross, mag, ratio (3)
     ]
     log_delta_max_defaults = [
-        1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 3,             # magnitudes
-        5, 5, 5, 5,                                  # cross products
-        5, 5, 5, 5,                                  # product magnitudes
-        0, 0, 0, 0,                                  # ratios
-        5, 5, 0,                                      # z± alignment (cross, mag, ratio)
+        1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 3,             # magnitudes (11)
+        5, 5, 5, 5,                                  # cross products (4)
+        5, 5, 5, 5,                                  # product magnitudes (4)
+        0, 0, 0, 0,                                  # ratios (4)
+        5, 5, 0,                                     # Elsasser: cross, mag, ratio (3)
     ]
     parser.add_argument("--log_delta_bin_edges_min", type=float, nargs='+',
                         default=log_delta_min_defaults,
