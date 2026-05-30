@@ -49,6 +49,9 @@ test_*.py
 demo_sf_results.npz
 results_sf.npz
 test_suite/results/
+Results/
+plotting_scripts/*.png
+plotting_scripts/*.pdf
 
 # Temporary slice lists
 slice_data/my_slices.txt
@@ -64,6 +67,8 @@ bin_convert_new.py
 *.out
 *.err
 logs/
+nohup_*.log
+slice_work_*.lst
 venv_frontier/
 
 # Analysis results

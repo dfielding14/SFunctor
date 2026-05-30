@@ -21,6 +21,7 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 : "${N_RANDOM_SUBSAMPLES:?N_RANDOM_SUBSAMPLES is required}"
 N_ELL_BINS="${N_ELL_BINS:-96}"
 STRIDE="${STRIDE:-1}"
+REFRESH_SLICE_LIST="${REFRESH_SLICE_LIST:-1}"
 
 # Detect Nres from SIM_NAME (expects pattern Turb_<N>_)
 if [[ "$SIM_NAME" =~ Turb_([0-9]+)_ ]]; then
@@ -89,14 +90,24 @@ log "============================================================"
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 
-if [ ! -f "$SLICE_LIST" ]; then
-    SLICE_DIR="${SLICES_BASE}/slice_${SIM_NAME}"
-    [ ! -d "$SLICE_DIR" ] && SLICE_DIR="${SLICES_BASE}/../slice_${SIM_NAME}"
-    if [ ! -d "$SLICE_DIR" ]; then
-        echo "ERROR: slice directory not found: $SLICE_DIR"
+SLICE_DIR="${SLICES_BASE}/slice_${SIM_NAME}"
+[ ! -d "$SLICE_DIR" ] && SLICE_DIR="${SLICES_BASE}/../slice_${SIM_NAME}"
+if [ ! -d "$SLICE_DIR" ]; then
+    echo "ERROR: slice directory not found: $SLICE_DIR"
+    exit 1
+fi
+if [[ "$REFRESH_SLICE_LIST" != "0" || ! -f "$SLICE_LIST" ]]; then
+    SLICE_LIST_TMP=$(mktemp "${SLICE_LIST}.tmp.XXXXXX")
+    find "$SLICE_DIR" -maxdepth 1 -type f -name '*.npz' -print | sort > "$SLICE_LIST_TMP"
+    if [ ! -s "$SLICE_LIST_TMP" ]; then
+        rm -f "$SLICE_LIST_TMP"
+        echo "ERROR: no slice files found in $SLICE_DIR"
         exit 1
     fi
-    ls "$SLICE_DIR"/*.npz > "$SLICE_LIST"
+    mv "$SLICE_LIST_TMP" "$SLICE_LIST"
+    log "Refreshed slice list from ${SLICE_DIR}"
+else
+    log "Reusing curated slice list (REFRESH_SLICE_LIST=0)"
 fi
 TOTAL_SLICES=$(wc -l < "$SLICE_LIST")
 log "Total slices found: ${TOTAL_SLICES}"
