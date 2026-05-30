@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J test_shared_mem
-#SBATCH -o test_shared_mem_%j.out
-#SBATCH -e test_shared_mem_%j.err
+#SBATCH -o logs/test_shared_mem_%j.out
+#SBATCH -e logs/test_shared_mem_%j.err
 #SBATCH -t 02:00:00
 #SBATCH -p batch
 #SBATCH -N 1

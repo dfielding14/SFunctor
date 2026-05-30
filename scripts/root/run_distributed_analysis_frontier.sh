@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J SF_DISTRIBUTED
-#SBATCH -o sf_distributed_%j.out
+#SBATCH -o logs/sf_distributed_%j.out
 #SBATCH -t 2:00:00
 #SBATCH -p batch
 #SBATCH -q debug

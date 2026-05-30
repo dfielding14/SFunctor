@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J sf_beta25_0640_sw5
-#SBATCH -o sf_distributed_%j.out
-#SBATCH -e sf_distributed_%j.err
+#SBATCH -o logs/sf_distributed_%j.out
+#SBATCH -e logs/sf_distributed_%j.err
 #SBATCH -t 2:00:00
 #SBATCH -p batch
 #SBATCH -q debug

@@ -13,7 +13,8 @@ The trusted final artifact directory is:
 The user identified the `mhd_sgs` products as broken while an earlier hardened
 census was running on May 30, 2026. That job was cancelled immediately. The
 final workflow excludes SGS products from validation, cache assembly, catalog
-construction, independent verification, analysis, and pilot matching.
+construction, structured second-pass verification, analysis, and pilot
+matching.
 
 Do not treat either earlier artifact directory as a final result:
 
@@ -39,7 +40,7 @@ ledger before submission.
 | `3314768` | validation iteration 2 | failed as intended | `00:00:49` | `0.013611` | Proved that numerator-only standardized bounds were insufficient. |
 | `3314769` | final validation | completed | `00:00:49` | `0.013611` | Passed interval-normalized writer-uncertainty validation. |
 | `3314770` | primary cache and catalogs | completed | `00:18:06` | `0.301667` | Fresh streamed `mhd_u_bcc_80` assembly and five catalogs. |
-| `3314771` | independent verification | completed | `00:01:49` | `0.030278` | Rebuilt exact grids, raw-derived statistics, flags, and provenance graph. |
+| `3314771` | structured second-pass verification | completed | `00:01:49` | `0.030278` | Rebuilt exact grids, raw-derived statistics, flags, and provenance graph. |
 | `3314772` | analysis and pilot proposal | completed | `00:06:19` | `0.105278` | Published hashed analysis outputs. |
 
 The primary-only rerun consumed `0.478612` node-hours including the two
@@ -71,20 +72,21 @@ quantities. It then checks retained variances, standard deviations, resolved
 skewnesses and kurtoses, density contrast, exact coarse mass-weighted mean
 velocities, magnetic energy, and labeled Alfvén-speed proxies. Three
 cancellation-dominated standardized moments were explicitly unavailable.
-Another 109 finite standardized comparisons were accepted only after fitting
-inside field-specific interval-normalized float32 writer uncertainty bounds,
-including numerator and variance-denominator uncertainty.
+Another 109 finite standardized comparisons were evaluated with field-specific
+interval-normalized float32 writer uncertainty bounds, including numerator
+and variance-denominator uncertainty. Three required expanded allowance
+beyond the baseline retained-diagnostic tolerance.
 
 ## Catalog Graph
 
-The completed build, independent verifier, and analysis marker all bind the
-same artifact graph:
+The completed build, structured second-pass verifier, and analysis marker all
+bind the same artifact graph:
 
 ```text
 0504464a4fa967bb5fb037c4283fa38dde533638bdd80c2e0e79182c2a7f0742
 ```
 
-The independently audited verifier source SHA256 is:
+The separately audited verifier source SHA256 is:
 
 ```text
 2f23a787c2fc4b6a10c758772e2a73456a3a373834b75d5a5525225bd82892d0
@@ -102,13 +104,15 @@ zero missing rank locations.
 | `640` | `4096` | `2` | `16` |
 | `1280` | `512` | `0` | `128` |
 
-Independent verification passed for all scales. It checks the all-shard
-filesystem inventory digest, raw payload schema, embedded and external
-manifests, exact grid coordinates and parent mappings, source-rank mappings,
-foundational raw-statistic reconstruction, derived formulas, finite
-availability, ratio flags, aggregate validity flags, and graph hashes.
-All `dBB` values are finite and unflagged. The table's flagged-row counts are
-aggregate validity flags, primarily for less stable higher-order moments.
+Structured second-pass verification passed for all scales. It checks the
+all-shard filesystem metadata fingerprint, raw payload schema, embedded and
+external manifests, exact grid coordinates and parent mappings, source-rank
+mappings, foundational raw-statistic reconstruction, derived formulas,
+finite availability, ratio flags, aggregate validity flags, and graph hashes.
+It shares low-level helpers with the builder and is not a fully independent
+source-to-cache reconstruction. All `dBB` values are finite and unflagged.
+The table's flagged-row counts are aggregate validity flags, primarily for
+less stable higher-order moments.
 
 ## Census Summary
 
@@ -125,8 +129,9 @@ verified artifact graph.
 
 Median `dBB` rises with averaging scale. At `L_sub=640`, the pilot scale,
 domain-wide Spearman correlations are `-0.85655` for `dBB` versus `B_mean`
-and `0.70355` for `dBB` versus `deltaB`. These separate weak-mean-field
-cancellation from genuinely elevated fluctuation amplitude.
+and `0.70355` for `dBB` versus `deltaB`. These are descriptive ratio
+associations, not an independent causal separation of weak mean field and
+elevated fluctuation amplitude.
 
 ## Pilot Proposal
 

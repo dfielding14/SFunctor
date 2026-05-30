@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J test_10240_multinode
-#SBATCH -o test_10240_multinode_%j.out
-#SBATCH -e test_10240_multinode_%j.err
+#SBATCH -o logs/test_10240_multinode_%j.out
+#SBATCH -e logs/test_10240_multinode_%j.err
 #SBATCH -t 00:20:00
 #SBATCH -p batch
 #SBATCH -q debug

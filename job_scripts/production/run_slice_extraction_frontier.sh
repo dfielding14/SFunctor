@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J slice_extract
-#SBATCH -o slice_extract_%x_%j.out
-#SBATCH -e slice_extract_%x_%j.err
+#SBATCH -o logs/slice_extract_%x_%j.out
+#SBATCH -e logs/slice_extract_%x_%j.err
 #SBATCH -t 2:00:00
 #SBATCH -p batch
 #SBATCH -q debug

@@ -182,8 +182,8 @@ module load cray-netcdf-parallel
 #!/bin/bash
 #SBATCH -A [project]
 #SBATCH -J sfunctor
-#SBATCH -o %x-%j.out
-#SBATCH -e %x-%j.err
+#SBATCH -o logs/%x-%j.out
+#SBATCH -e logs/%x-%j.err
 #SBATCH -t 2:00:00
 #SBATCH -p batch
 #SBATCH -N 4

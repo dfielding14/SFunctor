@@ -74,8 +74,8 @@ fi
 
 #SBATCH -A ast207
 #SBATCH -J sf_test_640
-#SBATCH -o sf_%x_%j.out
-#SBATCH -e sf_%x_%j.err
+#SBATCH -o logs/sf_%x_%j.out
+#SBATCH -e logs/sf_%x_%j.err
 #SBATCH --time=0:05:00
 #SBATCH -p batch
 #SBATCH -q debug

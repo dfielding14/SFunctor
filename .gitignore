@@ -76,7 +76,8 @@ bin_convert_new.py
 # SLURM output files
 *.out
 *.err
-logs/
+logs/*
+!logs/.gitkeep
 nohup_*.log
 slice_work_*.lst
 venv_frontier/

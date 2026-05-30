@@ -57,8 +57,8 @@ JOB_NAME="sf_b${BETA}_${RESOLUTION}_sw${STENCIL_WIDTH}"
 
 #SBATCH -A AST207
 #SBATCH -J sf_analysis
-#SBATCH -o sf_%x_%j.out
-#SBATCH -e sf_%x_%j.err
+#SBATCH -o logs/sf_%x_%j.out
+#SBATCH -e logs/sf_%x_%j.err
 #SBATCH --time=4:00:00
 #SBATCH -p batch
 #SBATCH -q debug

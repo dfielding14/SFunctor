@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J prompt1_verify
-#SBATCH -o prompt1_%x_%j.out
-#SBATCH -e prompt1_%x_%j.err
+#SBATCH -o logs/prompt1_%x_%j.out
+#SBATCH -e logs/prompt1_%x_%j.err
 #SBATCH -t 00:30:00
 #SBATCH -p batch
 #SBATCH -N 1

@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J test_10240_mem
-#SBATCH -o test_10240_mem_%j.out
-#SBATCH -e test_10240_mem_%j.err
+#SBATCH -o logs/test_10240_mem_%j.out
+#SBATCH -e logs/test_10240_mem_%j.err
 #SBATCH -t 00:15:00
 #SBATCH -p batch
 #SBATCH -q debug

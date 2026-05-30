@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J SF_EXTRACT
-#SBATCH -o sf_extract.%j.out
+#SBATCH -o logs/sf_extract.%j.out
 #SBATCH -t 6:00:00
 #SBATCH -p batch
 #SBATCH -N 1

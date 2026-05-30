@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A AST207
 #SBATCH -J sf_andes_restartable
-#SBATCH -o sf_distributed_restart_%j.out
-#SBATCH -e sf_distributed_restart_%j.err
+#SBATCH -o logs/sf_distributed_restart_%j.out
+#SBATCH -e logs/sf_distributed_restart_%j.err
 #SBATCH -t 12:00:00
 #SBATCH -p batch
 #SBATCH -N 1
