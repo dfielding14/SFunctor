@@ -8,8 +8,6 @@
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=drummondfielding@gmail.com
 
 # Restartable version of the Andes distributed analysis job.
 # - Skips slices that already produced sf_results_*.npz

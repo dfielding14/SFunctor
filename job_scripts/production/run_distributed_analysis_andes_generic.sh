@@ -8,8 +8,6 @@
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=drummondfielding@gmail.com
 
 set -euo pipefail
 

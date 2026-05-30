@@ -68,7 +68,7 @@ Each rank-local high-resolution block has dimensions:
 
 The cbin census used environmental subvolume sizes:
 
-    L_sub / Δx = 80, 160, 320, 640, 1240.
+    L_sub / Δx = 80, 160, 320, 640, 1280.
 
 The cbin catalog should already provide:
 - selected pilot-subvolume coordinate bounds;
@@ -401,7 +401,7 @@ A 640^3 full-resolution cube is definitely feasible.
 A 1280^3-scale cube may be feasible but should not be assumed to fit comfortably without measurement.
 The requested environmental sizes include:
 
-    L_sub / Δx = 80, 160, 320, 640, 1240.
+    L_sub / Δx = 80, 160, 320, 640, 1280.
 
 Profile memory use before launching large cases.
 
@@ -430,7 +430,7 @@ Prefer:
 - CPU parallelism where justified;
 - reproducible sampling.
 
-Do not launch expensive L_sub = 1240 calculations until smaller pilot cases have established:
+Do not launch expensive L_sub = 1280 calculations until smaller pilot cases have established:
 - memory requirements;
 - runtime scaling;
 - scientific value;
@@ -521,7 +521,7 @@ L_sub DEPENDENCE IS A CENTRAL QUESTION
 
 Assess how the conclusions depend on the environmental averaging scale:
 
-    L_sub / Δx = 80, 160, 320, 640, 1240.
+    L_sub / Δx = 80, 160, 320, 640, 1280.
 
 The key conditional statistic is conceptually:
 

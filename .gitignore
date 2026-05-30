@@ -44,9 +44,13 @@ test_*.py
 !tests/test_histogram_results.py
 !tests/test_plotting_reducers.py
 !tests/test_rank_manifest.py
+!tests/test_compute_ledger.py
+!tests/test_prompt1_cbin_tools.py
+!tests/test_prompt1_analysis.py
 *_diagnostic.py
 *_REPORT*.md
 !docs/AUDIT_REPORT.md
+!docs/PROMPT1_EXECUTION_REPORT.md
 *_FIX*.md
 *_fixes_summary.md
 

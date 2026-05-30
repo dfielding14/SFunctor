@@ -99,7 +99,7 @@ The forcing scale is approximately:
 
 The candidate environmental subvolume sizes to study are:
 
-    L_sub / Δx = 80, 160, 320, 640, 1240.
+    L_sub / Δx = 80, 160, 320, 640, 1280.
 
 Use exactly these values unless you identify a concrete technical reason that one cannot be assembled correctly. If a technical issue arises, report it explicitly rather than silently substituting a nearby value.
 
@@ -274,7 +274,7 @@ PHASE 4: BUILD THE COMPREHENSIVE SUBVOLUME CATALOG
 
 Build catalogs for:
 
-    L_sub / Δx = 80, 160, 320, 640, 1240.
+    L_sub / Δx = 80, 160, 320, 640, 1280.
 
 Use the cbin products only. Do not load the full-resolution 3D rank-local files during the domain-wide census except for the limited validation tests described above.
 
@@ -495,7 +495,7 @@ This is essential.
 
 Compare the distributions and correlations across:
 
-    L_sub / Δx = 80, 160, 320, 640, 1240.
+    L_sub / Δx = 80, 160, 320, 640, 1280.
 
 Quantify how:
 - the dBB distribution changes with L_sub;
