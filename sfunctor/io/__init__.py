@@ -14,8 +14,13 @@ results
 """
 
 from sfunctor.io.slice_io import load_slice_npz, parse_slice_metadata
+from sfunctor.io.rank_manifest import RankBlock, RankManifest, build_rank_manifest, read_blocks_grouped
 
 __all__ = [
     "load_slice_npz",
     "parse_slice_metadata",
+    "RankBlock",
+    "RankManifest",
+    "build_rank_manifest",
+    "read_blocks_grouped",
 ]

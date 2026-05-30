@@ -15,6 +15,8 @@ from enum import IntEnum
 from typing import Tuple
 
 __all__ = [
+    "CENSOR_NAMES",
+    "N_CENSOR_KINDS",
     "Channel",
     "N_CHANNELS",
     "find_bin_index_binary",
@@ -71,6 +73,12 @@ class Channel(IntEnum):
 
 
 N_CHANNELS = len(Channel)
+CENSOR_NAMES = ("accepted", "underflow", "overflow", "invalid")
+N_CENSOR_KINDS = len(CENSOR_NAMES)
+_CENSOR_ACCEPTED = 0
+_CENSOR_UNDERFLOW = 1
+_CENSOR_OVERFLOW = 2
+_CENSOR_INVALID = 3
 
 
 # -----------------------------------------------------------------------------
@@ -79,7 +87,13 @@ N_CHANNELS = len(Channel)
 
 @njit(cache=True)
 def find_bin_index_binary(value: float, bin_edges: np.ndarray) -> int:
-    """Binary search for the bin containing *value*.  Return -1 if not found."""
+    """Binary search for the bin containing *value*. Return -1 if not found.
+
+    Histogram bins are left-inclusive and right-exclusive except for the final
+    bin, which includes its right edge.
+    """
+    if value == bin_edges[-1]:
+        return len(bin_edges) - 2
     left = 0
     right = len(bin_edges) - 2
     while left <= right:
@@ -152,11 +166,29 @@ def _perp(vec, B_unit):
 
 
 @njit(inline="always")
-def _accumulate_bin(value, edges, hist, channel_idx, ell_idx, theta_idx, phi_idx):
-    """Accumulate a single sample into the provided channel histogram."""
+def _accumulate_bin(value, edges, hist, censoring, channel_idx, ell_idx, theta_idx, phi_idx):
+    """Accumulate one sample and record whether its delta bin censored it."""
+    if not np.isfinite(value):
+        censoring[channel_idx, ell_idx, theta_idx, phi_idx, _CENSOR_INVALID] += 1
+        return
+    if value < edges[0]:
+        censoring[channel_idx, ell_idx, theta_idx, phi_idx, _CENSOR_UNDERFLOW] += 1
+        return
+    if value > edges[-1]:
+        censoring[channel_idx, ell_idx, theta_idx, phi_idx, _CENSOR_OVERFLOW] += 1
+        return
     bin_idx = find_bin_index_binary(value, edges)
     if bin_idx >= 0:
         hist[channel_idx, ell_idx, theta_idx, phi_idx, bin_idx] += 1
+        censoring[channel_idx, ell_idx, theta_idx, phi_idx, _CENSOR_ACCEPTED] += 1
+    else:
+        censoring[channel_idx, ell_idx, theta_idx, phi_idx, _CENSOR_INVALID] += 1
+
+
+@njit(inline="always")
+def _accumulate_invalid(censoring, channel_idx, ell_idx, theta_idx, phi_idx):
+    """Record a channel value that is undefined despite valid angular geometry."""
+    censoring[channel_idx, ell_idx, theta_idx, phi_idx, _CENSOR_INVALID] += 1
 
 
 # -----------------------------------------------------------------------------
@@ -175,7 +207,7 @@ def _compute_histogram_core(
     dx, dy, dz, r,
     ell_idx, theta_bin_edges, phi_bin_edges,
     delta_bin_edges,
-    hist
+    hist, censoring
 ):
     """Common histogram computation logic shared by all stencil widths.
 
@@ -220,9 +252,6 @@ def _compute_histogram_core(
         phi_val = np.arccos(cos_phi)
     else:
         phi_val = 0.0
-
-    vperp_cross_bperp = np.sqrt((np.cross(dv_perp, dB_perp) ** 2).sum())
-    vperp_bperp = dv_perp_mag * dB_perp_mag
 
     dv = np.sqrt(dvx * dvx + dvy * dvy + dvz * dvz)
     dB = np.sqrt(dBx * dBx + dBy * dBy + dBz * dBz)
@@ -272,20 +301,20 @@ def _compute_histogram_core(
     c_ratio_zp_zm = Channel.D_Zplusperp_D_Zminusperp_CROSS_MAG_RATIO.value
 
     # Magnitudes
-    _accumulate_bin(dv, delta_bin_edges[c_D_V], hist, c_D_V, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dB, delta_bin_edges[c_D_B], hist, c_D_B, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(drho, delta_bin_edges[c_D_RHO], hist, c_D_RHO, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dVA, delta_bin_edges[c_D_VA], hist, c_D_VA, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dZp, delta_bin_edges[c_D_ZPLUS], hist, c_D_ZPLUS, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dZm, delta_bin_edges[c_D_ZMINUS], hist, c_D_ZMINUS, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dOmega, delta_bin_edges[c_D_OMEGA], hist, c_D_OMEGA, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dJ, delta_bin_edges[c_D_J], hist, c_D_J, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dCurv, delta_bin_edges[c_D_CURV], hist, c_D_CURV, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(dGradRho, delta_bin_edges[c_D_GRAD_RHO], hist, c_D_GRAD_RHO, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dv, delta_bin_edges[c_D_V], hist, censoring, c_D_V, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dB, delta_bin_edges[c_D_B], hist, censoring, c_D_B, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(drho, delta_bin_edges[c_D_RHO], hist, censoring, c_D_RHO, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dVA, delta_bin_edges[c_D_VA], hist, censoring, c_D_VA, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dZp, delta_bin_edges[c_D_ZPLUS], hist, censoring, c_D_ZPLUS, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dZm, delta_bin_edges[c_D_ZMINUS], hist, censoring, c_D_ZMINUS, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dOmega, delta_bin_edges[c_D_OMEGA], hist, censoring, c_D_OMEGA, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dJ, delta_bin_edges[c_D_J], hist, censoring, c_D_J, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dCurv, delta_bin_edges[c_D_CURV], hist, censoring, c_D_CURV, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dGradRho, delta_bin_edges[c_D_GRAD_RHO], hist, censoring, c_D_GRAD_RHO, ell_idx, theta_idx, phi_idx)
 
     # Normalized |δB| / |B_mean|
     dB_over_Bmean = dB / Bmean_mag
-    _accumulate_bin(dB_over_Bmean, delta_bin_edges[c_D_B_ratio], hist, c_D_B_ratio, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(dB_over_Bmean, delta_bin_edges[c_D_B_ratio], hist, censoring, c_D_B_ratio, ell_idx, theta_idx, phi_idx)
 
     # Perpendicular field components for cross/product channels
     dOmega_vec = np.array([domegaz, domegay, domegax])
@@ -303,10 +332,10 @@ def _compute_histogram_core(
     cross_b_j = np.sqrt((np.cross(dB_perp, dJ_perp) ** 2).sum())
     cross_omega_j = np.sqrt((np.cross(dOmega_perp, dJ_perp) ** 2).sum())
 
-    _accumulate_bin(cross_v_b, delta_bin_edges[c_cross_v_b], hist, c_cross_v_b, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(cross_v_omega, delta_bin_edges[c_cross_v_omega], hist, c_cross_v_omega, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(cross_b_j, delta_bin_edges[c_cross_b_j], hist, c_cross_b_j, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(cross_omega_j, delta_bin_edges[c_cross_omega_j], hist, c_cross_omega_j, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_v_b, delta_bin_edges[c_cross_v_b], hist, censoring, c_cross_v_b, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_v_omega, delta_bin_edges[c_cross_v_omega], hist, censoring, c_cross_v_omega, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_b_j, delta_bin_edges[c_cross_b_j], hist, censoring, c_cross_b_j, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_omega_j, delta_bin_edges[c_cross_omega_j], hist, censoring, c_cross_omega_j, ell_idx, theta_idx, phi_idx)
 
     # Magnitude products (perpendicular)
     mag_v_b = dv_perp_mag * dB_perp_mag
@@ -314,20 +343,28 @@ def _compute_histogram_core(
     mag_b_j = dB_perp_mag * dJ_perp_mag
     mag_omega_j = dOmega_perp_mag * dJ_perp_mag
 
-    _accumulate_bin(mag_v_b, delta_bin_edges[c_mag_v_b], hist, c_mag_v_b, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(mag_v_omega, delta_bin_edges[c_mag_v_omega], hist, c_mag_v_omega, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(mag_b_j, delta_bin_edges[c_mag_b_j], hist, c_mag_b_j, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(mag_omega_j, delta_bin_edges[c_mag_omega_j], hist, c_mag_omega_j, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_v_b, delta_bin_edges[c_mag_v_b], hist, censoring, c_mag_v_b, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_v_omega, delta_bin_edges[c_mag_v_omega], hist, censoring, c_mag_v_omega, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_b_j, delta_bin_edges[c_mag_b_j], hist, censoring, c_mag_b_j, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_omega_j, delta_bin_edges[c_mag_omega_j], hist, censoring, c_mag_omega_j, ell_idx, theta_idx, phi_idx)
 
     # Ratios (cross/product) – only bin when denominator is positive
     if mag_v_b > 0.0:
-        _accumulate_bin(cross_v_b / mag_v_b, delta_bin_edges[c_ratio_v_b], hist, c_ratio_v_b, ell_idx, theta_idx, phi_idx)
+        _accumulate_bin(min(1.0, cross_v_b / mag_v_b), delta_bin_edges[c_ratio_v_b], hist, censoring, c_ratio_v_b, ell_idx, theta_idx, phi_idx)
+    else:
+        _accumulate_invalid(censoring, c_ratio_v_b, ell_idx, theta_idx, phi_idx)
     if mag_v_omega > 0.0:
-        _accumulate_bin(cross_v_omega / mag_v_omega, delta_bin_edges[c_ratio_v_omega], hist, c_ratio_v_omega, ell_idx, theta_idx, phi_idx)
+        _accumulate_bin(min(1.0, cross_v_omega / mag_v_omega), delta_bin_edges[c_ratio_v_omega], hist, censoring, c_ratio_v_omega, ell_idx, theta_idx, phi_idx)
+    else:
+        _accumulate_invalid(censoring, c_ratio_v_omega, ell_idx, theta_idx, phi_idx)
     if mag_b_j > 0.0:
-        _accumulate_bin(cross_b_j / mag_b_j, delta_bin_edges[c_ratio_b_j], hist, c_ratio_b_j, ell_idx, theta_idx, phi_idx)
+        _accumulate_bin(min(1.0, cross_b_j / mag_b_j), delta_bin_edges[c_ratio_b_j], hist, censoring, c_ratio_b_j, ell_idx, theta_idx, phi_idx)
+    else:
+        _accumulate_invalid(censoring, c_ratio_b_j, ell_idx, theta_idx, phi_idx)
     if mag_omega_j > 0.0:
-        _accumulate_bin(cross_omega_j / mag_omega_j, delta_bin_edges[c_ratio_omega_j], hist, c_ratio_omega_j, ell_idx, theta_idx, phi_idx)
+        _accumulate_bin(min(1.0, cross_omega_j / mag_omega_j), delta_bin_edges[c_ratio_omega_j], hist, censoring, c_ratio_omega_j, ell_idx, theta_idx, phi_idx)
+    else:
+        _accumulate_invalid(censoring, c_ratio_omega_j, ell_idx, theta_idx, phi_idx)
 
     # Elsasser alignment angle: θ^(z+,z-) = ⟨δz⁺_⊥ × δz⁻_⊥⟩ / ⟨|δz⁺_⊥||δz⁻_⊥|⟩
     dZplus_vec = np.array([dzpz, dzpy, dzpx])
@@ -342,11 +379,13 @@ def _compute_histogram_core(
     cross_zp_zm = np.sqrt((np.cross(dZplus_perp, dZminus_perp) ** 2).sum())
     mag_zp_zm = dZplus_perp_mag * dZminus_perp_mag
 
-    _accumulate_bin(cross_zp_zm, delta_bin_edges[c_cross_zp_zm], hist, c_cross_zp_zm, ell_idx, theta_idx, phi_idx)
-    _accumulate_bin(mag_zp_zm, delta_bin_edges[c_mag_zp_zm], hist, c_mag_zp_zm, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(cross_zp_zm, delta_bin_edges[c_cross_zp_zm], hist, censoring, c_cross_zp_zm, ell_idx, theta_idx, phi_idx)
+    _accumulate_bin(mag_zp_zm, delta_bin_edges[c_mag_zp_zm], hist, censoring, c_mag_zp_zm, ell_idx, theta_idx, phi_idx)
 
     if mag_zp_zm > 0.0:
-        _accumulate_bin(cross_zp_zm / mag_zp_zm, delta_bin_edges[c_ratio_zp_zm], hist, c_ratio_zp_zm, ell_idx, theta_idx, phi_idx)
+        _accumulate_bin(min(1.0, cross_zp_zm / mag_zp_zm), delta_bin_edges[c_ratio_zp_zm], hist, censoring, c_ratio_zp_zm, ell_idx, theta_idx, phi_idx)
+    else:
+        _accumulate_invalid(censoring, c_ratio_zp_zm, ell_idx, theta_idx, phi_idx)
 
 
 # -----------------------------------------------------------------------------
@@ -371,6 +410,9 @@ def compute_histogram_for_disp_2D_stencil2(
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
     delta_bin_edges: list,
+    cell_sizes: np.ndarray,
+    random_seed: int,
+    compact: bool,
 ) -> np.ndarray:
     """2-point stencil version of histogram computation."""
 
@@ -381,20 +423,26 @@ def compute_histogram_for_disp_2D_stencil2(
     n_delta_bins = delta_bin_edges[0].shape[0] - 1
 
     if slice_axis == 1:
-        dx, dy, dz = 0, delta_i, delta_j
+        dx, dy, dz = 0.0, delta_i * cell_sizes[1], delta_j * cell_sizes[2]
     elif slice_axis == 2:
-        dx, dy, dz = delta_i, 0, delta_j
+        dx, dy, dz = delta_i * cell_sizes[0], 0.0, delta_j * cell_sizes[2]
+    elif slice_axis == 3:
+        dx, dy, dz = delta_i * cell_sizes[0], delta_j * cell_sizes[1], 0.0
     else:
-        dx, dy, dz = delta_i, delta_j, 0
+        raise ValueError("slice_axis must be 1, 2, or 3")
 
-    hist = np.zeros((N_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
+    hist = np.zeros((N_CHANNELS, 1 if compact else n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
+    censoring = np.zeros((N_CHANNELS, 1 if compact else n_ell_bins, n_theta_bins, n_phi_bins, N_CENSOR_KINDS), dtype=np.int64)
 
-    r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
+    r = (dx * dx + dy * dy + dz * dz) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
     if ell_idx == -1:
-        return hist
+        return hist, censoring
+    output_ell_idx = 0 if compact else ell_idx
 
-    flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
+    if random_seed >= 0:
+        np.random.seed(random_seed)
+    flat_indices = np.random.randint(0, M * N, size=N_random_subsamples)
     random_points_y = flat_indices // M
     random_points_x = flat_indices % M
 
@@ -458,12 +506,12 @@ def compute_histogram_for_disp_2D_stencil2(
             dgradrhox, dgradrhoy, dgradrhoz,
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
-            ell_idx, theta_bin_edges, phi_bin_edges,
+            output_ell_idx, theta_bin_edges, phi_bin_edges,
             delta_bin_edges,
-            hist,
+            hist, censoring,
         )
 
-    return hist
+    return hist, censoring
 
 
 @njit(cache=True)
@@ -484,6 +532,9 @@ def compute_histogram_for_disp_2D_stencil3(
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
     delta_bin_edges: list,
+    cell_sizes: np.ndarray,
+    random_seed: int,
+    compact: bool,
 ) -> np.ndarray:
     """3-point stencil version of histogram computation."""
 
@@ -494,20 +545,26 @@ def compute_histogram_for_disp_2D_stencil3(
     n_delta_bins = delta_bin_edges[0].shape[0] - 1
 
     if slice_axis == 1:
-        dx, dy, dz = 0, delta_i, delta_j
+        dx, dy, dz = 0.0, delta_i * cell_sizes[1], delta_j * cell_sizes[2]
     elif slice_axis == 2:
-        dx, dy, dz = delta_i, 0, delta_j
+        dx, dy, dz = delta_i * cell_sizes[0], 0.0, delta_j * cell_sizes[2]
+    elif slice_axis == 3:
+        dx, dy, dz = delta_i * cell_sizes[0], delta_j * cell_sizes[1], 0.0
     else:
-        dx, dy, dz = delta_i, delta_j, 0
+        raise ValueError("slice_axis must be 1, 2, or 3")
 
-    hist = np.zeros((N_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
+    hist = np.zeros((N_CHANNELS, 1 if compact else n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
+    censoring = np.zeros((N_CHANNELS, 1 if compact else n_ell_bins, n_theta_bins, n_phi_bins, N_CENSOR_KINDS), dtype=np.int64)
 
-    r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
+    r = (dx * dx + dy * dy + dz * dz) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
     if ell_idx == -1:
-        return hist
+        return hist, censoring
 
-    flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
+    output_ell_idx = 0 if compact else ell_idx
+    if random_seed >= 0:
+        np.random.seed(random_seed)
+    flat_indices = np.random.randint(0, M * N, size=N_random_subsamples)
     random_points_y = flat_indices // M
     random_points_x = flat_indices % M
 
@@ -574,12 +631,12 @@ def compute_histogram_for_disp_2D_stencil3(
             dgradrhox, dgradrhoy, dgradrhoz,
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
-            ell_idx, theta_bin_edges, phi_bin_edges,
+            output_ell_idx, theta_bin_edges, phi_bin_edges,
             delta_bin_edges,
-            hist,
+            hist, censoring,
         )
 
-    return hist
+    return hist, censoring
 
 
 @njit(cache=True)
@@ -600,6 +657,9 @@ def compute_histogram_for_disp_2D_stencil5(
     theta_bin_edges: np.ndarray,
     phi_bin_edges: np.ndarray,
     delta_bin_edges: list,
+    cell_sizes: np.ndarray,
+    random_seed: int,
+    compact: bool,
 ) -> np.ndarray:
     """5-point stencil version of histogram computation."""
 
@@ -610,20 +670,26 @@ def compute_histogram_for_disp_2D_stencil5(
     n_delta_bins = delta_bin_edges[0].shape[0] - 1
 
     if slice_axis == 1:
-        dx, dy, dz = 0, delta_i, delta_j
+        dx, dy, dz = 0.0, delta_i * cell_sizes[1], delta_j * cell_sizes[2]
     elif slice_axis == 2:
-        dx, dy, dz = delta_i, 0, delta_j
+        dx, dy, dz = delta_i * cell_sizes[0], 0.0, delta_j * cell_sizes[2]
+    elif slice_axis == 3:
+        dx, dy, dz = delta_i * cell_sizes[0], delta_j * cell_sizes[1], 0.0
     else:
-        dx, dy, dz = delta_i, delta_j, 0
+        raise ValueError("slice_axis must be 1, 2, or 3")
 
-    hist = np.zeros((N_CHANNELS, n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
+    hist = np.zeros((N_CHANNELS, 1 if compact else n_ell_bins, n_theta_bins, n_phi_bins, n_delta_bins), dtype=np.int64)
+    censoring = np.zeros((N_CHANNELS, 1 if compact else n_ell_bins, n_theta_bins, n_phi_bins, N_CENSOR_KINDS), dtype=np.int64)
 
-    r = (delta_i * delta_i + delta_j * delta_j) ** 0.5
+    r = (dx * dx + dy * dy + dz * dz) ** 0.5
     ell_idx = find_bin_index_binary(r, ell_bin_edges)
     if ell_idx == -1:
-        return hist
+        return hist, censoring
 
-    flat_indices = np.random.choice(M * N, size=N_random_subsamples, replace=False)
+    output_ell_idx = 0 if compact else ell_idx
+    if random_seed >= 0:
+        np.random.seed(random_seed)
+    flat_indices = np.random.randint(0, M * N, size=N_random_subsamples)
     random_points_y = flat_indices // M
     random_points_x = flat_indices % M
 
@@ -694,12 +760,12 @@ def compute_histogram_for_disp_2D_stencil5(
             dgradrhox, dgradrhoy, dgradrhoz,
             Bmx, Bmy, Bmz,
             dx, dy, dz, r,
-            ell_idx, theta_bin_edges, phi_bin_edges,
+            output_ell_idx, theta_bin_edges, phi_bin_edges,
             delta_bin_edges,
-            hist,
+            hist, censoring,
         )
 
-    return hist
+    return hist, censoring
 
 
 def compute_histogram_for_disp_2D(
@@ -720,14 +786,33 @@ def compute_histogram_for_disp_2D(
     phi_bin_edges: np.ndarray,
     delta_bin_edges: list,
     stencil_width: int = 2,
-) -> np.ndarray:
-    """Dispatch to appropriate stencil-specific function."""
+    cell_sizes: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    random_seed: int | None = None,
+    compact: bool = False,
+    return_censoring: bool = False,
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+    """Dispatch to the selected normalized increment-filter kernel.
+
+    Spatial origins are Monte Carlo samples drawn with replacement.  This is
+    unbiased and makes sampling cost proportional to the requested sample
+    count rather than to the full slice area.
+    """
+    if slice_axis not in (1, 2, 3):
+        raise ValueError("slice_axis must be 1, 2, or 3")
+    if delta_i == 0 and delta_j == 0:
+        raise ValueError("zero displacement is not a valid structure-function offset")
+    if not isinstance(N_random_subsamples, int) or N_random_subsamples <= 0:
+        raise ValueError("N_random_subsamples must be a positive integer")
 
     # Convert to tuple so numba sees a fixed, indexable container
     delta_bin_edges = tuple(delta_bin_edges)
+    cell_sizes_array = np.asarray(cell_sizes, dtype=float)
+    if cell_sizes_array.shape != (3,) or not np.all(np.isfinite(cell_sizes_array)) or np.any(cell_sizes_array <= 0.0):
+        raise ValueError("cell_sizes must contain three finite positive Cartesian spacings")
+    seed = -1 if random_seed is None else int(random_seed)
 
     if stencil_width == 2:
-        return compute_histogram_for_disp_2D_stencil2(
+        output = compute_histogram_for_disp_2D_stencil2(
             v_x, v_y, v_z, B_x, B_y, B_z, rho,
             vA_x, vA_y, vA_z, zp_x, zp_y, zp_z,
             zm_x, zm_y, zm_z, omega_x, omega_y, omega_z,
@@ -735,10 +820,10 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, delta_bin_edges,
+            phi_bin_edges, delta_bin_edges, cell_sizes_array, seed, compact,
         )
     elif stencil_width == 3:
-        return compute_histogram_for_disp_2D_stencil3(
+        output = compute_histogram_for_disp_2D_stencil3(
             v_x, v_y, v_z, B_x, B_y, B_z, rho,
             vA_x, vA_y, vA_z, zp_x, zp_y, zp_z,
             zm_x, zm_y, zm_z, omega_x, omega_y, omega_z,
@@ -746,10 +831,10 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, delta_bin_edges,
+            phi_bin_edges, delta_bin_edges, cell_sizes_array, seed, compact,
         )
     elif stencil_width == 5:
-        return compute_histogram_for_disp_2D_stencil5(
+        output = compute_histogram_for_disp_2D_stencil5(
             v_x, v_y, v_z, B_x, B_y, B_z, rho,
             vA_x, vA_y, vA_z, zp_x, zp_y, zp_z,
             zm_x, zm_y, zm_z, omega_x, omega_y, omega_z,
@@ -757,7 +842,8 @@ def compute_histogram_for_disp_2D(
             grad_rho_x, grad_rho_y, grad_rho_z,
             delta_i, delta_j, slice_axis,
             N_random_subsamples, ell_bin_edges, theta_bin_edges,
-            phi_bin_edges, delta_bin_edges,
+            phi_bin_edges, delta_bin_edges, cell_sizes_array, seed, compact,
         )
     else:
         raise ValueError(f"Unsupported stencil_width: {stencil_width}")
+    return output if return_censoring else output[0]

@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from sfunctor.analysis.single_slice import analyze_slice
 from sfunctor.core.physics import compute_vA, compute_z_plus_minus
-from sfunctor.io.slice_io import load_slice_npz
+from sfunctor.io.slice_io import load_slice_npz, parse_slice_metadata
 
 TEST_FILE = "slice_data/Turb_320_beta100_dedt025_plm_axis2_slice0_file0000.npz"
 RESULTS_DIR = PROJECT_ROOT / "test_suite" / "results"
@@ -26,15 +26,20 @@ PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _grad_xy(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Return gradients (d/dy, d/dx) on the 2D slice grid."""
-    d_dy = np.gradient(arr, axis=0)
-    d_dx = np.gradient(arr, axis=1)
-    return d_dy, d_dx
+def _gradient(arr: np.ndarray, physical_axis: int, slice_axis: int) -> np.ndarray:
+    """Approximate one physical derivative on a KJI-ordered 2D slice."""
+    array_axis = {
+        1: {2: 1, 3: 0},
+        2: {1: 1, 3: 0},
+        3: {1: 1, 2: 0},
+    }[slice_axis].get(physical_axis)
+    if array_axis is None:
+        return np.zeros_like(arr)
+    return np.gradient(arr, axis=array_axis)
 
 
-def _compute_derived_fields(data: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
-    """Compute derived physics fields using 2D finite differences."""
+def _compute_derived_fields(data: dict[str, np.ndarray], axis: int) -> dict[str, np.ndarray]:
+    """Compute approximate derived fields from one KJI-ordered 2D slice."""
     rho = data["rho"]
     v_x = data["v_x"]
     v_y = data["v_y"]
@@ -46,41 +51,28 @@ def _compute_derived_fields(data: dict[str, np.ndarray]) -> dict[str, np.ndarray
     vA_x, vA_y, vA_z = compute_vA(B_x, B_y, B_z, rho)
     (zp_x, zp_y, zp_z), (zm_x, zm_y, zm_z) = compute_z_plus_minus(v_x, v_y, v_z, vA_x, vA_y, vA_z)
 
-    dvz_dy, dvz_dx = _grad_xy(v_z)
-    dvy_dy, dvy_dx = _grad_xy(v_y)
-    dvx_dy, dvx_dx = _grad_xy(v_x)
+    omega_x = _gradient(v_z, 2, axis) - _gradient(v_y, 3, axis)
+    omega_y = _gradient(v_x, 3, axis) - _gradient(v_z, 1, axis)
+    omega_z = _gradient(v_y, 1, axis) - _gradient(v_x, 2, axis)
 
-    dBz_dy, dBz_dx = _grad_xy(B_z)
-    dBy_dy, dBy_dx = _grad_xy(B_y)
-    dBx_dy, dBx_dx = _grad_xy(B_x)
+    j_x = _gradient(B_z, 2, axis) - _gradient(B_y, 3, axis)
+    j_y = _gradient(B_x, 3, axis) - _gradient(B_z, 1, axis)
+    j_z = _gradient(B_y, 1, axis) - _gradient(B_x, 2, axis)
 
-    omega_x = dvz_dy
-    omega_y = -dvz_dx
-    omega_z = dvy_dx - dvx_dy
+    grad_rho_x = _gradient(rho, 1, axis)
+    grad_rho_y = _gradient(rho, 2, axis)
+    grad_rho_z = _gradient(rho, 3, axis)
 
-    j_x = dBz_dy
-    j_y = -dBz_dx
-    j_z = dBy_dx - dBx_dy
-
-    drho_dy, drho_dx = _grad_xy(rho)
-    grad_rho_x = drho_dx
-    grad_rho_y = drho_dy
-    grad_rho_z = np.zeros_like(rho)
-
-    # Approximate curvature K=(b·∇)b on the slice using x/y derivatives.
+    # Approximate curvature K=(b·∇)b using the two available in-plane derivatives.
     B_mag = np.sqrt(B_x * B_x + B_y * B_y + B_z * B_z)
     safe = np.maximum(B_mag, 1e-12)
     b_x = B_x / safe
     b_y = B_y / safe
     b_z = B_z / safe
 
-    dbx_dy, dbx_dx = _grad_xy(b_x)
-    dby_dy, dby_dx = _grad_xy(b_y)
-    dbz_dy, dbz_dx = _grad_xy(b_z)
-
-    curv_x = b_x * dbx_dx + b_y * dbx_dy
-    curv_y = b_x * dby_dx + b_y * dby_dy
-    curv_z = b_x * dbz_dx + b_y * dbz_dy
+    curv_x = b_x * _gradient(b_x, 1, axis) + b_y * _gradient(b_x, 2, axis) + b_z * _gradient(b_x, 3, axis)
+    curv_y = b_x * _gradient(b_y, 1, axis) + b_y * _gradient(b_y, 2, axis) + b_z * _gradient(b_y, 3, axis)
+    curv_z = b_x * _gradient(b_z, 1, axis) + b_y * _gradient(b_z, 2, axis) + b_z * _gradient(b_z, 3, axis)
 
     return {
         "vA_x": vA_x,
@@ -123,12 +115,13 @@ def test_physics_calculations(test_file: str | None = None) -> bool:
         return False
 
     print(f"Data: {file_name}")
+    axis, _ = parse_slice_metadata(data_path)
     load_start = time.time()
     data = load_slice_npz(data_path, stride=2)
     print(f"Loaded shape: {data['rho'].shape} in {time.time() - load_start:.2f}s")
 
     start = time.time()
-    derived = _compute_derived_fields(data)
+    derived = _compute_derived_fields(data, axis)
     elapsed = time.time() - start
     print(f"Computed derived fields in {elapsed:.2f}s")
 
@@ -158,7 +151,7 @@ def test_physics_calculations(test_file: str | None = None) -> bool:
         n_random_subsamples=2000,
         stencil_width=2,
         n_processes=1,
-        axis=2,
+        axis=axis,
     )
 
     hist = results["hist"]

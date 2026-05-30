@@ -14,9 +14,10 @@ import sys
 # Add repository root to path so `import sfunctor` works when running script directly.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from sfunctor.io.slice_io import load_slice_npz
+from sfunctor.io.slice_io import load_slice_npz, parse_slice_metadata
 from sfunctor.core.physics import compute_vA, compute_z_plus_minus
 from sfunctor.core.histograms import (
+    CENSOR_NAMES,
     Channel,
     N_CHANNELS,
 )
@@ -43,6 +44,11 @@ def main():
                         help="Finite difference stencil width")
     parser.add_argument("--n_processes", type=int, default=0,
                         help="Number of processes (0=auto)")
+    parser.add_argument("--cell_sizes", type=float, nargs=3, metavar=("DX1", "DX2", "DX3"),
+                        default=(1.0, 1.0, 1.0),
+                        help="Effective Cartesian cell spacings after loading/stride (default: loaded-grid cell units)")
+    parser.add_argument("--random_seed", type=int, default=0,
+                        help="Base seed for reproducible spatial Monte Carlo sampling")
 
     # Bin edge parameters for unified Δ bins (per channel)
     log_delta_min_defaults = [
@@ -91,13 +97,8 @@ def main():
     slice_path = Path(args.slice)
     slice_data = load_slice_npz(slice_path, stride=args.stride)
 
-    # Extract slice metadata from filename
-    # Expected format: *_axis{N}_*.npz
-    filename = slice_path.name
-    if '_axis' in filename:
-        axis = int(filename.split('_axis')[1].split('_')[0])
-    else:
-        axis = 3  # default to z-axis
+    # Slice orientation is required because AthenaK arrays use KJI ordering.
+    axis, _ = parse_slice_metadata(slice_path)
 
     # Compute derived fields
     rho = slice_data["rho"]
@@ -117,18 +118,10 @@ def main():
         "vA_x": vA_x, "vA_y": vA_y, "vA_z": vA_z,
         "zp_x": z_plus_x, "zp_y": z_plus_y, "zp_z": z_plus_z,
         "zm_x": z_minus_x, "zm_y": z_minus_y, "zm_z": z_minus_z,
-        "omega_x": slice_data.get("omega_x", np.zeros_like(rho)),
-        "omega_y": slice_data.get("omega_y", np.zeros_like(rho)),
-        "omega_z": slice_data.get("omega_z", np.zeros_like(rho)),
-        "j_x": slice_data.get("j_x", np.zeros_like(rho)),
-        "j_y": slice_data.get("j_y", np.zeros_like(rho)),
-        "j_z": slice_data.get("j_z", np.zeros_like(rho)),
-        "curv_x": slice_data.get("curv_x", np.zeros_like(rho)),
-        "curv_y": slice_data.get("curv_y", np.zeros_like(rho)),
-        "curv_z": slice_data.get("curv_z", np.zeros_like(rho)),
-        "grad_rho_x": slice_data.get("grad_rho_x", np.zeros_like(rho)),
-        "grad_rho_y": slice_data.get("grad_rho_y", np.zeros_like(rho)),
-        "grad_rho_z": slice_data.get("grad_rho_z", np.zeros_like(rho)),
+        "omega_x": slice_data["omega_x"], "omega_y": slice_data["omega_y"], "omega_z": slice_data["omega_z"],
+        "j_x": slice_data["j_x"], "j_y": slice_data["j_y"], "j_z": slice_data["j_z"],
+        "curv_x": slice_data["curv_x"], "curv_y": slice_data["curv_y"], "curv_z": slice_data["curv_z"],
+        "grad_rho_x": slice_data["grad_rho_x"], "grad_rho_y": slice_data["grad_rho_y"], "grad_rho_z": slice_data["grad_rho_z"],
     }
 
     # Validate bin edge arguments
@@ -157,7 +150,7 @@ def main():
     print(f"  Processing {len(node_displacements)} displacements")
 
     # Use fixed compute_histograms_shared that handles channel-specific bins correctly
-    hist = compute_histograms_shared(
+    hist, hist_censoring = compute_histograms_shared(
         fields=fields,
         displacements=node_displacements,
         axis=axis,
@@ -168,6 +161,9 @@ def main():
         delta_bin_edges=delta_bin_edges,  # Per-channel Δ edges (shared bin count)
         stencil_width=args.stencil_width,
         n_processes=n_processes,
+        cell_sizes=tuple(args.cell_sizes),
+        random_seed=args.random_seed,
+        return_censoring=True,
     )
 
     # Save results
@@ -180,6 +176,8 @@ def main():
     np.savez_compressed(
         output_file,
         hist=hist,
+        hist_censoring=hist_censoring,
+        censor_names=np.asarray(CENSOR_NAMES),
         channels=[ch.name for ch in Channel],
         ell_bin_edges=ell_bin_edges,
         theta_bin_edges=theta_bin_edges,
@@ -199,6 +197,8 @@ def main():
             'stencil_width': args.stencil_width,
             'N_random_subsamples': args.N_random_subsamples,
             'n_processes': n_processes,
+            'cell_sizes': tuple(args.cell_sizes),
+            'random_seed': args.random_seed,
             'log_delta_bin_edges_min': args.log_delta_bin_edges_min,
             'log_delta_bin_edges_max': args.log_delta_bin_edges_max,
             'N_delta_bin_edges': args.N_delta_bin_edges,

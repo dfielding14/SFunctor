@@ -6,6 +6,7 @@ from the histogram data.
 """
 
 import argparse
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -17,7 +18,12 @@ import matplotlib.patheffects as pe
 import cmasher as cmr  # type: ignore
 from scipy.optimize import curve_fit
 from scipy.ndimage import gaussian_filter
+
+# Allow the documented direct-script invocation without requiring editable install.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from sfunctor.core.histograms import Channel
+from sfunctor.io.histogram_results import histogram_censoring_summary
 
 # LaTeX labels for channels
 CHANNEL_LABELS = {
@@ -274,12 +280,18 @@ def make_subdir(base: Path, name: str) -> Path:
 def build_anisotropic_masks(n_theta_bins: int, n_phi_bins: int, theta_wedge_bins: int, phi_wedge_bins: int):
     """Return masks for L, perp, xi, and lambda bins.
 
-    With explicit angular bins, we take only the first (≈0°) and last (≈90°) bins.
+    Wedge widths are expressed as numbers of bins at the 0 and 90 degree
+    endpoints.  Saved bin edges remain authoritative because production and
+    convenience entry points intentionally use different angular grids.
     """
-    theta_L_idx = np.array([0])
-    theta_perp_idx = np.array([n_theta_bins - 1])
-    phi_xi_idx = np.array([0])
-    phi_lambda_idx = np.array([n_phi_bins - 1])
+    if not 1 <= theta_wedge_bins <= n_theta_bins:
+        raise ValueError("theta_wedge_bins must be between 1 and n_theta_bins")
+    if not 1 <= phi_wedge_bins <= n_phi_bins:
+        raise ValueError("phi_wedge_bins must be between 1 and n_phi_bins")
+    theta_L_idx = np.arange(theta_wedge_bins)
+    theta_perp_idx = np.arange(n_theta_bins - theta_wedge_bins, n_theta_bins)
+    phi_xi_idx = np.arange(phi_wedge_bins)
+    phi_lambda_idx = np.arange(n_phi_bins - phi_wedge_bins, n_phi_bins)
 
     L_mask = np.zeros((n_theta_bins, n_phi_bins), dtype=bool)
     perp_mask = np.zeros_like(L_mask)
@@ -295,11 +307,12 @@ def build_anisotropic_masks(n_theta_bins: int, n_phi_bins: int, theta_wedge_bins
 
 def angular_average(S2_slice: np.ndarray, N_slice: np.ndarray, mask: np.ndarray) -> float:
     """Weighted average of S2 over theta/phi using pair counts as weights."""
-    weights = N_slice * mask
+    valid = mask & np.isfinite(S2_slice)
+    weights = np.where(valid, N_slice, 0)
     w_sum = weights.sum()
     if w_sum <= 0:
         return np.nan
-    return float((S2_slice * weights).sum() / w_sum)
+    return float(np.nansum(S2_slice * weights) / w_sum)
 
 
 def compute_anisotropic_s2(hist_mag: np.ndarray,
@@ -684,6 +697,18 @@ def main():
     ell_bin_edges = data['ell_bin_edges']
     theta_bin_edges = data['theta_bin_edges']
     phi_bin_edges = data['phi_bin_edges']
+    if 'hist_censoring' in data:
+        censoring_rows = histogram_censoring_summary(
+            data['hist_censoring'], data['censor_names'], data['channels']
+        )
+        max_row = max(censoring_rows, key=lambda row: row['censored_fraction'])
+        print(
+            "Legacy delta-bin censoring: "
+            f"max fraction {max_row['censored_fraction']:.3%} "
+            f"for {max_row['channel']}"
+        )
+        if max_row['censored_fraction'] > 0.001:
+            print("WARNING: legacy delta-bin censoring exceeds 0.1%; inspect or recalibrate bin edges")
 
     delta_bin_edges = data.get('delta_bin_edges', None)
     if delta_bin_edges is None:
@@ -873,7 +898,7 @@ def plot_mean_structure_functions(hist_mag, mag_channels, ell_centers, sf_channe
                 slope = coeffs[0]
 
                 # Create label with power law
-                label = f'{get_channel_label(channel_name)} $\propto \ell^{{{slope:.2f}}}$'
+                label = f'{get_channel_label(channel_name)} $\\propto \\ell^{{{slope:.2f}}}$'
             else:
                 label = get_channel_label(channel_name)
 
@@ -974,7 +999,7 @@ def plot_2d_histograms(hist_mag, mag_channels, ell_centers, sf_channel_bin_edges
         ax.set_yscale('log')
         ax.set_xlabel(r'$\ell$')
         ax.set_ylabel(get_channel_label(channel_name))
-        ax.set_title(f'2D Histogram: {get_channel_label(channel_name)} vs $\ell$')
+        ax.set_title(f'2D Histogram: {get_channel_label(channel_name)} vs $\\ell$')
 
         # Add colorbar
         cbar = plt.colorbar(pcm, ax=ax, label='Counts')
@@ -2090,11 +2115,13 @@ def plot_alignment_angles_new(
     def plot_variant(x_vals, ratios, xlabel, suffix, y_label, prime=False):
         fig, ax = plt.subplots(figsize=(6.8, 4.6))
         for (_, _, _, sub, color), ratio in zip(pairs, ratios):
-            mask = np.isfinite(ratio) & (ratio > 0)
+            # Histogram ratio channels store sin(theta), not theta itself.
+            angle = np.arcsin(np.clip(ratio, 0.0, 1.0))
+            mask = np.isfinite(angle) & (angle > 0)
             if not np.any(mask):
                 continue
             label = rf"$\theta_{{{sub}}}$" if not prime else rf"$\theta'_{{{sub}}}$"
-            best = choose_best_powerlaw_fit(x_vals, ratio)
+            best = choose_best_powerlaw_fit(x_vals, angle)
             if best is not None:
                 _, slope, intercept, start_fit, end_fit = best
                 x_fit = np.logspace(np.log10(start_fit), np.log10(end_fit), 200)
@@ -2112,7 +2139,7 @@ def plot_alignment_angles_new(
                     label = rf"$\theta_{{{sub}}} \propto \ell^{{{slope:.2f}}}$"
                 else:
                     label = rf"$\theta'_{{{sub}}} \propto \ell^{{{slope:.2f}}}$"
-            ax.loglog(x_vals[mask], ratio[mask], color=color, lw=1.8, label=label)
+            ax.loglog(x_vals[mask], angle[mask], color=color, lw=1.8, label=label)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(y_label)
         ax.grid(True, which="both", alpha=0.3)
@@ -2281,14 +2308,14 @@ def plot_alignment_angles_new(
         ratios_prime_lambda.append(ratio_prime_lambda if mean_ratio_tp_vals is not None else np.full_like(ratio_lambda, np.nan))
 
     plot_variant(ell_centers, ratios_ell, r"$\ell$", "ell", y_label=r"$\theta$")
-    plot_variant(ell_centers, ratios_par, r"$\ell_{\parallel}$", "ell_parallel", y_label=r"$\theta$")
-    plot_variant(ell_centers, ratios_perp, r"$\ell_{\perp}$", "ell_perp", y_label=r"$\theta$")
-    plot_variant(x_xi if x_xi is not None else ell_centers, ratios_xi, r"$\xi$", "xi", y_label=r"$\theta$")
-    plot_variant(x_lambda if x_lambda is not None else ell_centers, ratios_lambda, r"$\lambda$", "lambda", y_label=r"$\theta$")
+    plot_variant(ell_centers, ratios_par, r"$\ell$ (parallel wedge)", "ell_parallel", y_label=r"$\theta$")
+    plot_variant(ell_centers, ratios_perp, r"$\ell$ (perpendicular wedge)", "ell_perp", y_label=r"$\theta$")
+    plot_variant(ell_centers, ratios_xi, r"$\ell$ ($\xi$ wedge)", "xi", y_label=r"$\theta$")
+    plot_variant(ell_centers, ratios_lambda, r"$\ell$ ($\lambda$ wedge)", "lambda", y_label=r"$\theta$")
     plot_variant(ell_centers, ratios_prime_ell, r"$\ell$", "ell_prime", y_label=r"$\theta'$", prime=True)
-    plot_variant(ell_centers, ratios_prime_par, r"$\ell_{\parallel}$", "ell_parallel_prime", y_label=r"$\theta'$", prime=True)
-    plot_variant(ell_centers, ratios_prime_perp, r"$\ell_{\perp}$", "ell_perp_prime", y_label=r"$\theta'$", prime=True)
-    plot_variant(x_xi if x_xi is not None else ell_centers, ratios_prime_xi, r"$\xi$", "xi_prime", y_label=r"$\theta'$", prime=True)
-    plot_variant(x_lambda if x_lambda is not None else ell_centers, ratios_prime_lambda, r"$\lambda$", "lambda_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(ell_centers, ratios_prime_par, r"$\ell$ (parallel wedge)", "ell_parallel_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(ell_centers, ratios_prime_perp, r"$\ell$ (perpendicular wedge)", "ell_perp_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(ell_centers, ratios_prime_xi, r"$\ell$ ($\xi$ wedge)", "xi_prime", y_label=r"$\theta'$", prime=True)
+    plot_variant(ell_centers, ratios_prime_lambda, r"$\ell$ ($\lambda$ wedge)", "lambda_prime", y_label=r"$\theta'$", prime=True)
 if __name__ == "__main__":
     exit(main())

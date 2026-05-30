@@ -16,11 +16,19 @@ parallel
 
 from sfunctor.core.physics import compute_vA, compute_z_plus_minus
 from sfunctor.core.histograms import (
+    CENSOR_NAMES,
     Channel,
     N_CHANNELS,
     compute_histogram_for_disp_2D,
 )
 from sfunctor.core.parallel import compute_histograms_shared
+from sfunctor.core.directional import (
+    DirectionalConfig,
+    DirectionalResult,
+    build_q_variants,
+    compute_directional_structure_functions,
+    slice_offset_to_vector,
+)
 
 __all__ = [
     # Physics
@@ -28,8 +36,15 @@ __all__ = [
     "compute_z_plus_minus",
     # Histograms
     "Channel",
+    "CENSOR_NAMES",
     "N_CHANNELS",
     "compute_histogram_for_disp_2D",
     # Parallel
     "compute_histograms_shared",
+    # Strict pairwise three-direction diagnostics
+    "DirectionalConfig",
+    "DirectionalResult",
+    "build_q_variants",
+    "compute_directional_structure_functions",
+    "slice_offset_to_vector",
 ]

@@ -120,6 +120,20 @@ class TestComputeVA:
         assert vA_y[1, 1] == 0.0
         assert vA_z[1, 1] == 0.0
 
+    def test_nonfinite_density_is_zeroed_and_tiny_positive_density_is_clamped(self):
+        shape = (2, 2)
+        B_x = np.ones(shape)
+        B_y = np.zeros(shape)
+        B_z = np.zeros(shape)
+        rho = np.array([[np.nan, np.inf], [1.0e-20, 1.0]])
+        with warnings.catch_warnings(record=True) as caught:
+            vA_x, _, _ = compute_vA(B_x, B_y, B_z, rho)
+        assert len(caught) == 2
+        assert vA_x[0, 0] == 0.0
+        assert vA_x[0, 1] == 0.0
+        assert vA_x[1, 0] == pytest.approx(1.0e5)
+        assert vA_x[1, 1] == pytest.approx(1.0)
+
 
 class TestComputeZPlusMinus:
     """Test cases for compute_z_plus_minus function."""

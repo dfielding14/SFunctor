@@ -19,6 +19,7 @@ class TestParseSliceMetadata:
             ("slice_x2_0.0_beta10.5_data.npz", (2, 10.5)),
             ("slice_x3_1.5_beta0.1_final.npz", (3, 0.1)),
             ("path/to/slice_x1_pos_beta100_file.npz", (1, 100.0)),
+            ("Turb_1280_beta1_dedt025_plm_axis3_slice0p75_file0040.npz", (3, 1.0)),
         ]
         
         for filename, expected in test_cases:

@@ -46,8 +46,8 @@ class RunConfig:
         Number of worker processes for shared-memory parallelism per node.
         0 means auto-detect (cpu_count - 2).
     stencil_width : int
-        Finite difference stencil width for derivatives: 2, 3, or 5.
-        Larger stencils are more accurate but require more boundary padding.
+        Normalized increment-filter width: 2, 3, or 5. These are distinct
+        statistics, not accuracy levels of one derivative approximation.
     """
 
     stride: int
@@ -125,7 +125,7 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
     parser.add_argument("--N_random_subsamples", type=_positive_int, default=None, help="Number of random spatial points per displacement.")
     parser.add_argument("--n_ell_bins", type=_positive_int, default=None, help="Number of logarithmic ℓ-bins.")
     parser.add_argument("--n_processes", type=int, default=None, help="Processes per node (0 → auto: cpu_count() − 2).")
-    parser.add_argument("--stencil_width", type=int, choices=[2,3,5], default=None, help="Structure-function stencil width (2, 3, or 5).")
+    parser.add_argument("--stencil_width", type=int, choices=[2,3,5], default=None, help="Normalized structure-function increment filter (2, 3, or 5 points).")
 
     args = parser.parse_args(argv)
     
@@ -148,4 +148,4 @@ def parse_cli(argv: Optional[List[str]] = None) -> RunConfig:
         parser.error("Options --file_name and --slice_list are mutually exclusive.")
     
     
-    return config 
+    return config

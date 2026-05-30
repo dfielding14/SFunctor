@@ -1,5 +1,10 @@
 # Measuring Eddy Anisotropy from Structure Functions
 
+> **Scope:** this guide describes analysis of the legacy angular-histogram
+> proxies. For the exact pairwise `l_parallel`, `xi`, and `lambda` calculation
+> used for primary three-direction science, use
+> `docs/THREE_DIRECTION_ANALYSIS.md`.
+
 This document explains how to extract anisotropy scalings from anisotropic structure functions, with an emphasis on the common “equal-structure-function” mapping:
 
 > find `ℓ∥(ℓ⊥)` such that `S_p^∥(ℓ∥) = S_p^⊥(ℓ⊥)`
@@ -157,4 +162,3 @@ If you compare different slice orientations (axis=1/2/3) and get consistent anis
 6) Fit `log ℓ∥` vs `log ℓ⊥` to extract α.
 
 For concrete histogram-to-moment code, see `docs/HISTOGRAM_ANALYSIS_GUIDE.md`.
-

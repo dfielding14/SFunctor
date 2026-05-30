@@ -27,7 +27,7 @@ Basic usage for single slice analysis:
     data = load_slice_npz("slice_x1_0.0_beta25.npz")
     
     # Compute structure functions
-    results = analyze_slice(data, n_displacements=1000)
+    results = analyze_slice(data, axis=1, n_displacements=1000)
     
     # Visualize results
     from sfunctor.visualization import plot_structure_functions

@@ -160,7 +160,7 @@ def _process_single_slice(slice_path: Path, cfg) -> None:  # noqa: ANN001
     )
 
     # Displacements
-    N_res = rho.shape[0]
+    N_res = min(rho.shape)
     if cfg.stencil_width == 2:
         ell_max = N_res // 2
     elif cfg.stencil_width == 3:

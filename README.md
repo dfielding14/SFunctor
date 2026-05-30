@@ -2,7 +2,7 @@
 
 SFunctor computes anisotropic, angle-resolved structure-function histograms from 2D slices of 3D MHD simulations.
 
-All current analysis outputs use the **unified histogram API**:
+The broad legacy analysis output uses the **unified histogram API**:
 - `hist`: a single `(N_CHANNELS, n_ell, n_theta, n_phi, n_delta)` count array
 - `delta_bin_edges`: per-channel Δ bin edges (stored as an object array in `*.npz`)
 
@@ -11,7 +11,7 @@ All current analysis outputs use the **unified histogram API**:
 - Python **3.10+** (the codebase uses PEP604 `X | None` type syntax)
 - A working C toolchain for Numba
 - Optional: `mpi4py` + an MPI runtime for MPI batch runs
-- Slice extraction requires an AthenaK reader named `bin_convert_new` (not vendored in this repo)
+- Slice extraction uses the bundled AthenaK reader `sfunctor.io.bin_convert_new`
 
 ## Install
 
@@ -73,6 +73,7 @@ from sfunctor.core.histograms import Channel
 slice_data = load_slice_npz("slice.npz", stride=2)
 result = analyze_slice(
     slice_data,
+    axis=3,  # required: AthenaK KJI ordering; this is an x3-normal slice
     n_displacements=2000,
     n_random_subsamples=2000,
     stencil_width=2,
@@ -82,6 +83,39 @@ hist = result["hist"]
 ell_edges = result["ell_bin_edges"]
 delta_edges = result["delta_bin_edges"][Channel.D_V]
 ```
+
+## Workflow C: Strict Three-Direction Analysis
+
+Use this path for Chen/Mallet-style pairwise `ell_parallel`, `xi`, and `lambda`
+measurements. It computes direct `S2 = <|delta q_perp|^2>` sums, not moments
+reconstructed from legacy magnitude histograms.
+
+```bash
+python scripts/production/run_directional_analysis.py \
+  --slice slice_data/Turb_320_beta100_dedt025_plm_axis3_slice0_file0000.npz \
+  --displacements displacements.npz \
+  --output directional_axis3.npz \
+  --cell_sizes 1 1 1 \
+  --fit_interval 4 32
+```
+
+The strict path reports `z_plus`, `z_minus`, fixed-reference-density Elsasser
+variants, `B`, `vA`, `vA_ref`, and `u`, each using its own increment to define
+the `xi` direction. See `docs/THREE_DIRECTION_ANALYSIS.md`.
+
+## AthenaK Axis Contract
+
+AthenaK arrays use logical `k,j,i` order, also described as `x3,x2,x1` or
+`z,y,x` storage order. NumPy's final index is the `i = x1` direction.
+
+| slice axis | stored slice shape | `(delta_i, delta_j)` Cartesian mapping |
+| --- | --- | --- |
+| `1` | `(k=x3, j=x2)` | `(0, delta_i dx2, delta_j dx3)` |
+| `2` | `(k=x3, i=x1)` | `(delta_i dx1, 0, delta_j dx3)` |
+| `3` | `(j=x2, i=x1)` | `(delta_i dx1, delta_j dx2, 0)` |
+
+`cell_sizes` are required whenever loaded-grid spacings are not equal. A
+stride changes effective loaded-grid spacing and must be included explicitly.
 
 ## Output format (`*.npz`)
 
@@ -115,7 +149,7 @@ Channel definitions live in `sfunctor/core/histograms.py` (`Channel`, `N_CHANNEL
 
 ## Slice extraction
 
-The extraction helper `sfunctor.io.extract.extract_2d_slice()` depends on an external AthenaK reader module `bin_convert_new`.
+The extraction helper `sfunctor.io.extract.extract_2d_slice()` uses the bundled AthenaK reader module `sfunctor.io.bin_convert_new`.
 For a minimal CLI wrapper, see `scripts/production/extractor.py`.
 
 ## Documentation
@@ -126,3 +160,8 @@ For a minimal CLI wrapper, see `scripts/production/extractor.py`.
 - `docs/THEORY_COMPARISONS.md:1`
 - `docs/HISTOGRAM_ANALYSIS_GUIDE.md:1`
 - `docs/WORKED_EXAMPLE_ANISOTROPY.md:1`
+- `docs/ARCHITECTURE.md:1`
+- `docs/THREE_DIRECTION_ANALYSIS.md:1`
+- `docs/SCIENTIFIC_DECISIONS.md:1`
+- `docs/BENCHMARKING.md:1`
+- `docs/AUDIT_REPORT.md:1`

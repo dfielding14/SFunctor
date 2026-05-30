@@ -42,4 +42,5 @@ Edit parameters in `run_distributed_analysis.sh`:
 3. Results are saved as partial histograms
 4. Final step combines all partial results
 
-No MPI, no shared memory issues, simple and robust.
+No MPI is required. Within each node, read-only field planes are copied into
+shared-memory segments for worker processes and cleaned up after reduction.

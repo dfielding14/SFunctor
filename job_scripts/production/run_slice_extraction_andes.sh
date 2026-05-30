@@ -28,7 +28,7 @@ fi
 FILE_NUMBER=${FILE_NUMBER:-"-1"}      # -1 means use final file
 ELONG_Z_FACTOR=${ELONG_Z_FACTOR:-""}
 if [[ -z "$ELONG_Z_FACTOR" ]]; then
-    if [[ "$SIM_NAME" == *"beta1"* ]]; then
+    if [[ "$SIM_NAME" == *"beta1_"* ]]; then
         ELONG_Z_FACTOR=3
     else
         ELONG_Z_FACTOR=1

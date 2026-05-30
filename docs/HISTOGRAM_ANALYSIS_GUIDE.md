@@ -1,5 +1,9 @@
 # Histogram Analysis Guide (Unified `hist` Output)
 
+> **Scope:** this guide describes the legacy binned-histogram approximation.
+> For the exact pairwise `l_parallel`, `xi`, and `lambda` calculation used for
+> primary three-direction science, use `docs/THREE_DIRECTION_ANALYSIS.md`.
+
 SFunctor stores **binned counts** rather than directly storing structure functions. This is intentional: it preserves the full distribution of increment magnitudes, and allows you to compute many statistics (moments, PDFs, alignment measures) offline without re-running the expensive increment sampling.
 
 This document explains how to go from the unified histogram output to:
@@ -16,6 +20,10 @@ Typical combined outputs (and per-node partials) contain:
 - `channels`: list/array of channel names (same order as `hist` axis 0)
 - `ell_bin_edges`, `theta_bin_edges`, `phi_bin_edges`: bin edges for `(ℓ, θ, φ)`
 - `delta_bin_edges`: per-channel Δ bin edges (saved as an object array)
+- `hist_censoring`: optional integer counts with shape
+  `(N_CHANNELS, n_ell, n_theta, n_phi, 4)` for accepted, underflow, overflow,
+  and invalid values
+- `censor_names`: labels for the final `hist_censoring` axis
 - `metadata`: dict with run configuration (optional)
 
 The unified format is used by:
@@ -46,7 +54,24 @@ S_p ≈ (Σ_n N_n Δ_n^p) / (Σ_n N_n).
 Practical notes:
 
 - Always guard against empty bins (`Σ_n N_n = 0`).
+- Inspect `hist_censoring` before interpreting moments. A moment reconstructed
+  from a materially censored histogram is biased.
 - For ratio channels bounded in `[0, 1]` you may prefer arithmetic bin centers.
+
+### Censoring policy
+
+New production files record each geometrically binned channel value as one of:
+
+- `accepted`: retained in `hist`;
+- `underflow`: smaller than the first channel edge;
+- `overflow`: larger than the final channel edge;
+- `invalid`: non-finite or undefined, such as an alignment ratio with a zero
+  denominator.
+
+Use a small calibration run to choose fixed edges before launching distributed
+jobs. Do not auto-adjust edges independently by node or snapshot. Treat a
+censored fraction above `0.1%` as a warning and justify quantitative use above
+`1%` explicitly. Older output files may not contain these counters.
 
 ### Minimal Python snippet
 
@@ -142,4 +167,3 @@ Depending on your application, you may instead want a median or a percentile of 
 Once you can compute `S_p^∥(ℓ)` and `S_p^⊥(ℓ)`, you can extract an anisotropy scaling relation `ℓ∥(ℓ⊥)` by matching equal values of `S_p`.
 
 That procedure is described in detail in `docs/MEASURING_ANISOTROPY.md`.
-

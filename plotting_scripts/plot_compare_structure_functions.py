@@ -5,7 +5,8 @@ Compare structure-function outputs across simulations using saved npz files.
 Overlays:
 - Isotropic S2/S3 for selected channels.
 - Anisotropic S2 (iso/L/perp and L/xi/lambda) mirroring plot_structure_functions layouts.
-- Alignment angles from saved cross/mag ratio channels with iso/L/perp/xi/lambda cuts.
+- Alignment overlays are omitted unless a future saved schema provides first
+  moments.  The current anisotropic sidecar stores second moments only.
 """
 
 from __future__ import annotations
@@ -74,6 +75,7 @@ ALIGNMENT_SPECS = [
         "label_prime": r"$\sin \theta'_{\omega j} = \langle|\delta \omega_\perp \times \delta j_\perp| / (|\delta \omega_\perp||\delta j_\perp|)\rangle$",
     },
 ]
+_WARNED_INVALID_ALIGNMENT_SCHEMA = False
 
 
 def apply_house_style():
@@ -489,27 +491,17 @@ def plot_anisotropic_overlays(
 
 
 def extract_theta_values(run: RunData, spec: dict) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+    """Return no alignment curve from the second-moment-only sidecar schema.
+
+    Reconstructing alignment here would silently report ``<cross^2> /
+    <product^2>`` or ``<sin(theta)^2>`` as first-moment statistics.
     """
-    Return (ell, theta_mean, theta_prime):
-    theta_mean = <|a x b|> / <|a||b|>
-    theta_prime = <|a x b| / (|a||b|)>
-    Using iso cuts only.
-    """
-    ell, stats_ratio = run.get_aniso(spec["ratio"])
-    _, stats_cross = run.get_aniso(spec["cross"]) if run.get_aniso(spec["cross"]) else (None, None)
-    _, stats_mag = run.get_aniso(spec["mag"]) if run.get_aniso(spec["mag"]) else (None, None)
-    if ell is None:
-        return None, None, None
-    theta_prime = None
-    theta_mean = None
-    if stats_ratio and "iso" in stats_ratio:
-        theta_prime = stats_ratio["iso"]
-    if stats_cross and stats_mag and ("iso" in stats_cross) and ("iso" in stats_mag):
-        cross_iso = stats_cross["iso"]
-        mag_iso = stats_mag["iso"]
-        with np.errstate(divide="ignore", invalid="ignore"):
-            theta_mean = np.where((cross_iso > 0) & (mag_iso > 0), cross_iso / mag_iso, np.nan)
-    return ell, theta_mean, theta_prime
+
+    global _WARNED_INVALID_ALIGNMENT_SCHEMA
+    if not _WARNED_INVALID_ALIGNMENT_SCHEMA:
+        print("Skipping cross-run alignment overlays: saved anisotropic sidecars contain S2, not required first moments.")
+        _WARNED_INVALID_ALIGNMENT_SCHEMA = True
+    return None, None, None
 
 
 def plot_alignment_variant(

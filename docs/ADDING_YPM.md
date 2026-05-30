@@ -47,4 +47,6 @@ for each displacement bin (\ell, \theta, \phi), accumulating both sum and count 
 ## Notes
 - Bin edges unchanged; we only add new accumulators keyed by (ell, theta, phi).
 - Keep Ypm accumulation in float64 to preserve sum accuracy.
-- Use the same theta/phi bin definitions as existing histograms: theta in [0, π/2] (abs projection), phi in [0, π].
+- Use the same folded theta/phi definitions as existing histograms: both
+  angles are in `[0, pi/2]` because absolute projections identify opposite
+  directions.

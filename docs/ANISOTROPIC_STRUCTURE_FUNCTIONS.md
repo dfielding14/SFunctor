@@ -8,6 +8,12 @@ This document defines the anisotropic structure functions used throughout the SF
 
 It also explains how these definitions map to what the code bins in the unified histogram output.
 
+> **Scope:** this document describes the broad legacy unified histogram. Its
+> `phi` frame is always defined from `delta B_perp`, and its magnitude channels
+> use full-vector increments. For the primary strict two-point Chen/Mallet-style
+> calculation with per-variable `delta q_perp`, explicit exclusions, and
+> compressible Elsasser alternatives, use `docs/THREE_DIRECTION_ANALYSIS.md`.
+
 ## 1) Field increments and structure functions
 
 Let `f(x)` be a scalar field (e.g. density `ρ`) or a vector field (e.g. velocity `v`, magnetic field `B`). For a displacement vector `r`, define the (two-point) increment
@@ -107,7 +113,11 @@ Interpretation:
 - `φ ≈ 0`: `r_⊥` is aligned with `δB_⊥` in the perpendicular plane
 - `φ ≈ π/2`: `r_⊥` is perpendicular to `δB_⊥` in that plane
 
-If either `|r_⊥|` or `|δB_⊥|` is zero, the code sets `φ = 0` for that sample (a pragmatic convention for degenerate geometry).
+If either `|r_⊥|` or `|δB_⊥|` is zero, the legacy histogram sets `φ = 0`.
+This historical fallback can contaminate a `xi` endpoint cut and must not be
+used as the rigorous three-direction estimator. The strict pairwise path
+records the undefined geometry as an exclusion while preserving theta-only
+statistics.
 
 ## 5) Derived length scales: `(ℓ∥, ℓ⊥, ξ, λ)`
 
@@ -168,4 +178,3 @@ For how to compute moments robustly (and how to collapse bins into “parallel/p
 
 - `docs/HISTOGRAM_ANALYSIS_GUIDE.md`
 - `docs/MEASURING_ANISOTROPY.md`
-

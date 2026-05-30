@@ -43,13 +43,14 @@ def compute_vA(B_x: np.ndarray, B_y: np.ndarray, B_z: np.ndarray, rho: np.ndarra
     TypeError
         If inputs are not numpy arrays.
     ValueError
-        If arrays have inconsistent shapes, are not 2D, or if rho has
-        non-positive values.
+        If arrays have inconsistent shapes or are not 2D.
 
     Notes
     -----
-    For numerical stability, very small or negative density values are
-    handled by setting the corresponding Alfvén speed to zero with a warning.
+    Non-finite or non-positive densities produce zero Alfvén speed with a
+    warning. Positive densities below ``1e-10`` are clamped with a warning.
+    The strict directional calculator instead exposes an explicit exclusion
+    floor because silent clamping is unsuitable for exclusion accounting.
 
     Examples
     --------
@@ -81,23 +82,32 @@ def compute_vA(B_x: np.ndarray, B_y: np.ndarray, B_z: np.ndarray, rho: np.ndarra
     # Handle density edge cases
     min_rho = 1e-10  # Minimum density threshold
     
-    if np.any(rho <= 0):
-        n_negative = np.sum(rho <= 0)
+    invalid_rho = ~np.isfinite(rho) | (rho <= 0)
+    if np.any(invalid_rho):
+        n_invalid = np.sum(invalid_rho)
         warnings.warn(
-            f"Found {n_negative} non-positive density values. "
+            f"Found {n_invalid} non-finite or non-positive density values. "
             f"Setting corresponding Alfvén speeds to zero.",
             RuntimeWarning
         )
-        logger.warning(f"Non-positive density values detected: min={np.min(rho)}")
+        logger.warning("Non-finite or non-positive density values detected")
+
+    low_positive_rho = np.isfinite(rho) & (rho > 0) & (rho < min_rho)
+    if np.any(low_positive_rho):
+        warnings.warn(
+            f"Found {np.sum(low_positive_rho)} positive density values below {min_rho:g}. "
+            "Clamping them before computing Alfvén speed.",
+            RuntimeWarning,
+        )
     
     # Create a safe density array for computation
-    safe_rho = np.maximum(rho, min_rho)
+    safe_rho = np.where(invalid_rho, min_rho, np.maximum(rho, min_rho))
     
     # Compute Alfvén speed
     inv_sqrt_rho = 1.0 / np.sqrt(safe_rho)
     
     # Set Alfvén speed to zero where density was non-positive
-    mask = rho > 0
+    mask = ~invalid_rho
     vA_x = np.where(mask, B_x * inv_sqrt_rho, 0.0)
     vA_y = np.where(mask, B_y * inv_sqrt_rho, 0.0)
     vA_z = np.where(mask, B_z * inv_sqrt_rho, 0.0)
@@ -199,4 +209,4 @@ def compute_z_plus_minus(
     z_minus_y = v_y - vA_y
     z_minus_z = v_z - vA_z
 
-    return (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z) 
+    return (z_plus_x, z_plus_y, z_plus_z), (z_minus_x, z_minus_y, z_minus_z)

@@ -129,7 +129,8 @@ def build_displacement_list(
         Total number of displacement vectors desired (before mirror removal).
         Must be positive.
     seed : int, optional
-        Random seed for reproducibility. If None, uses numpy's current state.
+        Random seed for reproducibility. If None, uses fresh entropy.  This
+        function does not mutate NumPy's process-global random state.
 
     Returns
     -------
@@ -171,9 +172,7 @@ def build_displacement_list(
     if n_disp_total <= 0:
         raise ValueError(f"n_disp_total must be positive, got {n_disp_total}")
     
-    # Set random seed if provided
-    if seed is not None:
-        np.random.seed(seed)
+    rng = np.random.default_rng(seed)
     
     n_ell_bins = len(ell_bin_edges) - 1
     n_per_bin = max(1, n_disp_total // n_ell_bins)  # At least 1 per bin
@@ -199,7 +198,7 @@ def build_displacement_list(
             r_values = np.geomspace(r_low, r_high, n_per_bin)
             
             # Random angles from 0 to pi (half circle due to mirror symmetry)
-            angles = np.random.uniform(0, np.pi, n_per_bin)
+            angles = rng.uniform(0, np.pi, n_per_bin)
             
             # Convert to integer displacements
             dx = np.rint(r_values * np.cos(angles)).astype(np.int32)
@@ -245,4 +244,4 @@ def build_displacement_list(
         f"(reduction due to de-duplication and mirror removal)"
     )
     
-    return result 
+    return result

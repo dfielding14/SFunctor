@@ -23,7 +23,9 @@ def analyze_slice(
     n_random_subsamples: int = 1000,
     stencil_width: int = 2,
     n_processes: Optional[int] = None,
-    axis: int = 1,
+    axis: int,
+    cell_sizes: tuple[float, float, float] = (1.0, 1.0, 1.0),
+    random_seed: int | None = 0,
 ) -> Dict[str, np.ndarray]:
     """Analyze a single 2D slice to compute structure functions.
     
@@ -46,8 +48,14 @@ def analyze_slice(
         Finite difference stencil width (2, 3, or 5). Default 2.
     n_processes : int, optional
         Number of worker processes. None means auto-detect.
-    axis : int, optional
-        Slice orientation (1, 2, or 3). Default 1.
+    axis : int
+        Slice orientation (1, 2, or 3). AthenaK arrays use KJI ordering:
+        axis 1 slices are (k, j), axis 2 slices are (k, i), and axis 3 slices
+        are (j, i).
+    cell_sizes : tuple[float, float, float], optional
+        Effective Cartesian spacings of the loaded slice arrays.
+    random_seed : int or None, optional
+        Base seed for reproducible spatial Monte Carlo sampling.
     
     Returns
     -------
@@ -65,9 +73,18 @@ def analyze_slice(
     --------
     >>> from sfunctor.io import load_slice_npz
     >>> data = load_slice_npz("slice.npz")
-    >>> results = analyze_slice(data, n_displacements=5000)
+    >>> results = analyze_slice(data, axis=1, n_displacements=5000)
     >>> print(results['hist'].shape)
     """
+    if axis not in (1, 2, 3):
+        raise ValueError("axis must be 1, 2, or 3")
+    if not np.allclose(cell_sizes, (1.0, 1.0, 1.0)):
+        raise ValueError(
+            "analyze_slice auto-generates grid-index displacements and currently "
+            "requires unit cell_sizes; use compute_histograms_shared with a "
+            "physical-spacing displacement set for anisotropic grids"
+        )
+
     # Extract fields
     rho = slice_data["rho"]
     v_x = slice_data["v_x"]
@@ -84,7 +101,7 @@ def analyze_slice(
     )
     
     # Generate displacements
-    N_res = rho.shape[0]
+    N_res = min(rho.shape)
     if stencil_width == 2:
         ell_max = N_res // 2
     elif stencil_width == 3:
@@ -137,6 +154,8 @@ def analyze_slice(
         delta_bin_edges=delta_bin_edges,
         stencil_width=stencil_width,
         n_processes=n_processes,
+        cell_sizes=cell_sizes,
+        random_seed=random_seed,
     )
     
     # Return results dictionary
@@ -148,4 +167,6 @@ def analyze_slice(
         "delta_bin_edges": delta_bin_edges,
         "displacements": displacements,
         "channels": [ch.name for ch in Channel],
+        "cell_sizes": cell_sizes,
+        "random_seed": random_seed,
     }

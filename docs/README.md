@@ -8,3 +8,8 @@ This directory contains “physics-first” documentation for SFunctor’s aniso
 - `docs/HISTOGRAM_ANALYSIS_GUIDE.md` – How to compute moments/structure functions from the unified histogram output (`hist`, `delta_bin_edges`) and how to slice by `(θ, φ)`.
 - `docs/WORKED_EXAMPLE_ANISOTROPY.md` – A step-by-step example (with Python snippets) that computes `S2`, builds `ℓ∥(ℓ⊥)` and `ξ(λ)` mappings, and fits scaling exponents.
 - `docs/ADDING_YPM.md` – Notes for extending the pipeline to third-order mixed structure functions `Y^±` (work-in-progress).
+- `docs/ARCHITECTURE.md` – Active modules, data flow, KJI contract, and diagnostic inventory.
+- `docs/THREE_DIRECTION_ANALYSIS.md` – Primary strict pairwise `ell_parallel`, `xi`, and `lambda` definitions.
+- `docs/SCIENTIFIC_DECISIONS.md` – Current density-convention, 2-D coverage, rank-I/O, and censoring policy.
+- `docs/BENCHMARKING.md` – Reproducible CPU profiling and benchmark workflow.
+- `docs/AUDIT_REPORT.md` – Scientific audit findings, corrections, validation, and remaining limitations.

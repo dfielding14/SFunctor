@@ -5,16 +5,8 @@ import time
 
 import numpy as np
 
-# NOTE: this module historically depended on a local `bin_convert_new` reader that is
-# not shipped in this repository.  Keep extraction importable and raise a clear error
-# only when extraction is invoked.
-try:
-    from . import bin_convert_new as bc  # type: ignore[attr-defined]
-except Exception:  # noqa: BLE001 - optional dependency, allow any import failure
-    try:
-        import bin_convert_new as bc  # type: ignore[import-not-found]
-    except Exception:  # noqa: BLE001
-        bc = None
+from . import bin_convert_new as bc
+from .rank_manifest import build_rank_manifest, read_blocks_grouped
 
 
 def _safe_float_to_str(val: float) -> str:
@@ -178,7 +170,58 @@ def Morton_int_to_array(n):
 
     return [c, b, a]
 
-def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True, cache_dir="slice_data"):
+
+def _build_meshblock_locations(n_blocks_x1, n_blocks_x2, n_blocks_x3):
+    """Return logical meshblock locations in AthenaK Morton/GID order."""
+    if max(n_blocks_x1, n_blocks_x2, n_blocks_x3) > 64:
+        raise ValueError("Morton meshblock indexing supports at most 64 blocks per axis")
+
+    locations = []
+    for i3 in range(n_blocks_x3):
+        for i2 in range(n_blocks_x2):
+            for i1 in range(n_blocks_x1):
+                morton_id = Morton_array_to_int([i1, i2, i3])
+                locations.append((morton_id, i3, i2, i1))
+    locations.sort()
+    return [(i3, i2, i1) for _, i3, i2, i1 in locations]
+
+
+def _cell_index(edges, value):
+    """Return the cell immediately below *value*, clamped to the domain."""
+    return int(np.clip(np.searchsorted(edges, value) - 1, 0, len(edges) - 2))
+
+
+def _load_valid_cache(cache_fname, expected_shape, varnames):
+    """Load a cache only if it has the expected geometry and finite primitives."""
+    try:
+        with np.load(cache_fname, allow_pickle=True) as npz:
+            data = {k: npz[k] for k in npz.files}
+    except Exception as err:
+        print(f"[extract_2d_slice] Ignoring unreadable cache {cache_fname}: {err}")
+        return None
+
+    for var in varnames:
+        if var not in data or data[var].shape != expected_shape:
+            print(f"[extract_2d_slice] Ignoring cache with invalid {var} shape: {cache_fname}")
+            return None
+        if not np.isfinite(data[var]).all():
+            print(f"[extract_2d_slice] Ignoring cache with incomplete or non-finite {var}: {cache_fname}")
+            return None
+    return data
+
+
+def extract_2d_slice(
+    sim_name,
+    axis,
+    slice_value,
+    file_number=None,
+    *,
+    save=True,
+    cache_dir="slice_data",
+    lock_wait=1800,
+    lock_poll=5,
+    lock_stale=7200,
+):
     """
     Extract a 2D slice from the 3D domain at a given value along the specified axis.
     The function always returns the following variables:
@@ -198,18 +241,13 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     """
     start_time = time.time()
     print(f"[extract_2d_slice] Start sim={sim_name} axis={axis} slice={slice_value} file_number={file_number} save={save}")
+    if axis not in (1, 2, 3):
+        raise ValueError("axis must be 1, 2, or 3")
 
     cache_fname = None
     cache_status = "computed"
     lock_path = None
     lock_acquired = False
-
-    if bc is None:
-        raise ImportError(
-            "Slice extraction requires the `bin_convert_new` AthenaK reader, "
-            "but it could not be imported. Provide it as `sfunctor.io.bin_convert_new` "
-            "or as a top-level `bin_convert_new` module on PYTHONPATH."
-        )
 
     input_file_name = f"inputs/{sim_name}.athinput"
     input_file = bc.athinput(input_file_name)
@@ -222,133 +260,215 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     x1_max = input_file['mesh']['x1max']
     x2_max = input_file['mesh']['x2max']
     x3_max = input_file['mesh']['x3max']
-    Nres = input_file['mesh']['nx1']
-    N_meshblocks = int(Nres**3 / (nx3_meshblock*nx2_meshblock*nx1_meshblock))
+    nx1 = input_file['mesh']['nx1']
+    nx2 = input_file['mesh']['nx2']
+    nx3 = input_file['mesh']['nx3']
+    n_blocks_x1, rem_x1 = divmod(nx1, nx1_meshblock)
+    n_blocks_x2, rem_x2 = divmod(nx2, nx2_meshblock)
+    n_blocks_x3, rem_x3 = divmod(nx3, nx3_meshblock)
+    if rem_x1 or rem_x2 or rem_x3:
+        raise ValueError("Global mesh dimensions must be divisible by meshblock dimensions")
+    meshblock_locations = _build_meshblock_locations(n_blocks_x1, n_blocks_x2, n_blocks_x3)
+    N_meshblocks = len(meshblock_locations)
     Nranks = int(len(glob.glob(f'data/data_{sim_name}/bin/rank_*/')))
-    print(f"[extract_2d_slice] Grid Nres={Nres} blocks={N_meshblocks} ranks={Nranks} file_part={_determine_file_part(sim_name, file_number)}")
+    if Nranks == 0:
+        raise FileNotFoundError(f"No rank directories found for simulation {sim_name}")
+    print(f"[extract_2d_slice] Grid nx=({nx1}, {nx2}, {nx3}) blocks={N_meshblocks} ranks={Nranks} file_part={_determine_file_part(sim_name, file_number)}")
 
     # Fixed list of variables we will extract
     varnames = ['dens', 'velx', 'vely', 'velz', 'bcc1', 'bcc2', 'bcc3']
 
     # Prepare the global grid for the slice
-    x1f = np.linspace(x1_min, x1_max, Nres+1)
-    x2f = np.linspace(x2_min, x2_max, Nres+1)
-    x3f = np.linspace(x3_min, x3_max, Nres+1)
+    x1f = np.linspace(x1_min, x1_max, nx1 + 1)
+    x2f = np.linspace(x2_min, x2_max, nx2 + 1)
+    x3f = np.linspace(x3_min, x3_max, nx3 + 1)
     if axis == 1:
         slice_axis = x1f
-        other_axes = (x2f, x3f)
+        slice_shape = (nx3, nx2)
     elif axis == 2:
         slice_axis = x2f
-        other_axes = (x1f, x3f)
-    elif axis == 3:
-        slice_axis = x3f
-        other_axes = (x1f, x2f)
+        slice_shape = (nx3, nx1)
     else:
-        raise ValueError("axis must be 1, 2, or 3")
+        slice_axis = x3f
+        slice_shape = (nx2, nx1)
 
     # Find the index in the axis closest to the slice_value
-    slice_idx = np.searchsorted(slice_axis, slice_value) - 1
-    if slice_idx < 0:
+    if slice_value <= slice_axis[0]:
         print(f"[extract_2d_slice] Warning: slice_value {slice_value} below domain [{slice_axis[0]}, {slice_axis[-1]}]; clamping to first cell")
-        slice_idx = 0
-    # Allow slice_value beyond the upper boundary by clamping to the last in-domain cell.
-    if slice_idx >= Nres:
+    if slice_value >= slice_axis[-1]:
         print(f"[extract_2d_slice] Warning: slice_value {slice_value} above domain [{slice_axis[0]}, {slice_axis[-1]}]; clamping to last cell")
-        slice_idx = Nres - 1
+    slice_idx = _cell_index(slice_axis, slice_value)
+    slice_centres = 0.5 * (slice_axis[:-1] + slice_axis[1:])
+    slice_coord = slice_centres[slice_idx]
     print(f"[extract_2d_slice] slice_idx={slice_idx} (axis length {len(slice_axis)-1})")
 
     if save:
         cache_fname = _build_cache_fname(sim_name, axis, slice_value, file_number, cache_dir)
         if os.path.exists(cache_fname):
-            print(f"[extract_2d_slice] Cache hit: {cache_fname}")
-            cache_status = "cache_hit"
-            with np.load(cache_fname, allow_pickle=True) as npz:
-                return {k: npz[k] for k in npz.files}
+            cached = _load_valid_cache(cache_fname, slice_shape, varnames)
+            if cached is not None:
+                print(f"[extract_2d_slice] Cache hit: {cache_fname}")
+                cache_status = "cache_hit"
+                return cached
+            quarantine_fname = (
+                f"{cache_fname}.invalid.{int(time.time())}.{os.getpid()}"
+            )
+            os.replace(cache_fname, quarantine_fname)
+            print(
+                "[extract_2d_slice] Preserved invalid cache as "
+                f"{quarantine_fname}; recomputing"
+            )
+        lock_acquired, cache_available, lock_path = _acquire_cache_lock(
+            cache_fname,
+            lock_wait=lock_wait,
+            lock_poll=lock_poll,
+            lock_stale=lock_stale,
+        )
+        if cache_available:
+            cached = _load_valid_cache(cache_fname, slice_shape, varnames)
+            if cached is not None:
+                print(f"[extract_2d_slice] Cache became available while waiting: {cache_fname}")
+                return cached
+            raise RuntimeError(f"Cache appeared while waiting but is invalid: {cache_fname}")
 
     # Prepare empty arrays for each variable
-    slice_shape = (Nres, Nres)
     slice_data = {var: np.full(slice_shape, np.nan) for var in varnames}
 
     progress_step = max(1, N_meshblocks // 20)
     hits = 0
+
+    def _meshblock_info(gid):
+        i3, i2, i1 = meshblock_locations[gid]
+        i_start = i1 * nx1_meshblock
+        j_start = i2 * nx2_meshblock
+        k_start = i3 * nx3_meshblock
+        bounds = (
+            (x1f[i_start], x1f[i_start + nx1_meshblock]),
+            (x2f[j_start], x2f[j_start + nx2_meshblock]),
+            (x3f[k_start], x3f[k_start + nx3_meshblock]),
+        )
+        return i_start, j_start, k_start, bounds
+
+    rank0_files = sorted(glob.glob(f'data/data_{sim_name}/bin/rank_00000000/Turb.full_mhd_w_bcc.*.bin'))
+    if not rank0_files:
+        if lock_acquired and lock_path is not None:
+            os.remove(lock_path)
+        raise FileNotFoundError(f"No binary snapshots found for simulation {sim_name}")
+    if file_number is None or file_number == -1:
+        selected_basename = os.path.basename(rank0_files[-1])
+    else:
+        if file_number < 0 or file_number >= len(rank0_files):
+            if lock_acquired and lock_path is not None:
+                os.remove(lock_path)
+            raise ValueError(f"file_number {file_number} is out of range. Available files: {len(rank0_files)}")
+        selected_basename = os.path.basename(rank0_files[file_number])
+
+    try:
+        rank0_filename = f"data/data_{sim_name}/bin/rank_00000000/{selected_basename}"
+        manifest = build_rank_manifest(rank0_filename)
+        if len(manifest.rank_files) != Nranks:
+            raise FileNotFoundError(
+                f"Snapshot {selected_basename} exists on {len(manifest.rank_files)} "
+                f"of {Nranks} discovered rank directories"
+            )
+        if manifest.global_shape != (nx1, nx2, nx3):
+            raise ValueError(
+                f"Rank manifest global shape {manifest.global_shape} does not match "
+                f"input file {(nx1, nx2, nx3)}"
+            )
+        if manifest.meshblock_shape != (nx1_meshblock, nx2_meshblock, nx3_meshblock):
+            raise ValueError(
+                f"Rank manifest meshblock shape {manifest.meshblock_shape} does not match "
+                f"input file {(nx1_meshblock, nx2_meshblock, nx3_meshblock)}"
+            )
+        if manifest.levels != (0,):
+            raise NotImplementedError(
+                "2-D extraction currently requires a uniform level-0 manifest; "
+                "retain the manifest interface when adding AMR-aware 3-D chunks"
+            )
+        manifest_by_location = {
+            block.logical_location: block
+            for block in manifest.blocks
+        }
+        expected_locations = {
+            (i1, i2, i3)
+            for i3, i2, i1 in meshblock_locations
+        }
+        if set(manifest_by_location) != expected_locations:
+            raise ValueError(
+                "Rank manifest logical locations do not exactly cover the expected "
+                "uniform meshblock layout"
+            )
+
+        axis_edges = {1: x1f, 2: x2f, 3: x3f}[axis]
+        axis_centres = 0.5 * (axis_edges[:-1] + axis_edges[1:])
+        slice_idx_minus = (slice_idx - 1) % len(axis_centres)
+        slice_idx_plus = (slice_idx + 1) % len(axis_centres)
+        target_values = (
+            slice_coord,
+            axis_centres[slice_idx_minus],
+            axis_centres[slice_idx_plus],
+        )
+        needed_blocks = {
+            block
+            for target_value in target_values
+            for block in manifest.blocks_intersecting(axis, target_value)
+        }
+        grouped_blocks = read_blocks_grouped(manifest, needed_blocks, quantities=varnames)
+        print(
+            f"[extract_2d_slice] Manifest validated: {len(manifest.blocks)} blocks; "
+            f"loaded {len(needed_blocks)} blocks from "
+            f"{len({block.filename for block in needed_blocks})} rank files"
+        )
+    except Exception:
+        if lock_acquired and lock_path is not None:
+            try:
+                os.remove(lock_path)
+            except FileNotFoundError:
+                pass
+        raise
+
+    def _manifest_record_for_gid(gid):
+        i3, i2, i1 = meshblock_locations[gid]
+        return manifest_by_location[(i1, i2, i3)]
+
+    def _meshblock_data(record):
+        data = dict(grouped_blocks[record])
+        x1min, x1max, x2min, x2max, x3min, x3max = record.geometry
+        data["x1f"] = np.linspace(x1min, x1max, nx1_meshblock + 1)
+        data["x2f"] = np.linspace(x2min, x2max, nx2_meshblock + 1)
+        data["x3f"] = np.linspace(x3min, x3max, nx3_meshblock + 1)
+        return data
+
+    def _copy_meshblock_plane(out, mb_data, target_value, i_start, j_start, k_start, variables):
+        if axis == 1:
+            idx = _cell_index(mb_data['x1f'], target_value)
+            for var in variables:
+                out[var][k_start:k_start + nx3_meshblock, j_start:j_start + nx2_meshblock] = mb_data[var][:, :, idx]
+        elif axis == 2:
+            idx = _cell_index(mb_data['x2f'], target_value)
+            for var in variables:
+                out[var][k_start:k_start + nx3_meshblock, i_start:i_start + nx1_meshblock] = mb_data[var][:, idx, :]
+        else:
+            idx = _cell_index(mb_data['x3f'], target_value)
+            for var in variables:
+                out[var][j_start:j_start + nx2_meshblock, i_start:i_start + nx1_meshblock] = mb_data[var][idx, :, :]
 
     try:
         # Loop over all meshblocks (by GID)
         for gid in range(N_meshblocks):
             if gid % progress_step == 0:
                 print(f"[extract_2d_slice] progress gid={gid}/{N_meshblocks} hits={hits}")
-            # Determine meshblock logical location (i3, i2, i1) from GID
-            i3, i2, i1 = Morton_int_to_array(gid)
-            # Compute meshblock bounds in each direction
-            mb_x1_min = -0.5 + i1 * nx1_meshblock / Nres
-            mb_x1_max = mb_x1_min + nx1_meshblock / Nres
-            mb_x2_min = -0.5 + i2 * nx2_meshblock / Nres
-            mb_x2_max = mb_x2_min + nx2_meshblock / Nres
-            mb_x3_min = -0.5 + i3 * nx3_meshblock / Nres
-            mb_x3_max = mb_x3_min + nx3_meshblock / Nres
+            i_start, j_start, k_start, bounds = _meshblock_info(gid)
 
             # Does this meshblock contain the slice?
-            if axis == 1 and not (mb_x1_min <= slice_value <= mb_x1_max):
-                continue
-            if axis == 2 and not (mb_x2_min <= slice_value <= mb_x2_max):
-                continue
-            if axis == 3 and not (mb_x3_min <= slice_value <= mb_x3_max):
+            mb_min, mb_max = bounds[axis - 1]
+            if not (mb_min <= slice_coord < mb_max):
                 continue
             hits += 1
 
-            # Find which rank and local_mb_idx this meshblock belongs to
-            mb_per_rank_base = N_meshblocks // Nranks
-            remainder_mbs = N_meshblocks % Nranks
-            current_gid_start_for_rank = 0
-            for r_idx in range(Nranks):
-                num_mbs_for_this_rank = mb_per_rank_base + (1 if r_idx < remainder_mbs else 0)
-                if gid < current_gid_start_for_rank + num_mbs_for_this_rank:
-                    i_rank = r_idx
-                    local_mb_idx = gid - current_gid_start_for_rank
-                    break
-                current_gid_start_for_rank += num_mbs_for_this_rank
-
-            files = np.sort(glob.glob(f'data/data_{sim_name}/bin/rank_{i_rank:08d}/Turb.full_mhd_w_bcc.*.bin'))
-            if len(files) == 0:
-                continue
-            # Select file based on file_number parameter
-            if file_number is not None:
-                if file_number == -1:
-                    # Special case: -1 means use the final file
-                    selected_file = files[-1]
-                elif file_number < 0 or file_number >= len(files):
-                    raise ValueError(f"file_number {file_number} is out of range. Available files: {len(files)}")
-                else:
-                    selected_file = files[file_number]
-            else:
-                selected_file = files[-1]
-            # Read meshblock data
-            mb_data = bc.read_single_rank_binary_as_athdf(selected_file, meshblock_index_in_file=local_mb_idx)
-            # Find the index in the meshblock that matches the slice
-            if axis == 1:
-                x1f_mb = mb_data['x1f']
-                idx = np.searchsorted(x1f_mb, slice_value) - 1
-                if 0 <= idx < mb_data[varnames[0]].shape[2]:
-                    j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
-                    k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
-                    for var in varnames:
-                        slice_data[var][k_start:k_start+nx3_meshblock, j_start:j_start+nx2_meshblock] = mb_data[var][:, :, idx]
-            elif axis == 2:
-                x2f_mb = mb_data['x2f']
-                idx = np.searchsorted(x2f_mb, slice_value) - 1
-                if 0 <= idx < mb_data[varnames[0]].shape[1]:
-                    i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
-                    k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
-                    for var in varnames:
-                        slice_data[var][k_start:k_start+nx3_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][:, idx, :]
-            elif axis == 3:
-                x3f_mb = mb_data['x3f']
-                idx = np.searchsorted(x3f_mb, slice_value) - 1
-                if 0 <= idx < mb_data[varnames[0]].shape[0]:
-                    i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
-                    j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
-                    for var in varnames:
-                        slice_data[var][j_start:j_start+nx2_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][idx, :, :]
+            mb_data = _meshblock_data(_manifest_record_for_gid(gid))
+            _copy_meshblock_plane(slice_data, mb_data, slice_coord, i_start, j_start, k_start, varnames)
 
         # ----------------------------------------------------------------------------------
         # Compute vorticity (omega = curl v) and current (J = curl B) on the extracted slice
@@ -372,89 +492,20 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
     
         # Helper to fill a slice_data-like dict for a given slice value but only for the
         # variables listed in `needed_vec_vars`.
-        def _fill_single_slice(target_value):
+        def _fill_single_slice(target_idx):
             out = {var: np.full(slice_shape, np.nan) for var in needed_vec_vars}
-            # Re-run the meshblock loop (copy–pasted inner logic but stripped to essentials)
+            target_value = slice_centres[target_idx]
             for gid in range(N_meshblocks):
-                i3, i2, i1 = Morton_int_to_array(gid)
-                mb_x1_min = -0.5 + i1 * nx1_meshblock / Nres
-                mb_x1_max = mb_x1_min + nx1_meshblock / Nres
-                mb_x2_min = -0.5 + i2 * nx2_meshblock / Nres
-                mb_x2_max = mb_x2_min + nx2_meshblock / Nres
-                mb_x3_min = -0.5 + i3 * nx3_meshblock / Nres
-                mb_x3_max = mb_x3_min + nx3_meshblock / Nres
-    
-                if axis == 1 and not (mb_x1_min <= target_value <= mb_x1_max):
+                i_start, j_start, k_start, bounds = _meshblock_info(gid)
+                mb_min, mb_max = bounds[axis - 1]
+                if not (mb_min <= target_value < mb_max):
                     continue
-                if axis == 2 and not (mb_x2_min <= target_value <= mb_x2_max):
-                    continue
-                if axis == 3 and not (mb_x3_min <= target_value <= mb_x3_max):
-                    continue
-    
-                # Map meshblock → rank, local index
-                mb_per_rank_base = N_meshblocks // Nranks
-                remainder_mbs = N_meshblocks % Nranks
-                current_gid_start_for_rank = 0
-                for r_idx in range(Nranks):
-                    num_mbs_for_this_rank = mb_per_rank_base + (1 if r_idx < remainder_mbs else 0)
-                    if gid < current_gid_start_for_rank + num_mbs_for_this_rank:
-                        i_rank = r_idx
-                        local_mb_idx = gid - current_gid_start_for_rank
-                        break
-                    current_gid_start_for_rank += num_mbs_for_this_rank
-    
-                files = np.sort(glob.glob(f'data/data_{sim_name}/bin/rank_{i_rank:08d}/Turb.full_mhd_w_bcc.*.bin'))
-                if len(files) == 0:
-                    continue
-                if file_number is not None:
-                    if file_number == -1:
-                        selected_file = files[-1]
-                    else:
-                        selected_file = files[file_number]
-                else:
-                    selected_file = files[-1]
-                mb_data = bc.read_single_rank_binary_as_athdf(selected_file, meshblock_index_in_file=local_mb_idx)
-    
-                if axis == 1:
-                    x1f_mb = mb_data['x1f']
-                    idx = np.searchsorted(x1f_mb, target_value) - 1
-                    if 0 <= idx < mb_data[needed_vec_vars[0]].shape[2]:
-                        j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
-                        k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
-                        for var in needed_vec_vars:
-                            out[var][k_start:k_start+nx3_meshblock, j_start:j_start+nx2_meshblock] = mb_data[var][:, :, idx]
-                elif axis == 2:
-                    x2f_mb = mb_data['x2f']
-                    idx = np.searchsorted(x2f_mb, target_value) - 1
-                    if 0 <= idx < mb_data[needed_vec_vars[0]].shape[1]:
-                        i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
-                        k_start = int(np.floor((mb_x3_min + 0.5) * Nres))
-                        for var in needed_vec_vars:
-                            out[var][k_start:k_start+nx3_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][:, idx, :]
-                elif axis == 3:
-                    x3f_mb = mb_data['x3f']
-                    idx = np.searchsorted(x3f_mb, target_value) - 1
-                    if 0 <= idx < mb_data[needed_vec_vars[0]].shape[0]:
-                        i_start = int(np.floor((mb_x1_min + 0.5) * Nres))
-                        j_start = int(np.floor((mb_x2_min + 0.5) * Nres))
-                        for var in needed_vec_vars:
-                            out[var][j_start:j_start+nx2_meshblock, i_start:i_start+nx1_meshblock] = mb_data[var][idx, :, :]
+                mb_data = _meshblock_data(_manifest_record_for_gid(gid))
+                _copy_meshblock_plane(out, mb_data, target_value, i_start, j_start, k_start, needed_vec_vars)
             return out
     
-        # Identify neighbouring slice indices with periodic wrapping
-        axis_edges = {
-            1: x1f,
-            2: x2f,
-            3: x3f,
-        }[axis]
-        axis_centres = 0.5 * (axis_edges[:-1] + axis_edges[1:])
-        slice_idx_minus = (slice_idx - 1) % Nres
-        slice_idx_plus  = (slice_idx + 1) % Nres
-        slice_val_minus = axis_centres[slice_idx_minus]
-        slice_val_plus  = axis_centres[slice_idx_plus]
-    
-        minus_slice = _fill_single_slice(slice_val_minus)
-        plus_slice  = _fill_single_slice(slice_val_plus)
+        minus_slice = _fill_single_slice(slice_idx_minus)
+        plus_slice = _fill_single_slice(slice_idx_plus)
     
         # Grid spacing (assumed uniform but computed from edges)
         dx = x1f[1] - x1f[0]
@@ -468,21 +519,6 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
         bxc, byc, bzc = slice_data['bcc1'], slice_data['bcc2'], slice_data['bcc3']
         bxp, byp, bzp = plus_slice['bcc1'], plus_slice['bcc2'], plus_slice['bcc3']
         bxm, bym, bzm = minus_slice['bcc1'], minus_slice['bcc2'], minus_slice['bcc3']
-    
-        # Derivative helpers (periodic via np.roll)
-        def d_dy(arr):
-            if axis == 1:
-                return (np.roll(arr, -1, axis=1) - np.roll(arr, 1, axis=1)) / (2 * dy)
-            elif axis == 3:
-                return (np.roll(arr, -1, axis=0) - np.roll(arr, 1, axis=0)) / (2 * dy)
-            else:  # axis == 2 → y is off-plane
-                return (plus_slice[arr_name] - minus_slice[arr_name]) / (2 * dy)  # placeholder, replaced below
-    
-        def d_dz(arr):
-            if axis in (1, 2):  # within plane, k dimension is first axis
-                return (np.roll(arr, -1, axis=0) - np.roll(arr, 1, axis=0)) / (2 * dz)
-            else:  # axis == 3, z is off-plane
-                return (plus_slice[arr_name] - minus_slice[arr_name]) / (2 * dz)  # placeholder
     
         # Because the mapping of (x,y,z) derivatives depends on the slice orientation
         # we treat each case explicitly to keep the logic clear.
@@ -664,6 +700,16 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
         slice_data['grad_rho_x'] = grad_rho_x
         slice_data['grad_rho_y'] = grad_rho_y
         slice_data['grad_rho_z'] = grad_rho_z
+
+        # A partially assembled plane is scientifically unusable.  Failing
+        # here prevents a missing rank file or incomplete meshblock mapping
+        # from becoming a successful-looking cache that later drops samples.
+        for name, values in slice_data.items():
+            if values.shape != slice_shape or not np.isfinite(values).all():
+                raise RuntimeError(
+                    f"Extracted slice contains incomplete or non-finite {name}: "
+                    f"shape={values.shape}, expected={slice_shape}"
+                )
     
         # ------------------------------------------------------------------
         # Save to cache if requested and return -----------------------------
@@ -671,16 +717,21 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
         if save:
             # Double-check in case another process finished while we were computing
             if os.path.exists(cache_fname):
-                print(f"[extract_2d_slice] Cache became available after computation: {cache_fname}")
-                cache_status = "cache_ready_after_wait"
-                with np.load(cache_fname, allow_pickle=True) as npz:
-                    return {k: npz[k] for k in npz.files}
+                cached = _load_valid_cache(cache_fname, slice_shape, varnames)
+                if cached is not None:
+                    print(f"[extract_2d_slice] Cache became available after computation: {cache_fname}")
+                    cache_status = "cache_ready_after_wait"
+                    return cached
 
             try:
-                np.savez(cache_fname, **slice_data)
+                tmp_cache = f"{cache_fname}.tmp.{os.getpid()}.npz"
+                np.savez(tmp_cache, **slice_data)
+                os.replace(tmp_cache, cache_fname)
                 cache_status = "cached_after_compute"
             except Exception as err:
                 # Do not fail the main path if caching fails; just warn.
+                if "tmp_cache" in locals() and os.path.exists(tmp_cache):
+                    os.remove(tmp_cache)
                 print(f"[extract_2d_slice] Warning: could not write cache '{cache_fname}': {err}")
 
             print(f"[extract_2d_slice] Completed status={cache_status} cache={cache_fname}")
@@ -689,4 +740,9 @@ def extract_2d_slice(sim_name, axis, slice_value, file_number=None, *, save=True
             print("[extract_2d_slice] Completed (no cache write requested)")
             return slice_data
     finally:
+        if lock_acquired and lock_path is not None:
+            try:
+                os.remove(lock_path)
+            except FileNotFoundError:
+                pass
         print(f"[extract_2d_slice] Finished sim={sim_name} axis={axis} slice={slice_value} hits={hits} elapsed={time.time()-start_time:.1f}s")

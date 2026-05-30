@@ -40,8 +40,13 @@ Thumbs.db
 
 # Test and debugging artifacts
 test_*.py
+!tests/test_directional.py
+!tests/test_histogram_results.py
+!tests/test_plotting_reducers.py
+!tests/test_rank_manifest.py
 *_diagnostic.py
 *_REPORT*.md
+!docs/AUDIT_REPORT.md
 *_FIX*.md
 *_fixes_summary.md
 
@@ -59,6 +64,7 @@ slice_data/my_slices.txt
 # Temporary scripts
 check_slice_fields.py
 bin_convert_new.py
+!sfunctor/io/bin_convert_new.py
 
 # Personal notebooks
 *_mine.ipynb
