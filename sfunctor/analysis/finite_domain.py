@@ -371,8 +371,10 @@ def result_to_npz_payload(result: FiniteDomainResult) -> dict[str, object]:
 
     metadata = {
         "pair_mode": result.pair_mode,
+        "stencil_width": result.stencil_width,
         "cube_shape_kji": result.cube_shape_kji,
         "nested_core_bounds_kji": result.nested_core_bounds_kji,
+        "shell_core_bounds_kji": result.shell_core_bounds_kji,
         "rho0": result.rho0,
         "rho0_provenance": result.rho0_provenance,
         "cell_sizes": result.cell_sizes,
@@ -382,7 +384,11 @@ def result_to_npz_payload(result: FiniteDomainResult) -> dict[str, object]:
         "seed": result.seed,
         "elapsed_seconds": result.elapsed_seconds,
         "out_of_range_displacements": result.out_of_range_displacements,
-        "uncertainty_note": "standard_error is sampling noise only; spatial pairs are correlated",
+        "block_shape_kji": result.block_shape_kji,
+        "block_assignment": result.block_assignment,
+        "support_displacements_sha256": result.support_displacements_sha256,
+        "support_displacement_count": result.support_displacement_count,
+        "uncertainty_note": "standard_error is pair-sampling noise only; use block accumulators for spatial uncertainty",
     }
     return {
         "q_names": np.asarray(result.q_names),
@@ -410,5 +416,23 @@ def result_to_npz_payload(result: FiniteDomainResult) -> dict[str, object]:
         "eligible_pairs_per_displacement": result.eligible_pairs_per_displacement,
         "cube_candidate_pairs_per_displacement": result.cube_candidate_pairs_per_displacement,
         "excluded_boundary_pairs_per_displacement": result.excluded_boundary_pairs_per_displacement,
+        "intrinsic_eligible_origins": result.intrinsic_eligible_origins,
+        "boundary_excluded_origins": result.boundary_excluded_origins,
+        "support_policy_excluded_origins": result.support_policy_excluded_origins,
+        "intrinsic_eligible_origins_per_displacement": result.intrinsic_eligible_origins_per_displacement,
+        "boundary_excluded_origins_per_displacement": result.boundary_excluded_origins_per_displacement,
+        "support_policy_excluded_origins_per_displacement": result.support_policy_excluded_origins_per_displacement,
+        **(
+            {
+                "block_counts": result.block_counts,
+                "block_sums": result.block_sums,
+                "block_sums_sq": result.block_sums_sq,
+                "block_sampled_origins": result.block_sampled_origins,
+                "block_eligible_origins": result.block_eligible_origins,
+                "block_exclusions": result.block_exclusions,
+            }
+            if result.block_counts is not None
+            else {}
+        ),
         "metadata_json": np.asarray(json.dumps(metadata, sort_keys=True)),
     }

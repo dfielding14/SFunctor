@@ -37,6 +37,7 @@ from sfunctor.core.finite_domain import (
     cube_offset_to_vector,
     generate_fibonacci_displacements,
     nested_core_bounds_kji,
+    stencil_definition,
     valid_origin_bounds_kji,
 )
 
@@ -65,5 +66,6 @@ __all__ = [
     "cube_offset_to_vector",
     "generate_fibonacci_displacements",
     "nested_core_bounds_kji",
+    "stencil_definition",
     "valid_origin_bounds_kji",
 ]

@@ -50,8 +50,12 @@ test_*.py
 !tests/test_phase1_cbin_tools.py
 !tests/test_phase1_analysis.py
 !tests/test_phase3_sampler.py
+!tests/test_phase3a_parallel.py
+!tests/test_phase3a_analysis.py
+!tests/test_phase3a_runner.py
 *_diagnostic.py
 *_REPORT*.md
+!PHASE3A_STATUS_UPDATE.md
 !docs/AUDIT_REPORT.md
 !docs/PHASE1_EXECUTION_REPORT.md
 *_FIX*.md

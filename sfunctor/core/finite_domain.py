@@ -23,6 +23,7 @@ __all__ = [
     "FINITE_DOMAIN_GEOMETRY_NAMES",
     "MEASUREMENT_NAMES",
     "PAIR_MODES",
+    "STENCIL_WIDTHS",
     "FiniteDomainConfig",
     "FiniteDomainResult",
     "build_cube_q_variants",
@@ -30,13 +31,15 @@ __all__ = [
     "cube_offset_to_vector",
     "generate_fibonacci_displacements",
     "nested_core_bounds_kji",
+    "stencil_definition",
     "valid_origin_bounds_kji",
 ]
 
 
 FINITE_DOMAIN_GEOMETRY_NAMES = ("pair_local", "subvolume_mean")
 MEASUREMENT_NAMES = ("total", "perpendicular")
-PAIR_MODES = ("nested_core", "all_valid_pairs")
+PAIR_MODES = ("nested_core", "shell_local", "all_valid_pairs", "all_valid_origins")
+STENCIL_WIDTHS = (2, 3, 5)
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,8 @@ class FiniteDomainConfig:
     q_perp_epsilon: float = 1.0e-12
     r_perp_epsilon: float = 1.0e-12
     include_subvolume_mean: bool = True
+    stencil_width: int = 2
+    block_shape_kji: tuple[int, int, int] | None = None
 
     def __post_init__(self) -> None:
         edges = np.asarray(self.ell_bin_edges, dtype=float)
@@ -76,6 +81,15 @@ class FiniteDomainConfig:
             raise ValueError("cell_sizes must be positive")
         if self.pair_mode not in PAIR_MODES:
             raise ValueError(f"pair_mode must be one of {PAIR_MODES}")
+        if self.stencil_width not in STENCIL_WIDTHS:
+            raise ValueError(f"stencil_width must be one of {STENCIL_WIDTHS}")
+        if self.pair_mode == "all_valid_pairs" and self.stencil_width != 2:
+            raise ValueError("all_valid_pairs is a historical 2-point compatibility label")
+        if self.block_shape_kji is not None:
+            block_shape = _require_integer_triplet(
+                self.block_shape_kji, "block_shape_kji", positive=True
+            )
+            object.__setattr__(self, "block_shape_kji", block_shape)
         if self.sample_count is not None and (
             isinstance(self.sample_count, (bool, np.bool_))
             or not isinstance(self.sample_count, (int, np.integer))
@@ -149,6 +163,26 @@ class FiniteDomainResult:
     pair_batch_size: int
     seed: int
     elapsed_seconds: float
+    stencil_width: int = 2
+    shell_core_bounds_kji: tuple[
+        tuple[tuple[int, int], tuple[int, int], tuple[int, int]] | None, ...
+    ] | None = None
+    block_shape_kji: tuple[int, int, int] | None = None
+    block_counts: np.ndarray | None = None
+    block_sums: np.ndarray | None = None
+    block_sums_sq: np.ndarray | None = None
+    support_displacements_sha256: str = ""
+    support_displacement_count: int = 0
+    block_assignment: str | None = None
+    block_sampled_origins: np.ndarray | None = None
+    block_eligible_origins: np.ndarray | None = None
+    block_exclusions: np.ndarray | None = None
+    intrinsic_eligible_origins: np.ndarray | None = None
+    boundary_excluded_origins: np.ndarray | None = None
+    support_policy_excluded_origins: np.ndarray | None = None
+    intrinsic_eligible_origins_per_displacement: np.ndarray | None = None
+    boundary_excluded_origins_per_displacement: np.ndarray | None = None
+    support_policy_excluded_origins_per_displacement: np.ndarray | None = None
 
     @property
     def moments(self) -> np.ndarray:
@@ -173,10 +207,33 @@ class FiniteDomainResult:
         out[mask] = np.sqrt(numerator / (self.counts[mask] * (self.counts[mask] - 1)))
         return out
 
+    @property
+    def sampled_origins(self) -> np.ndarray:
+        """Return sampled valid stencil origins; ``sampled_pairs`` is the compatibility name."""
+
+        return self.sampled_pairs
+
+    @property
+    def eligible_origins(self) -> np.ndarray:
+        """Return selected support-policy origins; ``eligible_pairs`` is the compatibility name."""
+
+        return self.eligible_pairs
+
 
 def _as_cube_vector(cube_data: Mapping[str, np.ndarray], prefix: str) -> np.ndarray:
     """Return Cartesian components with shape ``(3, nk, nj, ni)``."""
 
+    prebuilt = cube_data.get(f"_{prefix}_vector")
+    if prebuilt is not None:
+        vector = np.asarray(prebuilt)
+        if vector.ndim != 4 or vector.shape[0] != 3:
+            raise ValueError(f"_{prefix}_vector must have shape (3, nk, nj, ni)")
+        component_shape = np.asarray(cube_data[f"{prefix}_x"]).shape
+        if vector.shape[1:] != component_shape:
+            raise ValueError(
+                f"_{prefix}_vector spatial shape must match {prefix} component arrays"
+            )
+        return vector
     arrays = [np.asarray(cube_data[f"{prefix}_{component}"]) for component in "xyz"]
     if any(array.ndim != 3 for array in arrays):
         raise ValueError(f"{prefix} components must be 3-D KJI cube arrays")
@@ -311,15 +368,20 @@ def cube_offset_to_vector(
 def valid_origin_bounds_kji(
     shape_kji: Sequence[int],
     displacement_ijk: Sequence[int],
+    stencil_width: int = 2,
 ) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
-    """Return half-open KJI origin bounds whose displaced endpoints are valid."""
+    """Return half-open KJI origin bounds whose stencil points are valid."""
 
     nk, nj, ni = _require_integer_triplet(shape_kji, "shape_kji", positive=True)
     di, dj, dk = _require_integer_triplet(displacement_ijk, "displacement_ijk")
+    multipliers, _, _ = stencil_definition(stencil_width)
     bounds = (
-        (max(0, -dk), min(nk, nk - dk)),
-        (max(0, -dj), min(nj, nj - dj)),
-        (max(0, -di), min(ni, ni - di)),
+        (max(0, max(-multiplier * dk for multiplier in multipliers)),
+         min(nk, min(nk - multiplier * dk for multiplier in multipliers))),
+        (max(0, max(-multiplier * dj for multiplier in multipliers)),
+         min(nj, min(nj - multiplier * dj for multiplier in multipliers))),
+        (max(0, max(-multiplier * di for multiplier in multipliers)),
+         min(ni, min(ni - multiplier * di for multiplier in multipliers))),
     )
     if any(stop < start for start, stop in bounds):
         return ((0, 0), (0, 0), (0, 0))
@@ -329,20 +391,45 @@ def valid_origin_bounds_kji(
 def nested_core_bounds_kji(
     shape_kji: Sequence[int],
     displacements_ijk: np.ndarray,
+    stencil_width: int = 2,
 ) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int]]:
     """Return one KJI core whose origins are valid for every displacement."""
 
     displacements = _require_integer_displacements(displacements_ijk)
-    nk, nj, ni = _require_integer_triplet(shape_kji, "shape_kji", positive=True)
-    di, dj, dk = displacements.T
-    bounds = (
-        (max(0, int(-dk.min())), min(nk, int(nk - dk.max()))),
-        (max(0, int(-dj.min())), min(nj, int(nj - dj.max()))),
-        (max(0, int(-di.min())), min(ni, int(ni - di.max()))),
+    per_offset = [
+        valid_origin_bounds_kji(shape_kji, displacement, stencil_width)
+        for displacement in displacements
+    ]
+    bounds = tuple(
+        (
+            max(bounds_for_offset[axis][0] for bounds_for_offset in per_offset),
+            min(bounds_for_offset[axis][1] for bounds_for_offset in per_offset),
+        )
+        for axis in range(3)
     )
     if any(stop <= start for start, stop in bounds):
         raise ValueError("displacements leave no non-empty nested core")
     return bounds
+
+
+def stencil_definition(stencil_width: int) -> tuple[tuple[int, ...], np.ndarray, np.ndarray]:
+    """Return stencil multipliers, normalized increment weights, and local-B weights."""
+
+    if stencil_width == 2:
+        return (0, 1), np.asarray((-1.0, 1.0)), np.asarray((0.5, 0.5))
+    if stencil_width == 3:
+        return (
+            (-1, 0, 1),
+            np.asarray((1.0, -2.0, 1.0)) / np.sqrt(3.0),
+            np.asarray((1.0, 1.0, 1.0)) / 3.0,
+        )
+    if stencil_width == 5:
+        return (
+            (-2, -1, 0, 1, 2),
+            np.asarray((1.0, -4.0, 6.0, -4.0, 1.0)) / np.sqrt(35.0),
+            np.asarray((1.0, 4.0, 6.0, 4.0, 1.0)) / 16.0,
+        )
+    raise ValueError(f"stencil_width must be one of {STENCIL_WIDTHS}")
 
 
 def _require_integer_displacements(displacements_ijk: np.ndarray) -> np.ndarray:
@@ -396,8 +483,70 @@ def _origin_arrays(
     return k_rel + bounds[0][0], j_rel + bounds[1][0], i_rel + bounds[2][0]
 
 
+def _origin_block_ids(
+    origins_kji: tuple[np.ndarray, np.ndarray, np.ndarray],
+    cube_shape_kji: tuple[int, int, int],
+    block_shape_kji: tuple[int, int, int] | None,
+    displacement_ijk: Sequence[int],
+    stencil_width: int,
+) -> np.ndarray | None:
+    """Assign every tuple by stencil midpoint, preserving signed-offset symmetry."""
+
+    if block_shape_kji is None:
+        return None
+    block_grid = tuple(
+        (size + block - 1) // block
+        for size, block in zip(cube_shape_kji, block_shape_kji)
+    )
+    di, dj, dk = _require_integer_triplet(displacement_ijk, "displacement_ijk")
+    k, j, i = origins_kji
+    if stencil_width == 2:
+        block_k = (2 * k + dk) // (2 * block_shape_kji[0])
+        block_j = (2 * j + dj) // (2 * block_shape_kji[1])
+        block_i = (2 * i + di) // (2 * block_shape_kji[2])
+    else:
+        block_k = k // block_shape_kji[0]
+        block_j = j // block_shape_kji[1]
+        block_i = i // block_shape_kji[2]
+    return (block_k * block_grid[1] + block_j) * block_grid[2] + block_i
+
+
+def _block_population_for_bounds(
+    bounds: tuple[tuple[int, int], tuple[int, int], tuple[int, int]],
+    cube_shape_kji: tuple[int, int, int],
+    block_shape_kji: tuple[int, int, int] | None,
+    displacement_ijk: Sequence[int],
+    stencil_width: int,
+) -> np.ndarray | None:
+    """Return exact origin populations by midpoint block for one bounds box."""
+
+    if block_shape_kji is None:
+        return None
+    block_grid = tuple(
+        (size + block - 1) // block
+        for size, block in zip(cube_shape_kji, block_shape_kji)
+    )
+    axis_origins = tuple(np.arange(start, stop, dtype=np.int64) for start, stop in bounds)
+    di, dj, dk = _require_integer_triplet(displacement_ijk, "displacement_ijk")
+    shifts_kji = (dk, dj, di)
+    populations = []
+    for axis, values in enumerate(axis_origins):
+        assigned = (
+            (2 * values + shifts_kji[axis]) // (2 * block_shape_kji[axis])
+            if stencil_width == 2
+            else values // block_shape_kji[axis]
+        )
+        populations.append(np.bincount(assigned, minlength=block_grid[axis]))
+    return np.einsum("k,j,i->kji", *populations).reshape(-1)
+
+
 def _offset_seed(seed: int, displacement_ijk: Sequence[int]) -> int:
     payload = json.dumps([int(seed), *(int(value) for value in displacement_ijk)]).encode()
+    return int.from_bytes(hashlib.sha256(payload).digest()[:8], "little", signed=False)
+
+
+def _shell_seed(seed: int, ell_index: int) -> int:
+    payload = json.dumps([int(seed), "shell", int(ell_index)]).encode()
     return int.from_bytes(hashlib.sha256(payload).digest()[:8], "little", signed=False)
 
 
@@ -417,6 +566,7 @@ def _allocate_result(
     rho0: float,
     rho0_provenance: str,
     displacements_ijk: np.ndarray,
+    support_displacements_ijk: np.ndarray,
 ) -> FiniteDomainResult:
     n_ell = config.ell_bin_edges.size - 1
     displacement_count = len(displacements_ijk)
@@ -429,6 +579,19 @@ def _allocate_result(
         n_ell,
     )
     exclusions_shape = (len(q_fields), len(geometry_names), len(EXCLUSION_NAMES), n_ell)
+    block_count = (
+        int(
+            np.prod(
+                [
+                    (size + block - 1) // block
+                    for size, block in zip(cube_shape_kji, config.block_shape_kji)
+                ],
+                dtype=np.int64,
+            )
+        )
+        if config.block_shape_kji is not None
+        else 0
+    )
     return FiniteDomainResult(
         q_names=tuple(q_fields),
         density_conventions=tuple(field.density_convention for field in q_fields.values()),
@@ -470,6 +633,23 @@ def _allocate_result(
         pair_batch_size=config.pair_batch_size,
         seed=config.seed,
         elapsed_seconds=0.0,
+        stencil_width=config.stencil_width,
+        block_shape_kji=config.block_shape_kji,
+        block_counts=np.zeros((block_count, *shape), dtype=np.int64) if block_count else None,
+        block_sums=np.zeros((block_count, *shape), dtype=float) if block_count else None,
+        block_sums_sq=np.zeros((block_count, *shape), dtype=float) if block_count else None,
+        support_displacements_sha256=hashlib.sha256(support_displacements_ijk.tobytes()).hexdigest(),
+        support_displacement_count=len(support_displacements_ijk),
+        block_assignment="stencil_midpoint" if block_count else None,
+        block_sampled_origins=np.zeros((block_count, n_ell), dtype=np.int64) if block_count else None,
+        block_eligible_origins=np.zeros((block_count, n_ell), dtype=np.int64) if block_count else None,
+        block_exclusions=np.zeros((block_count, *exclusions_shape), dtype=np.int64) if block_count else None,
+        intrinsic_eligible_origins=np.zeros(n_ell, dtype=np.int64),
+        boundary_excluded_origins=np.zeros(n_ell, dtype=np.int64),
+        support_policy_excluded_origins=np.zeros(n_ell, dtype=np.int64),
+        intrinsic_eligible_origins_per_displacement=np.zeros(displacement_count, dtype=np.int64),
+        boundary_excluded_origins_per_displacement=np.zeros(displacement_count, dtype=np.int64),
+        support_policy_excluded_origins_per_displacement=np.zeros(displacement_count, dtype=np.int64),
     )
 
 
@@ -480,6 +660,7 @@ def _accumulate(
     result: FiniteDomainResult,
     index_prefix: tuple[int, int, int, int],
     ell_index: int,
+    block_ids: np.ndarray | None = None,
 ) -> None:
     selected = magnitudes[mask]
     if not selected.size:
@@ -502,6 +683,38 @@ def _accumulate(
         result.counts[index] += values.size
         result.sums[index] = cumulative_sum
         result.sums_sq[index] = cumulative_sum_sq
+        if block_ids is not None:
+            assert result.block_counts is not None
+            assert result.block_sums is not None
+            assert result.block_sums_sq is not None
+            selected_blocks = block_ids[mask]
+            block_count = result.block_counts.shape[0]
+            result.block_counts[(slice(None), *index)] += np.bincount(
+                selected_blocks, minlength=block_count
+            )
+            result.block_sums[(slice(None), *index)] += np.bincount(
+                selected_blocks, weights=values, minlength=block_count
+            )
+            result.block_sums_sq[(slice(None), *index)] += np.bincount(
+                selected_blocks, weights=np.square(values), minlength=block_count
+            )
+
+
+def _accumulate_block_exclusion(
+    result: FiniteDomainResult,
+    block_ids: np.ndarray | None,
+    mask: np.ndarray,
+    q_index: int,
+    geometry_index: int,
+    exclusion_index: int,
+    ell_index: int,
+) -> None:
+    if block_ids is None:
+        return
+    assert result.block_exclusions is not None
+    result.block_exclusions[:, q_index, geometry_index, exclusion_index, ell_index] += np.bincount(
+        block_ids[mask], minlength=result.block_exclusions.shape[0]
+    )
 
 
 def compute_finite_domain_structure_functions(
@@ -513,22 +726,37 @@ def compute_finite_domain_structure_functions(
     rho0_provenance: str | None = None,
     rho_floor: float = 0.0,
     q_names: Sequence[str] | None = None,
+    support_displacements_ijk: np.ndarray | None = None,
 ) -> FiniteDomainResult:
     """Compute non-periodic 3-D conditional structure functions.
 
     Nested-core mode samples one common inner origin set that is valid for all
-    configured offsets. All-valid-pairs mode uses the largest valid origin box
-    for each individual offset. Neither mode applies periodic wrapping.
+    configured offsets. Shell-local mode uses one common origin box and sample
+    per separation bin. All-valid-origin modes use the largest valid origin
+    box for each individual offset. No mode applies periodic wrapping.
     """
 
     started = perf_counter()
     displacements = _require_integer_displacements(displacements_ijk)
+    support_displacements = (
+        displacements
+        if support_displacements_ijk is None
+        else _require_integer_displacements(support_displacements_ijk)
+    )
     if np.any(np.all(displacements == 0, axis=1)):
         raise ValueError("zero displacement is not permitted")
+    if np.any(np.all(support_displacements == 0, axis=1)):
+        raise ValueError("zero support displacement is not permitted")
     if len({tuple(row) for row in displacements.tolist()}) != len(displacements):
         raise ValueError("displacements_ijk must not contain duplicates")
+    if len({tuple(row) for row in support_displacements.tolist()}) != len(support_displacements):
+        raise ValueError("support_displacements_ijk must not contain duplicates")
+    measured_offsets = {tuple(row) for row in displacements.tolist()}
+    support_offsets = {tuple(row) for row in support_displacements.tolist()}
+    if not measured_offsets <= support_offsets:
+        raise ValueError("every measured displacement must belong to support_displacements_ijk")
     if config.pair_mode == "nested_core":
-        _require_signed_closure(displacements)
+        _require_signed_closure(support_displacements)
 
     inferred_rho0 = rho0 is None
     B, q_fields, rho0 = build_cube_q_variants(
@@ -560,13 +788,52 @@ def compute_finite_domain_structure_functions(
         ],
         dtype=np.int64,
     ).reshape((-1, 3))
+    in_range_support_displacements = np.asarray(
+        [
+            displacement
+            for displacement in support_displacements
+            if _ell_bin_index(
+                float(np.linalg.norm(cube_offset_to_vector(displacement, config.cell_sizes))),
+                config.ell_bin_edges,
+            )
+            >= 0
+        ],
+        dtype=np.int64,
+    ).reshape((-1, 3))
     if config.pair_mode == "nested_core" and not in_range_displacements.size:
         raise ValueError("no in-range displacements remain for nested_core")
     core_bounds = (
-        nested_core_bounds_kji(cube_shape_kji, in_range_displacements)
+        nested_core_bounds_kji(
+            cube_shape_kji, in_range_support_displacements, config.stencil_width
+        )
         if config.pair_mode == "nested_core"
         else None
     )
+    shell_bounds: list[
+        tuple[tuple[int, int], tuple[int, int], tuple[int, int]] | None
+    ] = [None] * (config.ell_bin_edges.size - 1)
+    if config.pair_mode == "shell_local":
+        for ell_index in range(len(shell_bounds)):
+            members = np.asarray(
+                [
+                    displacement
+                    for displacement in in_range_support_displacements
+                    if _ell_bin_index(
+                        float(np.linalg.norm(cube_offset_to_vector(displacement, config.cell_sizes))),
+                        config.ell_bin_edges,
+                    )
+                    == ell_index
+                ],
+                dtype=np.int64,
+            ).reshape((-1, 3))
+            if not members.size:
+                continue
+            try:
+                shell_bounds[ell_index] = nested_core_bounds_kji(
+                    cube_shape_kji, members, config.stencil_width
+                )
+            except ValueError:
+                shell_bounds[ell_index] = ((0, 0), (0, 0), (0, 0))
     result = _allocate_result(
         q_fields,
         geometry_names,
@@ -576,7 +843,9 @@ def compute_finite_domain_structure_functions(
         rho0,
         rho0_provenance,
         displacements,
+        support_displacements,
     )
+    result.shell_core_bounds_kji = tuple(shell_bounds) if config.pair_mode == "shell_local" else None
     finite_B_points = _finite_vector(B)
     B_mean_sub = (
         np.mean(B[:, finite_B_points], axis=1, dtype=np.float64)
@@ -586,6 +855,13 @@ def compute_finite_domain_structure_functions(
     cube_cell_count = int(np.prod(cube_shape_kji, dtype=np.int64))
     exclusion_index = {name: index for index, name in enumerate(EXCLUSION_NAMES)}
     shared_origins = _origin_arrays(core_bounds, config.sample_count, config.seed) if core_bounds else None
+    shell_origins = [
+        _origin_arrays(bounds, config.sample_count, _shell_seed(config.seed, ell_index))
+        if bounds is not None
+        else None
+        for ell_index, bounds in enumerate(shell_bounds)
+    ]
+    multipliers, increment_weights, local_B_weights = stencil_definition(config.stencil_width)
 
     for displacement_index, displacement in enumerate(displacements):
         r_vector = cube_offset_to_vector(displacement, config.cell_sizes)
@@ -595,19 +871,56 @@ def compute_finite_domain_structure_functions(
             result.out_of_range_displacements += 1
             continue
         result.displacements_per_bin[ell_index] += 1
-        bounds = core_bounds or valid_origin_bounds_kji(cube_shape_kji, displacement)
+        intrinsic_bounds = valid_origin_bounds_kji(
+            cube_shape_kji, displacement, config.stencil_width
+        )
+        bounds = (
+            core_bounds
+            or shell_bounds[ell_index]
+            or intrinsic_bounds
+        )
         eligible = _bounds_size(bounds)
+        intrinsic_eligible = _bounds_size(intrinsic_bounds)
+        boundary_excluded = cube_cell_count - intrinsic_eligible
+        support_policy_excluded = intrinsic_eligible - eligible
+        if support_policy_excluded < 0:
+            raise RuntimeError("support policy retained more origins than intrinsic stencil geometry")
         result.eligible_pairs[ell_index] += eligible
         result.cube_candidate_pairs[ell_index] += cube_cell_count
         result.excluded_boundary_pairs[ell_index] += cube_cell_count - eligible
         result.eligible_pairs_per_displacement[displacement_index] = eligible
         result.cube_candidate_pairs_per_displacement[displacement_index] = cube_cell_count
         result.excluded_boundary_pairs_per_displacement[displacement_index] = cube_cell_count - eligible
+        assert result.intrinsic_eligible_origins is not None
+        assert result.boundary_excluded_origins is not None
+        assert result.support_policy_excluded_origins is not None
+        assert result.intrinsic_eligible_origins_per_displacement is not None
+        assert result.boundary_excluded_origins_per_displacement is not None
+        assert result.support_policy_excluded_origins_per_displacement is not None
+        result.intrinsic_eligible_origins[ell_index] += intrinsic_eligible
+        result.boundary_excluded_origins[ell_index] += boundary_excluded
+        result.support_policy_excluded_origins[ell_index] += support_policy_excluded
+        result.intrinsic_eligible_origins_per_displacement[displacement_index] = intrinsic_eligible
+        result.boundary_excluded_origins_per_displacement[displacement_index] = boundary_excluded
+        result.support_policy_excluded_origins_per_displacement[displacement_index] = support_policy_excluded
+        block_eligible = _block_population_for_bounds(
+            bounds,
+            cube_shape_kji,
+            config.block_shape_kji,
+            displacement,
+            config.stencil_width,
+        )
+        if block_eligible is not None:
+            assert result.block_eligible_origins is not None
+            result.block_eligible_origins[:, ell_index] += block_eligible
         origins = (
             shared_origins
             if shared_origins is not None
+            else shell_origins[ell_index]
+            if shell_origins[ell_index] is not None
             else _origin_arrays(bounds, config.sample_count, _offset_seed(config.seed, displacement))
         )
+        assert origins is not None
         sampled = origins[0].size
         result.sampled_pairs[ell_index] += sampled
         result.sampled_pairs_per_displacement[displacement_index] = sampled
@@ -616,24 +929,43 @@ def compute_finite_domain_structure_functions(
         for begin in range(0, sampled, config.pair_batch_size):
             stop = min(sampled, begin + config.pair_batch_size)
             k0, j0, i0 = (values[begin:stop] for values in origins)
-            k1, j1, i1 = k0 + dk, j0 + dj, i0 + di
-            if (
-                np.any(k1 < 0) or np.any(k1 >= cube_shape_kji[0])
-                or np.any(j1 < 0) or np.any(j1 >= cube_shape_kji[1])
-                or np.any(i1 < 0) or np.any(i1 >= cube_shape_kji[2])
-            ):
-                raise RuntimeError("finite-domain origin construction produced an invalid endpoint")
+            block_ids = _origin_block_ids(
+                (k0, j0, i0),
+                cube_shape_kji,
+                config.block_shape_kji,
+                displacement,
+                config.stencil_width,
+            )
+            if block_ids is not None:
+                assert result.block_sampled_origins is not None
+                result.block_sampled_origins[:, ell_index] += np.bincount(
+                    block_ids, minlength=result.block_sampled_origins.shape[0]
+                )
+            points = tuple(
+                (k0 + multiplier * dk, j0 + multiplier * dj, i0 + multiplier * di)
+                for multiplier in multipliers
+            )
+            for k_point, j_point, i_point in points:
+                if (
+                    np.any(k_point < 0) or np.any(k_point >= cube_shape_kji[0])
+                    or np.any(j_point < 0) or np.any(j_point >= cube_shape_kji[1])
+                    or np.any(i_point < 0) or np.any(i_point >= cube_shape_kji[2])
+                ):
+                    raise RuntimeError("finite-domain origin construction produced an invalid stencil point")
 
-            B_left = B[:, k0, j0, i0].T
-            B_right = B[:, k1, j1, i1].T
-            finite_B_pair = np.all(np.isfinite(B_left), axis=1) & np.all(np.isfinite(B_right), axis=1)
-            B_loc = 0.5 * (B_left + B_right)
+            B_points = tuple(B[:, k_point, j_point, i_point].T for k_point, j_point, i_point in points)
+            finite_B_stencil = np.logical_and.reduce(
+                [np.all(np.isfinite(values), axis=1) for values in B_points]
+            )
+            B_loc = sum(
+                weight * values for weight, values in zip(local_B_weights, B_points)
+            )
 
             for geometry_index, geometry_name in enumerate(geometry_names):
                 B_direction = B_loc if geometry_name == "pair_local" else np.broadcast_to(B_mean_sub, B_loc.shape)
                 valid_B = np.all(np.isfinite(B_direction), axis=1)
                 if geometry_name == "pair_local":
-                    valid_B &= finite_B_pair
+                    valid_B &= finite_B_stencil
                 B_mag = np.linalg.norm(B_direction, axis=1)
                 valid_parallel = valid_B & (B_mag > config.B_epsilon)
                 e_parallel = np.full_like(B_direction, np.nan, dtype=float)
@@ -645,17 +977,28 @@ def compute_finite_domain_structure_functions(
                 r_perp_mag = np.linalg.norm(r_perp, axis=1)
 
                 for q_index, q_field in enumerate(q_fields.values()):
-                    q_left = q_field.values[:, k0, j0, i0].T
-                    q_right = q_field.values[:, k1, j1, i1].T
-                    valid_q_pair = q_field.valid[k0, j0, i0] & q_field.valid[k1, j1, i1]
-                    valid_q_pair &= np.all(np.isfinite(q_left), axis=1) & np.all(np.isfinite(q_right), axis=1)
+                    q_points = tuple(
+                        q_field.values[:, k_point, j_point, i_point].T
+                        for k_point, j_point, i_point in points
+                    )
+                    valid_q_stencil = np.logical_and.reduce(
+                        [q_field.valid[k_point, j_point, i_point] for k_point, j_point, i_point in points]
+                    )
+                    valid_q_stencil &= np.logical_and.reduce(
+                        [np.all(np.isfinite(values), axis=1) for values in q_points]
+                    )
 
                     result.exclusions[q_index, geometry_index, exclusion_index["invalid_B"], ell_index] += np.count_nonzero(~valid_B)
                     result.exclusions[q_index, geometry_index, exclusion_index["weak_B_direction"], ell_index] += np.count_nonzero(valid_B & ~valid_parallel)
-                    result.exclusions[q_index, geometry_index, exclusion_index["invalid_q"], ell_index] += np.count_nonzero(valid_parallel & ~valid_q_pair)
+                    result.exclusions[q_index, geometry_index, exclusion_index["invalid_q"], ell_index] += np.count_nonzero(valid_parallel & ~valid_q_stencil)
+                    _accumulate_block_exclusion(result, block_ids, ~valid_B, q_index, geometry_index, exclusion_index["invalid_B"], ell_index)
+                    _accumulate_block_exclusion(result, block_ids, valid_B & ~valid_parallel, q_index, geometry_index, exclusion_index["weak_B_direction"], ell_index)
+                    _accumulate_block_exclusion(result, block_ids, valid_parallel & ~valid_q_stencil, q_index, geometry_index, exclusion_index["invalid_q"], ell_index)
 
-                    valid = valid_parallel & valid_q_pair
-                    delta_q = q_right - q_left
+                    valid = valid_parallel & valid_q_stencil
+                    delta_q = sum(
+                        weight * values for weight, values in zip(increment_weights, q_points)
+                    )
                     total_mag = np.linalg.norm(delta_q, axis=1)
                     delta_q_perp = delta_q - np.einsum("ij,ij->i", delta_q, e_parallel)[:, None] * e_parallel
                     q_perp_mag = np.linalg.norm(delta_q_perp, axis=1)
@@ -674,12 +1017,15 @@ def compute_finite_domain_structure_functions(
                                 result,
                                 (q_index, geometry_index, measurement_index, direction_index),
                                 ell_index,
+                                block_ids,
                             )
 
                     valid_q_perp = valid & np.isfinite(q_perp_mag) & (q_perp_mag > config.q_perp_epsilon)
                     valid_r_perp = valid_q_perp & np.isfinite(r_perp_mag) & (r_perp_mag > config.r_perp_epsilon)
                     result.exclusions[q_index, geometry_index, exclusion_index["weak_q_perp_for_phi"], ell_index] += np.count_nonzero(valid & ~valid_q_perp)
                     result.exclusions[q_index, geometry_index, exclusion_index["weak_r_perp_for_phi"], ell_index] += np.count_nonzero(valid_q_perp & ~valid_r_perp)
+                    _accumulate_block_exclusion(result, block_ids, valid & ~valid_q_perp, q_index, geometry_index, exclusion_index["weak_q_perp_for_phi"], ell_index)
+                    _accumulate_block_exclusion(result, block_ids, valid_q_perp & ~valid_r_perp, q_index, geometry_index, exclusion_index["weak_r_perp_for_phi"], ell_index)
                     e_xi = np.full_like(delta_q_perp, np.nan, dtype=float)
                     e_xi[valid_r_perp] = delta_q_perp[valid_r_perp] / q_perp_mag[valid_r_perp, None]
                     phi = folded_angle(r_perp, e_xi)
@@ -697,6 +1043,7 @@ def compute_finite_domain_structure_functions(
                                 result,
                                 (q_index, geometry_index, measurement_index, relative_index + 3),
                                 ell_index,
+                                block_ids,
                             )
     result.elapsed_seconds = perf_counter() - started
     return result
