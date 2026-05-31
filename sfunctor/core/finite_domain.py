@@ -1054,8 +1054,13 @@ def generate_fibonacci_displacements(
     *,
     directions_per_radius: int = 24,
     phase: float = 0.0,
-) -> np.ndarray:
-    """Generate deterministic approximately spherical integer IJK offsets."""
+    return_accounting: bool = False,
+) -> np.ndarray | tuple[np.ndarray, dict[str, int]]:
+    """Generate deterministic approximately spherical integer IJK offsets.
+
+    The optional accounting result separates integer-rounding losses so dense
+    displacement manifests can distinguish zero offsets from duplicates.
+    """
 
     if directions_per_radius < 6:
         raise ValueError("directions_per_radius must be at least 6")
@@ -1065,6 +1070,8 @@ def generate_fibonacci_displacements(
     golden_angle = np.pi * (3.0 - np.sqrt(5.0))
     offsets: list[tuple[int, int, int]] = []
     seen: set[tuple[int, int, int]] = set()
+    zero_offset_count = 0
+    duplicate_offset_count = 0
     if directions_per_radius % 2:
         raise ValueError("directions_per_radius must be even for signed closure")
     for radius in radii:
@@ -1075,10 +1082,20 @@ def generate_fibonacci_displacements(
             vector = radius * np.array([radial * np.cos(angle), radial * np.sin(angle), z])
             offset = tuple(int(value) for value in np.rint(vector))
             for signed_offset in (offset, tuple(-value for value in offset)):
-                if signed_offset == (0, 0, 0) or signed_offset in seen:
+                if signed_offset == (0, 0, 0):
+                    zero_offset_count += 1
+                    continue
+                if signed_offset in seen:
+                    duplicate_offset_count += 1
                     continue
                 seen.add(signed_offset)
                 offsets.append(signed_offset)
     if not offsets:
         raise ValueError("radii produced no nonzero integer displacements")
-    return np.asarray(offsets, dtype=np.int64)
+    output = np.asarray(offsets, dtype=np.int64)
+    if return_accounting:
+        return output, {
+            "post_rounding_zero_offset_removed": zero_offset_count,
+            "post_rounding_duplicate_offset_removed": duplicate_offset_count,
+        }
+    return output

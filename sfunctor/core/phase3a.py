@@ -90,8 +90,11 @@ def dense_displacement_manifest(
         )
     centers = dense_separation_centers(ell_max, bin_count)
     edges = _bin_edges_from_centers(centers)
-    raw = generate_fibonacci_displacements(
-        centers, directions_per_radius=directions_per_bin, phase=phase
+    raw, rounding_accounting = generate_fibonacci_displacements(
+        centers,
+        directions_per_radius=directions_per_bin,
+        phase=phase,
+        return_accounting=True,
     )
     requested_candidate_count = len(centers) * directions_per_bin
     ell = np.linalg.norm(raw.astype(float), axis=1)
@@ -122,7 +125,7 @@ def dense_displacement_manifest(
         "realized_minimum_ell_cells": float(retained_ell.min()),
         "realized_maximum_ell_cells": float(retained_ell.max()),
         "requested_candidate_count": int(requested_candidate_count),
-        "post_rounding_zero_or_duplicate_removed": int(requested_candidate_count - len(raw)),
+        **rounding_accounting,
         "post_rounding_out_of_range_removed": int(len(raw) - len(retained)),
         "signed_closure": True,
         "offsets_sha256": hashlib.sha256(retained.tobytes()).hexdigest(),

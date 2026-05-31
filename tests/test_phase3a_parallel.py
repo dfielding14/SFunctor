@@ -240,6 +240,15 @@ def test_dense_phase3a_design_is_reproducible_closed_and_strictly_bounded():
     assert manifest == second_manifest
     assert np.linalg.norm(first.astype(float), axis=1).max() <= 320
     assert all(tuple(-value for value in offset) in offsets for offset in offsets)
+    assert manifest["post_rounding_zero_offset_removed"] >= 0
+    assert manifest["post_rounding_duplicate_offset_removed"] >= 0
+    assert (
+        manifest["requested_candidate_count"]
+        - manifest["post_rounding_zero_offset_removed"]
+        - manifest["post_rounding_duplicate_offset_removed"]
+        - manifest["post_rounding_out_of_range_removed"]
+        == manifest["realized_offset_count"]
+    )
 
 
 def test_round_robin_displacement_shards_are_disjoint_and_complete():
