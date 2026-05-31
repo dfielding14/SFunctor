@@ -181,6 +181,12 @@ deterministic signed integer 3-D offsets with:
 - per-bin directional occupancy;
 - checksummed NPZ and JSON manifests.
 
+The hybrid center generator retains consecutive integer radii through
+$\ell=16$, then maps logarithmic targets onto distinct unused integer radii
+through the approved stencil-specific outer scale. The outer endpoint is
+always retained. This prevents small-scale visibility from collapsing the
+large-scale interval into one broad terminal bin.
+
 The release design uses `64` separation bins and `24` requested directions per
 bin. The bounded convergence action also measures `32` and `128` bins plus a
 second direction density.

@@ -40,22 +40,20 @@ def dense_separation_centers(ell_max: int, bin_count: int) -> np.ndarray:
         raise ValueError("ell_max must be at least 32 cells")
     if bin_count < 1 or bin_count > ell_max:
         raise ValueError("bin_count must be in [1, ell_max]")
-    linear_count = min(16, bin_count)
+    if bin_count == 1:
+        return np.asarray((ell_max,), dtype=np.int64)
+    linear_count = min(16, bin_count - 1)
     centers = list(range(1, linear_count + 1))
-    if bin_count > linear_count:
-        candidates = np.geomspace(linear_count + 1, ell_max, 8 * (bin_count - linear_count))
-        for value in np.rint(candidates).astype(int):
-            if value > centers[-1] and value <= ell_max:
-                centers.append(int(value))
-            if len(centers) == bin_count:
-                break
-    if len(centers) < bin_count:
-        for value in range(centers[-1] + 1, ell_max + 1):
-            centers.append(value)
-            if len(centers) == bin_count:
-                break
-    centers[-1] = ell_max
-    output = np.asarray(sorted(set(centers)), dtype=np.int64)
+    remaining_count = bin_count - linear_count
+    available = np.arange(linear_count + 1, ell_max + 1, dtype=np.int64)
+    targets = np.geomspace(linear_count + 1, ell_max, remaining_count)
+    targets[-1] = ell_max
+    for target in targets:
+        logarithmic_distance = np.abs(np.log(available.astype(float)) - np.log(target))
+        index = int(np.argmin(logarithmic_distance))
+        centers.append(int(available[index]))
+        available = np.delete(available, index)
+    output = np.asarray(sorted(centers), dtype=np.int64)
     if output.size != bin_count or output[-1] != ell_max:
         raise RuntimeError("unable to construct requested hybrid separation design")
     return output

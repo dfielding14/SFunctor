@@ -227,6 +227,9 @@ def test_dense_phase3a_design_is_reproducible_closed_and_strictly_bounded():
     assert len(centers) == 64
     assert np.array_equal(centers[:16], np.arange(1, 17))
     assert centers[-1] == 320
+    assert np.count_nonzero(centers > 160) >= 10
+    assert np.count_nonzero((centers >= 64) & (centers <= 256)) >= 20
+    assert np.array_equal(dense_separation_centers(32, 2), (1, 32))
 
     first, edges, manifest = dense_displacement_manifest(
         stencil_width=2, ell_max=320, bin_count=64, directions_per_bin=24
