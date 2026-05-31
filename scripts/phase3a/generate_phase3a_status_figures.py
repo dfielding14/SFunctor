@@ -921,7 +921,8 @@ def slope_window_sensitivity(
             axis.set_ylabel(rf"$\alpha_{{{q_name},\perp}}(\ell)$")
     axes[0, 0].legend(fontsize=8)
     figure.suptitle(
-        f"{REPRESENTATIVE_CUBE_ID}: supported local-slope sensitivity to centered regression width"
+        f"{REPRESENTATIVE_CUBE_ID}: bounded 64-bin local-slope diagnostic "
+        "(12 directions/bin, 256 origins/offset, $160^3$ blocks)"
     )
     return _save(figure, output_dir, "phase3a_slope_window_sensitivity.png")
 
@@ -1048,7 +1049,6 @@ def convergence_science_differences(
             "directions_all_valid",
             "origins",
             "origin_seeds",
-            "support",
         }
         and int(row["stencil_width"]) == 2
     ]
@@ -1061,7 +1061,6 @@ def convergence_science_differences(
         "directions_all_valid": ("directions_per_bin", 24),
         "origins": ("sample_count", 2048),
         "origin_seeds": ("seed", runner.PRODUCTION_SEED),
-        "support": ("support_mode", "shell_local"),
     }
     for family, (name, value) in preferred.items():
         candidates = [row for row in rows if row["family"] == family and row[name] == value]
@@ -1111,8 +1110,6 @@ def convergence_science_differences(
                         value = row["seed"]
                     elif family == "bins":
                         value = row["bin_count"]
-                    else:
-                        value = str(row["support_mode"]).replace("_", " ")
                     x_labels.append(f"{family}\n{value}")
             axis.scatter(
                 positions,
@@ -1200,15 +1197,21 @@ def convergence_scale_and_block_diagnostics(
     axes[1].bar(positions, uncertainty_widths, color="#f58518")
     axes[1].set_xticks(positions, block_labels)
     axes[1].set_xlabel("spatial block side length [cells]")
-    axes[1].set_ylabel(r"median 95% block-band fractional half-width, $32 \leq \ell \leq 160$")
+    axes[1].set_ylabel(
+        r"$B$ $\lambda$-wedge median 95% block-band fractional half-width, "
+        r"$32 \leq \ell \leq 160$"
+    )
     axes[1].grid(axis="y", alpha=0.22)
     axes[2].bar(positions, effective_blocks, color="#54a24b")
     axes[2].set_xticks(positions, block_labels)
     axes[2].set_xlabel("spatial block side length [cells]")
-    axes[2].set_ylabel(r"median Kish effective blocks, $32 \leq \ell \leq 160$")
+    axes[2].set_ylabel(
+        r"$B$ $\lambda$-wedge median Kish effective blocks, $32 \leq \ell \leq 160$"
+    )
     axes[2].grid(axis="y", alpha=0.22)
     figure.suptitle(
-        f"{REPRESENTATIVE_CUBE_ID}: explicit outer-scale support loss and block-layout uncertainty sensitivity"
+        f"{REPRESENTATIVE_CUBE_ID}: bounded outer-scale support and block-layout diagnostic "
+        "(12 directions/bin, <=96 offsets, 256 origins/offset)"
     )
     return _save(figure, output_dir, "phase3a_convergence_scale_and_block_diagnostics.png")
 
