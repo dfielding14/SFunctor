@@ -95,8 +95,8 @@ Phase 3a retains three labeled policies:
 
 | Mode | Meaning | Role |
 |---|---|---|
-| `shell_local` | Intersect valid-origin boxes for every offset in one shell and stencil. | Fair directional comparison within each shell. |
-| `all_valid_origins` | Use the complete non-periodic valid-origin box for each offset. | Maximum-volume comparison with explicit support diagnostics. |
+| `shell_local` | Intersect valid-origin boxes for every offset in one shell and stencil. | Phase 4 directional robustness overlay: fair comparison within each shell. |
+| `all_valid_origins` | Use the complete non-periodic valid-origin box for each offset. | Phase 4 primary curve-level product: maximum non-periodic volume with explicit support diagnostics. |
 | `nested_core` | Intersect all retained offsets into one global core. | Regression diagnostic where non-empty. |
 
 The historical label `all_valid_pairs` is accepted only for compatible
@@ -348,3 +348,37 @@ Phase 3a is a GO for Phase 4 only after:
 - the full repository suite passes.
 
 Budget sufficiency alone is not a GO criterion.
+
+## Phase 4 Launch Decision
+
+`PHASE4_LAUNCH_GO_DECISION.md` records the reviewed policy adjudication that
+supersedes the pre-adjudication Phase 3a report-level NO-GO. Phase 4 is approved
+to launch as a staged, curve-first pilot:
+
+```text
+Batch A:
+    all 21 cubes
+    q = B, u
+    p = 2
+    stencil = 2-point
+    primary curve product = all_valid_origins
+    required directional robustness overlay = shell_local
+
+Batch A2 planned after separate post-Batch-A review and explicit human approval:
+    retained representative low-, median-, high-dBB, and weak-mean-field cubes
+    q = B, u
+    p = 2
+    stencils = 3-point and 5-point
+
+Batch A2 conditional expansion:
+    expand 3-point to all 21 cubes only after representative-cube review
+    keep 5-point bounded to representative cubes until a separate review
+```
+
+For science-facing `shell_local` curve overlays, require at least `5%`
+eligible-origin support. Preserve weaker raw values as visibly flagged
+diagnostics. Directional slope tables are not mandatory Phase 4 Batch A
+products. Any later directional slope-table candidate requires at least `10%`
+`shell_local` eligible-origin support, the existing contributing-block,
+Kish-effective-block, and bootstrap-validity gates, and a separately reviewed
+fit interval.

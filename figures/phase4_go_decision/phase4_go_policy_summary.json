@@ -1,0 +1,164 @@
+{
+  "approved_policy": {
+    "directional_slope_tables_authorized_for_batch_a": false,
+    "minimum_shell_local_fraction_for_directional_slope_table_candidate": 0.1,
+    "minimum_shell_local_fraction_for_science_facing_curve_overlay": 0.05,
+    "primary_curve_support_mode": "all_valid_origins",
+    "reporting_mode": "curve_first",
+    "required_directional_robustness_overlay": "shell_local",
+    "support_cutoffs_are": "conservative reporting-policy choices from bounded equal-bin diagnostics, not physical admissibility thresholds",
+    "weak_shell_local_values": "retain as visibly flagged diagnostics only"
+  },
+  "approved_staged_matrix": {
+    "batch_a": {
+      "cube_count": 21,
+      "p_values": [
+        2
+      ],
+      "q_names": [
+        "B",
+        "u"
+      ],
+      "stencils": [
+        2
+      ],
+      "support_modes": [
+        "all_valid_origins",
+        "shell_local"
+      ]
+    },
+    "batch_a2_conditional_expansion": {
+      "authorized_for_submission": false,
+      "condition": "expand only if representative-cube review finds an informative and stable labeled comparison",
+      "cube_count": 21,
+      "stencils": [
+        3
+      ]
+    },
+    "batch_a2_initial_planned_after_separate_post_batch_a_review": {
+      "authorized_for_submission": false,
+      "cube_ids": [
+        "L640_sub00370",
+        "L640_sub03942",
+        "L640_sub00579",
+        "L640_sub00738"
+      ],
+      "p_values": [
+        2
+      ],
+      "q_names": [
+        "B",
+        "u"
+      ],
+      "requires": "separate post-Batch-A review and explicit human approval",
+      "stencils": [
+        3,
+        5
+      ],
+      "support_modes": [
+        "all_valid_origins",
+        "shell_local"
+      ]
+    },
+    "five_point_expansion": {
+      "authorized_for_submission": false,
+      "condition": "keep bounded to representative cases until a later explicit review"
+    }
+  },
+  "candidate_cutoff_metrics": {
+    "0.01": {
+      "absolute_local_slope_difference": {
+        "count": 744,
+        "maximum": 2.9826970698553237,
+        "median": 0.2863792891591599,
+        "p90": 0.7698340371247145
+      },
+      "curve_policy_factor": {
+        "count": 792,
+        "maximum": 2.895466551328229,
+        "median": 1.1023523531252875,
+        "p90": 1.331593794669481
+      }
+    },
+    "0.05": {
+      "absolute_local_slope_difference": {
+        "count": 648,
+        "maximum": 2.2356746736801547,
+        "median": 0.2706108642601357,
+        "p90": 0.7348662023854474
+      },
+      "curve_policy_factor": {
+        "count": 696,
+        "maximum": 1.6578416136781338,
+        "median": 1.0970052747027448,
+        "p90": 1.295850162585178
+      }
+    },
+    "0.10": {
+      "absolute_local_slope_difference": {
+        "count": 600,
+        "maximum": 2.2356746736801547,
+        "median": 0.26562826951246454,
+        "p90": 0.7306117829220313
+      },
+      "curve_policy_factor": {
+        "count": 648,
+        "maximum": 1.6547609711571787,
+        "median": 1.0947760381391132,
+        "p90": 1.2778098965053248
+      }
+    }
+  },
+  "candidate_shell_support_fractions": [
+    0.01,
+    0.05,
+    0.1
+  ],
+  "decision_scope": "Phase 4 Batch A launch and bounded downstream staging only",
+  "implementation_sha256": "ae3249b2a2c28373a0c2a085411b5419aed578b26b2f6f8d4f6210143e7b1904",
+  "retained_release_root": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase3a_sampler/release_clean_primary_20260531T033614Z",
+  "schema_version": 1,
+  "science_scale_minimum_cells_for_policy_census": 32.0,
+  "shell_local_geometry": {
+    "2": {
+      "candidate_cutoff_endpoints_cells": {
+        "0.01": 249.1294844051984,
+        "0.05": 194.14942698859556,
+        "0.10": 171.1695066301238
+      },
+      "candidate_cutoff_full_five_bin_slope_window_endpoints_cells": {
+        "0.01": 220.14654210320907,
+        "0.05": 171.1695066301238,
+        "0.10": 151.17539482336403
+      },
+      "minimum_shell_local_support_fraction": 0.0005009765625
+    },
+    "3": {
+      "candidate_cutoff_endpoints_cells": {
+        "0.01": 158.4873812011543,
+        "0.05": 158.4873812011543,
+        "0.10": 158.4873812011543
+      },
+      "candidate_cutoff_full_five_bin_slope_window_endpoints_cells": {
+        "0.01": 145.45789768864392,
+        "0.05": 145.45789768864392,
+        "0.10": 145.45789768864392
+      },
+      "minimum_shell_local_support_fraction": 0.15076785278320312
+    },
+    "5": {
+      "candidate_cutoff_endpoints_cells": {
+        "0.01": 79.49371044302814,
+        "0.05": 79.49371044302814,
+        "0.10": 79.49371044302814
+      },
+      "candidate_cutoff_full_five_bin_slope_window_endpoints_cells": {
+        "0.01": 74.73954776421918,
+        "0.05": 74.73954776421918,
+        "0.10": 74.73954776421918
+      },
+      "minimum_shell_local_support_fraction": 0.14812744140625
+    }
+  },
+  "status": "phase4_batch_a_launch_go"
+}

@@ -1,14 +1,15 @@
 # Phase 4: bounded `L_sub = 640` 21-region scientific pilot
 
 Read `phase0.md`, `phase2.md`, `phase3.md`, `phase3a.md`, the completed Phase 2,
-Phase 3, and Phase 3a status reports, and the approved Phase 3a benchmark
-forecast before starting.
+Phase 3, and Phase 3a status reports, `PHASE4_LAUNCH_GO_DECISION.md`, and the
+approved Phase 4 Batch A planning forecast before starting.
 
-Begin this phase only after Phase 2 has a documented GO decision and Phase 3a
-has documented a GO decision that resolves the Phase 3 science-configuration
-NO-GO. Phase 3 remains the validated smoke-test baseline; do not reinterpret
-its intentionally conservative `ell_max = 128` configuration as the Phase 4
-science configuration.
+Begin this phase only after Phase 2 has a documented GO decision and
+`PHASE4_LAUNCH_GO_DECISION.md` records a reviewed launch GO that supersedes the
+pre-adjudication Phase 3a science-configuration NO-GO. Phase 3 remains the
+validated smoke-test baseline; do not reinterpret its intentionally
+conservative `ell_max = 128` configuration as the Phase 4 science
+configuration.
 
 This phase is intentionally limited to the proposed 21-region
 `L_sub = 640` pilot from the trusted Phase 1 census. Do not expand to other
@@ -42,8 +43,12 @@ INHERITED HARD STOPS
 Retain the durable Phase 0, Phase 2, Phase 3, and Phase 3a operational and
 data-provenance hard stops:
 - use the trusted Phase 1 run read-only;
-- reuse validated Phase 2 extraction outputs and the approved Phase 3a
-  sampler, support, parallel-reduction, and uncertainty settings;
+- reuse the approved Phase 3a sampler, parallel-reduction, and uncertainty
+  settings;
+- materialize all cubes under a unique Phase 4 extraction root; the current
+  adapter freezes the root path into the plan, publishes plan-bound per-cube
+  materialization records, and does not support historical-cube reuse;
+- use the Phase 4 launch-decision support-policy roles and masking rules;
 - do not rerun the Phase 1 census;
 - do not use `mhd_sgs` or `mhd_dynamo_ks`;
 - do not use periodic wrapping inside extracted cubes;
@@ -57,8 +62,8 @@ data-provenance hard stops:
 - stop after the bounded 21-region `L_sub = 640` pilot.
 
 The Phase 3 and Phase 3a prohibitions on launching the 21-region pilot were
-phase-local scope limits. This Phase 4 document explicitly supersedes those
-local limits only after a documented Phase 3a GO and only for the bounded
+phase-local scope limits. `PHASE4_LAUNCH_GO_DECISION.md` supersedes those local
+limits through a reviewed policy adjudication only for the bounded Batch A
 pilot below.
 
 ==================================================
@@ -68,6 +73,13 @@ TASK 1: FREEZE THE PILOT CONFIGURATION
 Use the Phase 1 pilot table:
 
     $TRUSTED_RUN/analysis/pilot_sample.csv
+
+Use `scripts/phase4/run_phase4_extraction.py` through
+`job_scripts/phase4/run_phase4_extract_andes.sh` to freeze and materialize the
+exact 21-cube pilot. Use `scripts/phase4/run_phase4_batch_a_sampler.py` through
+`job_scripts/phase4/run_phase4_batch_a_sampler_andes.sh` for the bounded Batch
+A sampler plan. Do not bypass either Phase 4-specific guard by calling the
+historical four-cube Phase 2 or Phase 3a wrappers directly.
 
 Confirm that it contains the expected 21 `L_sub = 640` regions and preserve:
 - cube ID;
@@ -106,7 +118,7 @@ Freeze and record:
 - realized displacement counts per bin;
 - angular wedges;
 - stencil-specific `ell_max` values;
-- retained finite-support policy;
+- retained finite-support policies and their distinct reporting roles;
 - shell-local shared-support geometry where used;
 - all-valid-origin sensitivity policy, including the historical 2-point
   `all_valid_pairs` label;
@@ -118,7 +130,7 @@ Freeze and record:
 - uncertainty method;
 - spatial block layout;
 - deterministic resampling seeds;
-- fit intervals;
+- fit intervals where a slope or fitted exponent is actually claimed;
 - output schema.
 
 Require the approved Phase 3a baseline:
@@ -135,6 +147,38 @@ block-resampled uncertainty
 restartable displacement-distributed reduction
 ```
 
+The approved Phase 4 launch policy is:
+
+```text
+primary curve-level product:
+    all_valid_origins
+
+required directional robustness overlay:
+    shell_local
+
+shell_local science-facing curve overlay:
+    require eligible-origin fraction >= 5%
+
+directional slope-table candidate:
+    require shell_local eligible-origin fraction >= 10%
+    require the existing contributing-block, Kish-effective-block, and
+    bootstrap-validity gates
+    require a separately reviewed fit interval
+
+nested_core:
+    labeled regression diagnostic only
+
+reporting mode:
+    curve-first
+    no mandatory directional slope table
+```
+
+Preserve raw weak-support values as visibly flagged diagnostics. Do not treat
+the `5%` curve-overlay threshold or `10%` slope-candidate threshold as a
+correction factor. A slope-table candidate remains a candidate until its
+support-policy sensitivity, local curvature, nearby-window stability, and
+uncertainty have been reviewed.
+
 ==================================================
 TASK 2: RUN STAGED BATCHES
 ==================================================
@@ -145,9 +189,33 @@ Do not launch the entire variable-by-order matrix immediately.
 
 Run all 21 cubes with:
 
-    q = B, u
-    p = 2
-    stencil = 2-point
+```text
+q = B, u
+p = 2
+stencil = 2-point
+primary curve-level policy = all_valid_origins
+directional robustness overlay = shell_local
+```
+
+The measured planning inputs are:
+
+```text
+21-cube extraction conservative wrapper proxy:
+    1.7558 node-hours
+
+21-cube 2-point all_valid_origins estimator allocation-share proxy:
+    0.684 node-hours
+
+21-cube 2-point shell_local estimator allocation-share proxy:
+    0.727 node-hours
+
+21-cube two-policy 2-point estimator allocation-share proxy:
+    1.411 node-hours
+```
+
+These are bounded planning proxies, not guaranteed end-to-end costs. Extraction
+restart verification, planning, reduction, bootstrap uncertainty, final
+verification, scheduler behavior, and cache state add overhead.
 
 Require:
 - output-integrity checks;
@@ -164,7 +232,8 @@ materially from the forecast.
 
 ## Batch A2: bounded stencil comparison
 
-Only after Batch A passes, run the approved labeled comparison matrix:
+Stop after Batch A reporting. Only after a separate post-Batch-A review and
+explicit human approval, run the planned labeled comparison matrix:
 
 ```text
 q = B, u
@@ -173,9 +242,11 @@ p = 2
 5-point: ell_max <= 80
 ```
 
-Begin with representative low-, intermediate-, and high-`dBB` cubes. Expand
-to all 21 cubes only if the Phase 3a evidence, measured cost, support
-diagnostics, and scientific value justify that expansion.
+Begin with the retained representative low-, intermediate-, high-`dBB`, and
+weak-mean-field cubes. Expand the 3-point product to all 21 cubes only if the
+representative-cube review finds an informative and stable labeled comparison.
+Keep the 5-point product bounded to representative cubes during the initial
+Phase 4 launch. Any 5-point expansion requires a separate reviewed decision.
 
 Keep the filters distinct. Do not present 3-point or 5-point values as
 higher-accuracy replacements for the 2-point statistic.
@@ -270,9 +341,9 @@ Always report `B_mean`, `deltaB`, and the bounded magnetic complements beside
 At minimum, examine:
 
     S_p(ell) curves with block-resampled uncertainty
-    local logarithmic slopes alpha(ell)
-    structure-function slopes
-    higher-order exponents zeta_p
+    local logarithmic slopes alpha(ell) where diagnostically supported
+    structure-function slopes where an approved interval exists
+    higher-order exponents zeta_p where an approved interval exists
     ell_parallel
     xi
     lambda
@@ -323,9 +394,9 @@ confounding. Report residual confounding and limited sample size explicitly.
 TASK 6: CHECK ROBUSTNESS
 ==================================================
 
-For representative low-, intermediate-, and high-`dBB` cubes:
-- compare the retained Phase 3a primary support policy and all-valid-origin
-  results;
+For representative low-, intermediate-, high-`dBB`, and weak-mean-field cubes:
+- compare the primary `all_valid_origins` curve products and `shell_local`
+  directional robustness overlays;
 - retain the original global nested-core result only as a labeled regression
   diagnostic where it remains meaningful;
 - vary `ell_max`;
@@ -392,7 +463,8 @@ Recommend Phase 5 only if:
   reveal an unexplained scientific inconsistency;
 - displacement-shard reduction remains restartable and partition invariant;
 - runtime, RSS, storage, and ledger totals are documented;
-- fitted slopes use justified large-scale intervals and report uncertainty;
+- any fitted slopes use justified large-scale intervals and report
+  uncertainty; it is acceptable to withhold fitted slopes;
 - robustness comparisons do not reveal unexplained edge bias;
 - catalog-supported and primitive-only covariates are clearly separated;
 - residual confounding and sample-size limits are stated honestly;
@@ -412,8 +484,10 @@ Provide:
 4. per-cube environmental and runtime table;
 5. pair-count and exclusion diagnostics;
 6. support-versus-scale and contributing-block diagnostics;
-7. structure-function curves and local-slope figures with uncertainty;
-8. slope and aspect-ratio tables with uncertainty and fit intervals;
+7. structure-function curves and supported local-slope diagnostic figures with
+   uncertainty;
+8. conditional slope and aspect-ratio tables only where uncertainty, support,
+   and reviewed fit intervals justify them;
 9. `dBB` trend figures with magnetic complements;
 10. matched-comparison figures;
 11. robustness figures;
