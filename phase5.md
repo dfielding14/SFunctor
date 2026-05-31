@@ -1,7 +1,8 @@
 # Phase 5: human-approved cross-scale and expanded production campaign
 
-Read `phase0.md`, `phase2.md`, `phase3.md`, `phase4.md`, all completed phase
-status reports, and the Phase 4 campaign recommendation before starting.
+Read `phase0.md`, `phase2.md`, `phase3.md`, `phase3a.md`, `phase4.md`, all
+completed phase status reports, and the Phase 4 campaign recommendation before
+starting.
 
 Do not execute this phase without explicit human approval of a bounded campaign
 plan and its maximum node-hour exposure.
@@ -40,7 +41,8 @@ INHERITED HARD STOPS
 
 Retain all durable prior operational and data-provenance hard stops:
 - use trusted Phase 1 products read-only;
-- reuse validated extractor and sampler versions;
+- reuse validated extractor and Phase 3a sampler, finite-support,
+  parallel-reduction, and uncertainty versions;
 - do not use periodic wrapping inside extracted cubes;
 - do not use `mhd_sgs` or `mhd_dynamo_ks`;
 - do not restore excluded channels without a separate direct-validation
@@ -77,6 +79,12 @@ Before submitting production jobs, propose a staged plan that states:
 - field variants;
 - `p` values;
 - sampler configuration;
+- approved stencil matrix and explicit stencil labels;
+- finite-support policy;
+- separation-bin design;
+- `ell_max` policy;
+- spatial block layout and resampling method;
+- displacement-shard and partial-reduction design;
 - random seeds;
 - estimated bytes read;
 - estimated output bytes;
@@ -115,6 +123,13 @@ For each proposed scale:
 - define scale-specific `dBB` quantile regimes;
 - select representative, matched, and outlier cubes explicitly;
 - record physical overlap with existing cubes where relevant;
+- define scale-appropriate stencil-specific `ell_max` values, normally
+  testing the 2-point filter through `L_sub / 2`, the 3-point filter through
+  `L_sub / 4`, and the 5-point filter through `L_sub / 8`;
+- retain at least `32` separation bins unless a measured resolution study
+  justifies another choice;
+- verify non-periodic finite-support and block-uncertainty behavior at that
+  scale;
 - estimate incremental scientific value;
 - estimate incremental cost;
 - obtain approval before launch.
@@ -133,7 +148,10 @@ Assess:
 - whether a particular environmental scale is especially informative;
 - whether apparent trends are numerator-driven, denominator-driven, or both;
 - whether matched comparisons reduce apparent confounding;
-- whether directional coverage or finite-domain bias changes with cube size.
+- whether directional coverage or finite-domain bias changes with cube size;
+- whether block-resampled uncertainty changes with cube size;
+- whether large-scale local slopes or outer-scale turnover behavior change
+  with cube size.
 
 Always report:
 
@@ -194,8 +212,13 @@ For each approved batch:
 - refresh the ledger;
 - inspect output integrity;
 - inspect accepted and excluded pair counts;
-- inspect scale-range and fit stability;
-- compare representative nested-core and all-valid-pairs results;
+- inspect contributing-block counts and block-resampled uncertainty;
+- inspect scale-range, local-slope, and fit-interval sensitivity;
+- inspect explicitly labeled 2-point, 3-point, and 5-point comparisons where
+  included in the approved batch;
+- compare the retained primary finite-support policy and all-valid-origin
+  results;
+- verify deterministic displacement-shard reduction and restartability;
 - inspect representative cubes and plots;
 - stop if scientific value or numerical quality degrades.
 
@@ -260,12 +283,13 @@ Provide:
 3. per-batch ledger and resource reports;
 4. validated cross-scale outputs;
 5. pair-count and exclusion diagnostics;
-6. scale-dependent trend figures;
-7. matched-comparison figures;
-8. robustness figures;
-9. shifted-tiling or time-variability results only if separately approved;
-10. output inventory;
-11. Phase 5 status report;
-12. recommendation for any further work;
-13. list of files created or modified;
-14. unresolved ambiguities.
+6. finite-support and contributing-block diagnostics;
+7. uncertainty, local-slope, and scale-dependent trend figures;
+8. matched-comparison figures;
+9. robustness figures;
+10. shifted-tiling or time-variability results only if separately approved;
+11. output inventory;
+12. Phase 5 status report;
+13. recommendation for any further work;
+14. list of files created or modified;
+15. unresolved ambiguities.

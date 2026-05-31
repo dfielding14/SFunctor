@@ -1,9 +1,14 @@
 # Phase 4: bounded `L_sub = 640` 21-region scientific pilot
 
-Read `phase0.md`, `phase2.md`, `phase3.md`, the completed Phase 2 and Phase 3
-status reports, and the approved benchmark forecast before starting.
+Read `phase0.md`, `phase2.md`, `phase3.md`, `phase3a.md`, the completed Phase 2,
+Phase 3, and Phase 3a status reports, and the approved Phase 3a benchmark
+forecast before starting.
 
-Begin this phase only after Phase 2 and Phase 3 have documented GO decisions.
+Begin this phase only after Phase 2 has a documented GO decision and Phase 3a
+has documented a GO decision that resolves the Phase 3 science-configuration
+NO-GO. Phase 3 remains the validated smoke-test baseline; do not reinterpret
+its intentionally conservative `ell_max = 128` configuration as the Phase 4
+science configuration.
 
 This phase is intentionally limited to the proposed 21-region
 `L_sub = 640` pilot from the trusted Phase 1 census. Do not expand to other
@@ -14,9 +19,9 @@ channels, or dynamo-derivative channels.
 OBJECTIVE
 ==================================================
 
-Run the validated selected-cube extractor and finite-domain 3D
-structure-function pipeline in staged batches on the proposed
-`L_sub = 640` pilot.
+Run the validated selected-cube extractor and Phase 3a science-quality,
+parallel, finite-domain 3D structure-function pipeline in staged batches on
+the proposed `L_sub = 640` pilot.
 
 Measure how structure-function statistics vary with the coarse-grained
 magnetic environment, especially `dBB`, while distinguishing:
@@ -34,10 +39,11 @@ whether a broader Phase 5 campaign is justified.
 INHERITED HARD STOPS
 ==================================================
 
-Retain the durable Phase 0, Phase 2, and Phase 3 operational and
+Retain the durable Phase 0, Phase 2, Phase 3, and Phase 3a operational and
 data-provenance hard stops:
 - use the trusted Phase 1 run read-only;
-- reuse validated Phase 2 extraction outputs and Phase 3 sampler settings;
+- reuse validated Phase 2 extraction outputs and the approved Phase 3a
+  sampler, support, parallel-reduction, and uncertainty settings;
 - do not rerun the Phase 1 census;
 - do not use `mhd_sgs` or `mhd_dynamo_ks`;
 - do not use periodic wrapping inside extracted cubes;
@@ -50,9 +56,10 @@ data-provenance hard stops:
 - do not launch `L_sub = 1280` work;
 - stop after the bounded 21-region `L_sub = 640` pilot.
 
-The Phase 3 prohibition on launching the 21-region pilot was a Phase 3 scope
-limit. This Phase 4 document explicitly supersedes that local limit only for
-the bounded pilot below.
+The Phase 3 and Phase 3a prohibitions on launching the 21-region pilot were
+phase-local scope limits. This Phase 4 document explicitly supersedes those
+local limits only after a documented Phase 3a GO and only for the bounded
+pilot below.
 
 ==================================================
 TASK 1: FREEZE THE PILOT CONFIGURATION
@@ -94,15 +101,39 @@ Freeze and record:
 - random seeds;
 - field variants;
 - `p` values;
+- approved stencil matrix and explicit stencil labels;
 - separation bins;
+- realized displacement counts per bin;
 - angular wedges;
-- `ell_max`;
-- nested-core geometry;
+- stencil-specific `ell_max` values;
+- retained finite-support policy;
+- shell-local shared-support geometry where used;
+- all-valid-origin sensitivity policy, including the historical 2-point
+  `all_valid_pairs` label;
 - chunk size;
 - pair batch size;
+- Slurm-node and node-local worker layout;
+- deterministic displacement-shard manifest;
+- partial-output and reduction schema;
 - uncertainty method;
+- spatial block layout;
+- deterministic resampling seeds;
 - fit intervals;
 - output schema.
+
+Require the approved Phase 3a baseline:
+
+```text
+L_sub = 640
+at least 32 separation bins
+2-point: ell_max = 320
+3-point: ell_max <= 160
+5-point: ell_max <= 80
+explicit stencil labels
+explicit non-periodic support accounting
+block-resampled uncertainty
+restartable displacement-distributed reduction
+```
 
 ==================================================
 TASK 2: RUN STAGED BATCHES
@@ -116,6 +147,7 @@ Run all 21 cubes with:
 
     q = B, u
     p = 2
+    stencil = 2-point
 
 Require:
 - output-integrity checks;
@@ -125,14 +157,33 @@ Require:
 - peak RSS;
 - output size;
 - ledger refresh;
-- comparison against the Phase 3 forecast.
+- comparison against the Phase 3a forecast.
 
 Stop and investigate if the measured cost or scientific coverage differs
 materially from the forecast.
 
+## Batch A2: bounded stencil comparison
+
+Only after Batch A passes, run the approved labeled comparison matrix:
+
+```text
+q = B, u
+p = 2
+3-point: ell_max <= 160
+5-point: ell_max <= 80
+```
+
+Begin with representative low-, intermediate-, and high-`dBB` cubes. Expand
+to all 21 cubes only if the Phase 3a evidence, measured cost, support
+diagnostics, and scientific value justify that expansion.
+
+Keep the filters distinct. Do not present 3-point or 5-point values as
+higher-accuracy replacements for the 2-point statistic.
+
 ## Batch B: order dependence
 
-Only after Batch A passes, expand the baseline variables to:
+Only after Batch A and the bounded Batch A2 review pass, expand the baseline
+2-point variables to:
 
     q = B, u
     p = 1, 2, 3, 4
@@ -218,6 +269,8 @@ Always report `B_mean`, `deltaB`, and the bounded magnetic complements beside
 
 At minimum, examine:
 
+    S_p(ell) curves with block-resampled uncertainty
+    local logarithmic slopes alpha(ell)
     structure-function slopes
     higher-order exponents zeta_p
     ell_parallel
@@ -232,6 +285,8 @@ Use:
 - matched comparisons;
 - conditional medians;
 - quantile bands;
+- support-versus-separation diagnostics;
+- uncertainty-versus-separation diagnostics;
 - rank correlations;
 - simple regression or partial-correlation tools where sample size permits;
 - careful visual inspection.
@@ -269,18 +324,26 @@ TASK 6: CHECK ROBUSTNESS
 ==================================================
 
 For representative low-, intermediate-, and high-`dBB` cubes:
-- compare nested-core and all-valid-pairs results;
+- compare the retained Phase 3a primary support policy and all-valid-origin
+  results;
+- retain the original global nested-core result only as a labeled regression
+  diagnostic where it remains meaningful;
 - vary `ell_max`;
+- compare approved 2-point, 3-point, and 5-point stencil products;
 - vary angular wedge widths;
 - vary separation-bin widths;
 - vary sampled-pair count;
+- vary displacement density;
+- vary spatial block layout;
 - inspect accepted and excluded counts;
 - inspect fit-interval sensitivity;
 - compare pair-scale and subvolume-scale field conditioning;
 - inspect representative extracted slices and structure-function curves.
 
-Require enough accepted pairs to support every reported directional claim.
-Do not fit through sparse or unstable bins merely to populate a table.
+Require enough accepted pairs and contributing blocks to support every
+reported directional claim. Do not fit through dissipative, sparse,
+support-limited, or unstable bins merely to populate a table. It is acceptable
+to report curve-level or outer-scale comparisons without fitted exponents.
 
 ==================================================
 SUBAGENT REVIEWS
@@ -301,8 +364,8 @@ Use independent subagents for:
    definitions, and labels for pointwise versus reference-density variables.
 
 4. Performance review:
-   Compare measured node-hours, RSS, and storage against forecast before each
-   batch expansion.
+   Compare measured node-hours, RSS, storage, worker scaling, and reduction
+   cost against the Phase 3a forecast before each batch expansion.
 
 5. Independent adversarial review:
    Challenge the final report, figures, and campaign recommendation.
@@ -320,9 +383,16 @@ Recommend Phase 5 only if:
 - all 21 retained cubes have supported extraction-versus-`cbin` comparison
   results and validated manifests or documented exclusions;
 - output integrity checks pass;
+- stencil products remain explicitly labeled and use approved
+  stencil-specific support limits;
 - accepted and excluded pair counts support the reported comparisons;
+- block-resampled uncertainty and effective block counts support the reported
+  comparisons;
+- the retained support policy and all-valid-origin sensitivity results do not
+  reveal an unexplained scientific inconsistency;
+- displacement-shard reduction remains restartable and partition invariant;
 - runtime, RSS, storage, and ledger totals are documented;
-- fitted slopes use justified stable intervals;
+- fitted slopes use justified large-scale intervals and report uncertainty;
 - robustness comparisons do not reveal unexplained edge bias;
 - catalog-supported and primitive-only covariates are clearly separated;
 - residual confounding and sample-size limits are stated honestly;
@@ -338,16 +408,19 @@ DELIVERABLES
 Provide:
 1. frozen 21-region configuration;
 2. validated extraction manifests for retained cubes;
-3. staged Batch A, B, and any approved Batch C outputs;
+3. staged Batch A, A2, B, and any approved Batch C outputs;
 4. per-cube environmental and runtime table;
 5. pair-count and exclusion diagnostics;
-6. slope and aspect-ratio tables with uncertainty and fit intervals;
-7. `dBB` trend figures with magnetic complements;
-8. matched-comparison figures;
-9. robustness figures;
-10. runtime, memory, storage, and ledger report;
-11. Phase 4 status report;
-12. explicit recommendation for or against Phase 5;
-13. proposed Phase 5 scope and cost if expansion is justified;
-14. list of files created or modified;
-15. unresolved ambiguities.
+6. support-versus-scale and contributing-block diagnostics;
+7. structure-function curves and local-slope figures with uncertainty;
+8. slope and aspect-ratio tables with uncertainty and fit intervals;
+9. `dBB` trend figures with magnetic complements;
+10. matched-comparison figures;
+11. robustness figures;
+12. labeled 2-point, 3-point, and 5-point stencil-comparison figures;
+13. runtime, memory, storage, parallel-scaling, and ledger report;
+14. Phase 4 status report;
+15. explicit recommendation for or against Phase 5;
+16. proposed Phase 5 scope and cost if expansion is justified;
+17. list of files created or modified;
+18. unresolved ambiguities.
