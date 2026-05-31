@@ -45,12 +45,15 @@ test_*.py
 !tests/test_plotting_reducers.py
 !tests/test_rank_manifest.py
 !tests/test_compute_ledger.py
-!tests/test_prompt1_cbin_tools.py
-!tests/test_prompt1_analysis.py
+!tests/test_cube_extract.py
+!tests/test_finite_domain.py
+!tests/test_phase1_cbin_tools.py
+!tests/test_phase1_analysis.py
+!tests/test_phase3_sampler.py
 *_diagnostic.py
 *_REPORT*.md
 !docs/AUDIT_REPORT.md
-!docs/PROMPT1_EXECUTION_REPORT.md
+!docs/PHASE1_EXECUTION_REPORT.md
 *_FIX*.md
 *_fixes_summary.md
 

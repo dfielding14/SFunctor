@@ -1,0 +1,34 @@
+{
+  "benchmark_completion_sha256": "82b0fae4cb8fcc87036d1bde87ebacc3ff708e305edf5928119df6f24621c3dc",
+  "generated_figure_sha256": {
+    "L640_sub00370_midplanes.png": "a14df6639b12b9d69e47705de4869965c4251b087a2577d913134ef364d1cd22",
+    "L640_sub00579_midplanes.png": "60faf2cfb0df0bd448f438e6189988a8ca067d853e7d3087b8da36371d466e12",
+    "L640_sub00738_midplanes.png": "1763654b213ec8329ef9938d2c709eb1964ceb3206db3d35324b3300bb12677a",
+    "L640_sub03942_midplanes.png": "4f22f4767c820e02a051cbc66ad61475a44672eb148bd62e470dfc2d3e460e5e",
+    "phase2_benchmark_selection_context.png": "b2103b0647028b466cc71294eeb1676413a24dbea29bfd2d292f363c375058ea",
+    "phase2_campaign_storage_io_forecast.png": "d8bf12578df162aa005e93ebb5258cca85862ee6acfda502919ec6baafd2a52e",
+    "phase2_cbin_relative_residuals.png": "701741ab8877d22e990b4e01c50868482f9f6a0f7c477c7e18b462da02ee1703",
+    "phase2_extraction_workflow_schematic.png": "244746991ded85f725d867f339455e8185ffe7ef9f18832636c420a8b4859086",
+    "phase2_four_cube_resource_summary.png": "0b8ad014d69369996286bacf85704ba01840e6405895e676d9573789c4637ab2",
+    "phase2_heldout_stream_validation.png": "94412ebadd7f3f349c516663ec012725205c8eae0afe0e30427fde92ac240b92",
+    "phase2_midplane_inspection_montage.png": "b66ec930a3c03669c7123185b06a2c31cd62ba5fe79cd189a1e55e01402705c4",
+    "phase2_storage_layout_fix.png": "498f8c89e4924fb27991532e4f20e4f603bf550572f7d907a76290912d79f762"
+  },
+  "generated_figures": [
+    "L640_sub00370_midplanes.png",
+    "L640_sub00579_midplanes.png",
+    "L640_sub00738_midplanes.png",
+    "L640_sub03942_midplanes.png",
+    "phase2_benchmark_selection_context.png",
+    "phase2_campaign_storage_io_forecast.png",
+    "phase2_cbin_relative_residuals.png",
+    "phase2_extraction_workflow_schematic.png",
+    "phase2_four_cube_resource_summary.png",
+    "phase2_heldout_stream_validation.png",
+    "phase2_midplane_inspection_montage.png",
+    "phase2_storage_layout_fix.png"
+  ],
+  "generator_sha256": "d5068fcd07dc9dd18a058e5ee080866806113a87000c17c9f8352bc2a86fe848",
+  "rejected_storage_log": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase2_extract/runs/smoke_hardened_L640_sub00370_20260530T1958Z/logs/extract_L640_sub00370.log",
+  "rejected_storage_log_sha256": "5cdbcc5c2d87c29c8ad8f888bd3bc6105db23eb9bb272c0871234670e5cfe73f"
+}

@@ -1,0 +1,27 @@
+{
+  "campaign_completion_sha256": "4099519d29f1761e63ac853885b1e9e2a410904a4643e126845356bcbceaa6a2",
+  "figure_sha256": {
+    "phase3_all_valid_support_by_separation_and_orientation.png": "913b643a2582de5458cae0c1aad67285651c304ad9cf639a51318a702279b242",
+    "phase3_before_after_hardening.png": "f325db930c16eb64febac2bb2840b16c944204ec1469c644d9d35cd1e4b6f7fa",
+    "phase3_conditioning_basis_coverage.png": "557f2344a1a993401d42f53d93c5aa503d360a8911ca5331aa7d1892bc3c86f7",
+    "phase3_directional_perpendicular_curves_nested_core.png": "fc7b5ba0c4007bb9cbd780eac0868dbe49734ccb16dfc8fc83b90b0dff264d1a",
+    "phase3_finite_support_by_ell.png": "8d48fbbbfc12a6ba9fdb0d92cf7b1ae65a65c4b74c6f6a3ba2cb73c50fbbdc0a",
+    "phase3_fit_window_slope_sensitivity.png": "6822de5330dc37c2cc39f2774358d5d4eff6f7157505d934e97f93a36c01b3de",
+    "phase3_input_cube_midplane_montage.png": "b66ec930a3c03669c7123185b06a2c31cd62ba5fe79cd189a1e55e01402705c4",
+    "phase3_nested_vs_all_valid_difference.png": "77ceae84b7729e9a07ab3ddd1f7d193935564d24718e26e27b2b80ac287b01a6",
+    "phase3_outlier_mode_comparison.png": "f4062f2740732c92285e5404796519470a8b0ee2497646f942ccc717a00afe5f",
+    "phase3_pair_modes_schematic.png": "9c37da8fb767f48f8c737742707885077ce006b99916b301d4fafa9e7b1070c9",
+    "phase3_repeat_seed_robustness.png": "44172d29275bdc197ef21f61854047462adea193a80aa253b7c2bfeb21c71f57",
+    "phase3_resource_summary_and_forecast.png": "171f94449ad4330a57637d7b6889037d3a076c0be9c3ffd852e26bff9bbf77ea",
+    "phase3_slope_comparison_nested_vs_all_valid.png": "3bf0cd18a2d63a3a50d3c2dbcace0b7f51ae4f7f8c308e540eb112941c208511",
+    "phase3_synthetic_validation_gate.png": "113728e410ce397aaf0a2a18025fde488349cc10f14df1d2f4fb1b461a363aa8",
+    "phase3_workflow_schematic.png": "aca0c3f22c9a49446f693d65631ba43a4fc9a135973a3e9a85a70a5666425075"
+  },
+  "generator_sha256": "d1582432b9fcd7fff40e8d83362c669598d89dc95b25dbeba9bb9cdf77570ee4",
+  "phase2_montage_sha256": "b66ec930a3c03669c7123185b06a2c31cd62ba5fe79cd189a1e55e01402705c4",
+  "prehardening_profile_summary_sha256": "43f68dd046179a3de21d5234abea5426f805acbeaf85632407f4dd7050cd1b66",
+  "schema_version": 1,
+  "seed_robustness_marker_sha256": "c93eca57da8d6d8a270bcac75e56f599bb267cf24c1f5e041fa625c5109f1e9b",
+  "status": "passed",
+  "synthetic_validation_sha256": "28938b20a91aecbe73047b395efbf636eff42b5964111969e454881f4f54c105"
+}

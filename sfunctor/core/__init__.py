@@ -29,6 +29,16 @@ from sfunctor.core.directional import (
     compute_directional_structure_functions,
     slice_offset_to_vector,
 )
+from sfunctor.core.finite_domain import (
+    FiniteDomainConfig,
+    FiniteDomainResult,
+    build_cube_q_variants,
+    compute_finite_domain_structure_functions,
+    cube_offset_to_vector,
+    generate_fibonacci_displacements,
+    nested_core_bounds_kji,
+    valid_origin_bounds_kji,
+)
 
 __all__ = [
     # Physics
@@ -47,4 +57,13 @@ __all__ = [
     "build_q_variants",
     "compute_directional_structure_functions",
     "slice_offset_to_vector",
+    # Finite-domain 3-D conditional statistics
+    "FiniteDomainConfig",
+    "FiniteDomainResult",
+    "build_cube_q_variants",
+    "compute_finite_domain_structure_functions",
+    "cube_offset_to_vector",
+    "generate_fibonacci_displacements",
+    "nested_core_bounds_kji",
+    "valid_origin_bounds_kji",
 ]

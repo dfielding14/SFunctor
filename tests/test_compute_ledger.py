@@ -7,7 +7,7 @@ import unittest
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPT = os.path.join(ROOT, "scripts", "prompt1", "update_compute_ledger.py")
+SCRIPT = os.path.join(ROOT, "scripts", "phase1", "update_compute_ledger.py")
 SPEC = importlib.util.spec_from_file_location("update_compute_ledger", SCRIPT)
 ledger = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(ledger)

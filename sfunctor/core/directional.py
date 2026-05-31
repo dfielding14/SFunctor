@@ -248,7 +248,8 @@ def folded_angle(left: np.ndarray, right: np.ndarray) -> np.ndarray:
 
     numerator = np.abs(np.einsum("ij,ij->i", left, right))
     denominator = np.linalg.norm(left, axis=1) * np.linalg.norm(right, axis=1)
-    cosine = np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator > 0.0)
+    cosine = np.full_like(numerator, np.nan, dtype=float)
+    np.divide(numerator, denominator, out=cosine, where=denominator > 0.0)
     return np.arccos(np.clip(cosine, 0.0, 1.0))
 
 
