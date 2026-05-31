@@ -126,6 +126,10 @@ def dense_displacement_manifest(
         "realized_maximum_ell_cells": float(retained_ell.max()),
         "requested_candidate_count": int(requested_candidate_count),
         **rounding_accounting,
+        "post_rounding_zero_or_duplicate_removed": int(
+            rounding_accounting["post_rounding_zero_offset_removed"]
+            + rounding_accounting["post_rounding_duplicate_offset_removed"]
+        ),
         "post_rounding_out_of_range_removed": int(len(raw) - len(retained)),
         "signed_closure": True,
         "offsets_sha256": hashlib.sha256(retained.tobytes()).hexdigest(),

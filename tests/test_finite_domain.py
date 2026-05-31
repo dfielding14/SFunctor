@@ -248,6 +248,23 @@ def test_signed_fibonacci_generator_is_reproducible_unique_and_closed():
         generate_fibonacci_displacements((2.0,), directions_per_radius=7)
 
 
+def test_signed_fibonacci_generator_reports_rounding_losses_without_changing_default_api():
+    default = generate_fibonacci_displacements((0.75,), directions_per_radius=12)
+    accounted, rounding = generate_fibonacci_displacements(
+        (0.75,), directions_per_radius=12, return_accounting=True
+    )
+    tuples = {tuple(row) for row in accounted.tolist()}
+
+    assert isinstance(default, np.ndarray)
+    assert np.array_equal(default, accounted)
+    assert rounding == {
+        "post_rounding_zero_offset_removed": 2,
+        "post_rounding_duplicate_offset_removed": 4,
+    }
+    assert len(accounted) + sum(rounding.values()) == 12
+    assert all(tuple(-value for value in offset) in tuples for offset in tuples)
+
+
 def test_nested_core_requires_signed_closure_and_ignores_out_of_range_offsets():
     data = _cube_data((3, 3, 6))
     config = FiniteDomainConfig(

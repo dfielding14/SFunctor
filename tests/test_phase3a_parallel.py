@@ -242,6 +242,10 @@ def test_dense_phase3a_design_is_reproducible_closed_and_strictly_bounded():
     assert all(tuple(-value for value in offset) in offsets for offset in offsets)
     assert manifest["post_rounding_zero_offset_removed"] >= 0
     assert manifest["post_rounding_duplicate_offset_removed"] >= 0
+    assert manifest["post_rounding_zero_or_duplicate_removed"] == (
+        manifest["post_rounding_zero_offset_removed"]
+        + manifest["post_rounding_duplicate_offset_removed"]
+    )
     assert (
         manifest["requested_candidate_count"]
         - manifest["post_rounding_zero_offset_removed"]
