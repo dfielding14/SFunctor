@@ -711,6 +711,79 @@ def support_by_ell(
     return _save(figure, output_dir, "phase3a_support_by_ell.png")
 
 
+def offset_resolved_support_orientation(
+    verified: VerifiedInputs,
+    input_hashes: InputHashes,
+    output_dir: Path,
+) -> Path:
+    figure, axes = plt.subplots(
+        3, 2, figsize=(12.5, 10.4), constrained_layout=True, sharex="col", sharey=True
+    )
+    plotted = None
+    for row, stencil_width in enumerate(sorted(runner.STENCIL_SPECS)):
+        for column, support_mode in enumerate(runner.SUPPORT_MODES):
+            axis = axes[row, column]
+            result = _load_release_group(
+                verified,
+                input_hashes,
+                cube_id=REPRESENTATIVE_CUBE_ID,
+                stencil_width=stencil_width,
+                support_mode=support_mode,
+            ).result
+            displacements = np.asarray(result.displacements_ijk, dtype=float)
+            ell = np.linalg.norm(displacements, axis=1)
+            orientation = np.max(np.abs(displacements), axis=1) / ell
+            candidates = np.maximum(
+                np.asarray(result.cube_candidate_pairs_per_displacement, dtype=float), 1.0
+            )
+            intrinsic = (
+                np.asarray(result.intrinsic_eligible_origins_per_displacement, dtype=float)
+                / candidates
+            )
+            selected = (
+                np.asarray(result.eligible_pairs_per_displacement, dtype=float)
+                / candidates
+            )
+            axis.scatter(
+                ell,
+                intrinsic,
+                s=8,
+                marker="x",
+                linewidths=0.55,
+                color="#b5b5b5",
+                alpha=0.45,
+                label="intrinsic non-periodic support",
+            )
+            plotted = axis.scatter(
+                ell,
+                selected,
+                s=10,
+                c=orientation,
+                vmin=1.0 / np.sqrt(3.0),
+                vmax=1.0,
+                cmap="viridis",
+                alpha=0.75,
+                label="selected support-policy support",
+            )
+            axis.set_xscale("log")
+            axis.set_ylim(-0.02, 1.03)
+            axis.grid(alpha=0.22)
+            if row == 0:
+                axis.set_title(support_mode.replace("_", " "))
+            if column == 0:
+                axis.set_ylabel(f"{STENCIL_LABELS[stencil_width]}\neligible-origin fraction")
+            if row == 2:
+                axis.set_xlabel(r"$|\mathbf{r}|$ [cells]")
+    assert plotted is not None
+    axes[0, 0].legend(fontsize=7, loc="lower left")
+    colorbar = figure.colorbar(plotted, ax=axes, shrink=0.86)
+    colorbar.set_label(r"Cartesian alignment $\max_i |r_i| / |\mathbf{r}|$")
+    figure.suptitle(
+        f"{REPRESENTATIVE_CUBE_ID}: offset-resolved finite support and orientation"
+    )
+    return _save(figure, output_dir, "phase3a_offset_resolved_support_orientation.png")
+
+
 def representative_curves_with_block_bands(
     verified: VerifiedInputs,
     input_hashes: InputHashes,
@@ -804,6 +877,107 @@ def local_slopes_with_effective_blocks(
     return _save(figure, output_dir, "phase3a_local_slopes_with_block_bands_and_effective_blocks.png")
 
 
+def slope_window_sensitivity(
+    verified: VerifiedInputs,
+    input_hashes: InputHashes,
+    output_dir: Path,
+) -> Path:
+    candidates = [
+        row
+        for row in verified.convergence["rows"]
+        if row.get("operational_status") == "complete"
+        and row["family"] == "bins"
+        and int(row["stencil_width"]) == 2
+        and int(row["bin_count"]) == 64
+        and row["support_mode"] == "shell_local"
+    ]
+    if len(candidates) != 1:
+        raise RuntimeError("convergence publication lacks one 64-bin slope-window scenario")
+    artifact = _convergence_scenario_artifact(verified, input_hashes, candidates[0])
+    reference = _load_release_group(
+        verified,
+        input_hashes,
+        cube_id=REPRESENTATIVE_CUBE_ID,
+        stencil_width=PRIMARY_STENCIL_WIDTH,
+        support_mode=PRIMARY_SUPPORT_MODE,
+    ).result
+    ell = _centers(artifact["ell_bin_edges"])
+    windows = (
+        (3, artifact["local_log_slope_window_3"], "#4c78a8"),
+        (5, artifact["local_log_slope"], "#f58518"),
+        (7, artifact["local_log_slope_window_7"], "#54a24b"),
+    )
+    figure, axes = plt.subplots(2, 3, figsize=(13.0, 7.0), constrained_layout=True, sharex=True)
+    for row, q_name in enumerate(("B", "u")):
+        for column, direction in enumerate(("parallel", "xi", "lambda")):
+            axis = axes[row, column]
+            index = _moment_index(reference, q_name, direction)
+            for window, slopes, color in windows:
+                axis.plot(ell, slopes[index], color=color, label=f"{window}-bin window")
+            axis.set_xscale("log")
+            axis.grid(alpha=0.22)
+            axis.set_title(direction)
+            axis.set_xlabel(r"$\ell$ [cells]")
+            axis.set_ylabel(rf"$\alpha_{{{q_name},\perp}}(\ell)$")
+    axes[0, 0].legend(fontsize=8)
+    figure.suptitle(
+        f"{REPRESENTATIVE_CUBE_ID}: supported local-slope sensitivity to centered regression width"
+    )
+    return _save(figure, output_dir, "phase3a_slope_window_sensitivity.png")
+
+
+def four_cube_supported_slope_overview(
+    verified: VerifiedInputs,
+    input_hashes: InputHashes,
+    output_dir: Path,
+) -> Path:
+    figure, axes = plt.subplots(
+        len(BENCHMARK_CUBE_IDS),
+        2,
+        figsize=(12.0, 12.0),
+        constrained_layout=True,
+        sharex=True,
+        sharey="col",
+    )
+    for row, cube_id in enumerate(BENCHMARK_CUBE_IDS):
+        group = _load_release_group(
+            verified,
+            input_hashes,
+            cube_id=cube_id,
+            stencil_width=PRIMARY_STENCIL_WIDTH,
+            support_mode=PRIMARY_SUPPORT_MODE,
+        )
+        result, uncertainty = group.result, group.uncertainty
+        ell = _centers(result.ell_bin_edges)
+        for column, q_name in enumerate(("B", "u")):
+            axis = axes[row, column]
+            for direction in ("parallel", "xi", "lambda"):
+                index = _moment_index(result, q_name, direction)
+                low = uncertainty["local_log_slope_bootstrap_interval_low"][index]
+                high = uncertainty["local_log_slope_bootstrap_interval_high"][index]
+                valid_band = np.isfinite(ell) & np.isfinite(low) & np.isfinite(high)
+                axis.fill_between(
+                    ell[valid_band],
+                    low[valid_band],
+                    high[valid_band],
+                    color=DIRECTION_COLORS[direction],
+                    alpha=0.10,
+                )
+                axis.plot(
+                    ell,
+                    uncertainty["local_log_slope"][index],
+                    color=DIRECTION_COLORS[direction],
+                    label=direction,
+                )
+            axis.set_xscale("log")
+            axis.grid(alpha=0.22)
+            axis.set_xlabel(r"$\ell$ [cells]")
+            axis.set_ylabel(f"{SHORT_LABELS[cube_id]}\n" + rf"$\alpha_{{{q_name},\perp}}(\ell)$")
+    axes[0, 0].legend(fontsize=7)
+    figure.suptitle("Four-cube 2-point shell-local supported local slopes with 95% block bands")
+    return _save(figure, output_dir, "phase3a_four_cube_supported_slope_overview.png")
+
+
 def _convergence_scenario_artifact(
     verified: VerifiedInputs,
     input_hashes: InputHashes,
@@ -813,6 +987,230 @@ def _convergence_scenario_artifact(
     input_hashes.add(path)
     with np.load(path, allow_pickle=False) as payload:
         return {name: payload[name].copy() for name in payload.files}
+
+
+def _median_interpolated_relative_difference(
+    reference_ell: np.ndarray,
+    reference_values: np.ndarray,
+    other_ell: np.ndarray,
+    other_values: np.ndarray,
+) -> float:
+    reference_valid = (
+        np.isfinite(reference_ell)
+        & np.isfinite(reference_values)
+        & (reference_ell > 0.0)
+        & (reference_values > 0.0)
+    )
+    other_valid = (
+        np.isfinite(other_ell)
+        & np.isfinite(other_values)
+        & (other_ell > 0.0)
+        & (other_values > 0.0)
+    )
+    if np.count_nonzero(reference_valid) < 2 or np.count_nonzero(other_valid) < 2:
+        return float("nan")
+    lo = max(float(np.min(reference_ell[reference_valid])), float(np.min(other_ell[other_valid])))
+    hi = min(float(np.max(reference_ell[reference_valid])), float(np.max(other_ell[other_valid])))
+    shared = reference_valid & (reference_ell >= lo) & (reference_ell <= hi)
+    if np.count_nonzero(shared) < 2:
+        return float("nan")
+    interpolated = np.exp(
+        np.interp(
+            np.log(reference_ell[shared]),
+            np.log(other_ell[other_valid]),
+            np.log(other_values[other_valid]),
+        )
+    )
+    relative = np.abs(interpolated / reference_values[shared] - 1.0)
+    return float(np.median(relative))
+
+
+def convergence_science_differences(
+    verified: VerifiedInputs,
+    input_hashes: InputHashes,
+    output_dir: Path,
+) -> Path:
+    reference_result = _load_release_group(
+        verified,
+        input_hashes,
+        cube_id=REPRESENTATIVE_CUBE_ID,
+        stencil_width=PRIMARY_STENCIL_WIDTH,
+        support_mode=PRIMARY_SUPPORT_MODE,
+    ).result
+    rows = [
+        row
+        for row in verified.convergence["rows"]
+        if row.get("operational_status") == "complete"
+        and row["family"]
+        in {
+            "bins",
+            "directions",
+            "directions_all_valid",
+            "origins",
+            "origin_seeds",
+            "support",
+        }
+        and int(row["stencil_width"]) == 2
+    ]
+    if not rows:
+        raise RuntimeError("convergence publication contains no comparable science scenarios")
+    references: dict[str, Mapping[str, Any]] = {}
+    preferred = {
+        "bins": ("bin_count", 64),
+        "directions": ("directions_per_bin", 24),
+        "directions_all_valid": ("directions_per_bin", 24),
+        "origins": ("sample_count", 2048),
+        "origin_seeds": ("seed", runner.PRODUCTION_SEED),
+        "support": ("support_mode", "shell_local"),
+    }
+    for family, (name, value) in preferred.items():
+        candidates = [row for row in rows if row["family"] == family and row[name] == value]
+        if len(candidates) != 1:
+            raise RuntimeError(f"convergence family {family} lacks one preferred reference")
+        references[family] = candidates[0]
+    artifacts = {
+        int(row["scenario_index"]): _convergence_scenario_artifact(verified, input_hashes, row)
+        for row in rows
+    }
+    family_colors = {
+        family: plt.get_cmap("tab10")(index)
+        for index, family in enumerate(preferred)
+    }
+    figure, axes = plt.subplots(1, 2, figsize=(13.0, 4.8), constrained_layout=True, sharey=True)
+    x_positions: list[int] = []
+    x_labels: list[str] = []
+    x_cursor = 0
+    for axis, q_name in zip(axes, ("B", "u")):
+        index = _moment_index(reference_result, q_name, "lambda")
+        x_cursor = 0
+        for family in preferred:
+            selected = [row for row in rows if row["family"] == family]
+            reference_artifact = artifacts[int(references[family]["scenario_index"])]
+            reference_ell = _centers(reference_artifact["ell_bin_edges"])
+            reference_values = reference_artifact["moments"][index]
+            values = []
+            for row in selected:
+                artifact = artifacts[int(row["scenario_index"])]
+                values.append(
+                    _median_interpolated_relative_difference(
+                        reference_ell,
+                        reference_values,
+                        _centers(artifact["ell_bin_edges"]),
+                        artifact["moments"][index],
+                    )
+                )
+            positions = list(range(x_cursor, x_cursor + len(selected)))
+            if axis is axes[0]:
+                x_positions.extend(positions)
+                for row in selected:
+                    if family in {"directions", "directions_all_valid"}:
+                        value = row["directions_per_bin"]
+                    elif family == "origins":
+                        value = row["sample_count"]
+                    elif family == "origin_seeds":
+                        value = row["seed"]
+                    elif family == "bins":
+                        value = row["bin_count"]
+                    else:
+                        value = str(row["support_mode"]).replace("_", " ")
+                    x_labels.append(f"{family}\n{value}")
+            axis.scatter(
+                positions,
+                values,
+                s=34,
+                color=family_colors[family],
+                label=family,
+            )
+            x_cursor += len(selected) + 1
+        axis.set_yscale("symlog", linthresh=1.0e-6)
+        axis.set_xticks(x_positions, x_labels, rotation=55, ha="right", fontsize=7)
+        axis.set_xlabel("convergence family and tested value")
+        axis.set_ylabel(rf"median relative difference in $\lambda$-wedge $S_{{2,\perp}}^{{{q_name}}}$")
+        axis.grid(alpha=0.22)
+    axes[0].legend(fontsize=7, ncol=2)
+    figure.suptitle(
+        "Bounded science-result convergence: each family is compared with its documented reference"
+    )
+    return _save(figure, output_dir, "phase3a_convergence_science_differences.png")
+
+
+def convergence_scale_and_block_diagnostics(
+    verified: VerifiedInputs,
+    input_hashes: InputHashes,
+    output_dir: Path,
+) -> Path:
+    reference = _load_release_group(
+        verified,
+        input_hashes,
+        cube_id=REPRESENTATIVE_CUBE_ID,
+        stencil_width=PRIMARY_STENCIL_WIDTH,
+        support_mode=PRIMARY_SUPPORT_MODE,
+    ).result
+    ell_rows = [
+        row
+        for row in verified.convergence["rows"]
+        if row.get("operational_status") == "complete"
+        and row["family"] == "ell_max"
+        and int(row["stencil_width"]) == 2
+    ]
+    block_rows = [
+        row
+        for row in verified.convergence["rows"]
+        if row.get("operational_status") == "complete"
+        and row["family"] == "blocks"
+        and int(row["stencil_width"]) == 2
+    ]
+    if len(ell_rows) != 4 or len(block_rows) != 3:
+        raise RuntimeError("convergence publication lacks the expected ell_max or block matrix")
+    figure, axes = plt.subplots(1, 3, figsize=(13.0, 4.6), constrained_layout=True)
+    ell_max_values = np.asarray([int(row["ell_max"]) for row in ell_rows])
+    axes[0].plot(
+        ell_max_values,
+        [float(row["minimum_shell_valid_fraction"]) for row in ell_rows],
+        "o-",
+        color="#4c78a8",
+    )
+    axes[0].set_xlabel(r"configured 2-point $\ell_{\max}$ [cells]")
+    axes[0].set_ylabel("minimum shell-local eligible-origin fraction")
+    axes[0].set_yscale("log")
+    axes[0].grid(alpha=0.22)
+    block_labels = []
+    uncertainty_widths = []
+    effective_blocks = []
+    index = _moment_index(reference, "B", "lambda")
+    for row in block_rows:
+        artifact = _convergence_scenario_artifact(verified, input_hashes, row)
+        ell = _centers(artifact["ell_bin_edges"])
+        large_scale = np.isfinite(ell) & (ell >= 32.0) & (ell <= 160.0)
+        moment = artifact["moments"][index]
+        low = artifact["block_bootstrap_interval_low"][index]
+        high = artifact["block_bootstrap_interval_high"][index]
+        widths = np.divide(
+            high - low,
+            2.0 * moment,
+            out=np.full_like(moment, np.nan, dtype=float),
+            where=np.isfinite(moment) & (moment > 0.0),
+        )
+        block_labels.append(rf"${int(row['block_shape_kji'][0])}^3$")
+        uncertainty_widths.append(float(np.nanmedian(widths[large_scale])))
+        effective_blocks.append(
+            float(np.nanmedian(artifact["accepted_effective_blocks"][index][large_scale]))
+        )
+    positions = np.arange(len(block_rows))
+    axes[1].bar(positions, uncertainty_widths, color="#f58518")
+    axes[1].set_xticks(positions, block_labels)
+    axes[1].set_xlabel("spatial block side length [cells]")
+    axes[1].set_ylabel(r"median 95% block-band fractional half-width, $32 \leq \ell \leq 160$")
+    axes[1].grid(axis="y", alpha=0.22)
+    axes[2].bar(positions, effective_blocks, color="#54a24b")
+    axes[2].set_xticks(positions, block_labels)
+    axes[2].set_xlabel("spatial block side length [cells]")
+    axes[2].set_ylabel(r"median Kish effective blocks, $32 \leq \ell \leq 160$")
+    axes[2].grid(axis="y", alpha=0.22)
+    figure.suptitle(
+        f"{REPRESENTATIVE_CUBE_ID}: explicit outer-scale support loss and block-layout uncertainty sensitivity"
+    )
+    return _save(figure, output_dir, "phase3a_convergence_scale_and_block_diagnostics.png")
 
 
 def support_mode_comparison(
@@ -876,6 +1274,59 @@ def support_mode_comparison(
     axes[0].legend(fontsize=8)
     figure.suptitle("Bounded representative-cube support-mode comparison; unavailable diagnostics are labeled")
     return _save(figure, output_dir, "phase3a_support_mode_comparison.png")
+
+
+def four_cube_support_mode_ratios(
+    verified: VerifiedInputs,
+    input_hashes: InputHashes,
+    output_dir: Path,
+) -> Path:
+    figure, axes = plt.subplots(
+        len(BENCHMARK_CUBE_IDS),
+        2,
+        figsize=(12.0, 12.0),
+        constrained_layout=True,
+        sharex=True,
+        sharey=True,
+    )
+    for row, cube_id in enumerate(BENCHMARK_CUBE_IDS):
+        shell = _load_release_group(
+            verified,
+            input_hashes,
+            cube_id=cube_id,
+            stencil_width=PRIMARY_STENCIL_WIDTH,
+            support_mode="shell_local",
+        ).result
+        all_valid = _load_release_group(
+            verified,
+            input_hashes,
+            cube_id=cube_id,
+            stencil_width=PRIMARY_STENCIL_WIDTH,
+            support_mode="all_valid_origins",
+        ).result
+        ell = _centers(shell.ell_bin_edges)
+        for column, q_name in enumerate(("B", "u")):
+            axis = axes[row, column]
+            for direction in ("parallel", "xi", "lambda"):
+                index = _moment_index(shell, q_name, direction)
+                ratio = np.divide(
+                    all_valid.moments[index],
+                    shell.moments[index],
+                    out=np.full_like(shell.moments[index], np.nan, dtype=float),
+                    where=np.isfinite(shell.moments[index]) & (shell.moments[index] != 0.0),
+                )
+                axis.plot(ell, ratio, color=DIRECTION_COLORS[direction], label=direction)
+            axis.axhline(1.0, color="#777777", linestyle="--", linewidth=1.0)
+            axis.set_xscale("log")
+            axis.grid(alpha=0.22)
+            axis.set_xlabel(r"$\ell$ [cells]")
+            axis.set_ylabel(
+                f"{SHORT_LABELS[cube_id]}\n"
+                + rf"$S_{{2,\perp}}^{{{q_name},\mathrm{{all}}}} / S_{{2,\perp}}^{{{q_name},\mathrm{{shell}}}}$"
+            )
+    axes[0, 0].legend(fontsize=7)
+    figure.suptitle("Four-cube 2-point support-policy sensitivity; ratios are descriptive, not corrections")
+    return _save(figure, output_dir, "phase3a_four_cube_support_mode_ratios.png")
 
 
 def stencil_comparison(
@@ -1364,9 +1815,15 @@ def main() -> None:
         worker_scaling(verified, temporary_output)
         convergence_census(verified, temporary_output)
         support_by_ell(verified, input_hashes, temporary_output)
+        offset_resolved_support_orientation(verified, input_hashes, temporary_output)
         representative_curves_with_block_bands(verified, input_hashes, temporary_output)
         local_slopes_with_effective_blocks(verified, input_hashes, temporary_output)
+        slope_window_sensitivity(verified, input_hashes, temporary_output)
+        four_cube_supported_slope_overview(verified, input_hashes, temporary_output)
+        convergence_science_differences(verified, input_hashes, temporary_output)
+        convergence_scale_and_block_diagnostics(verified, input_hashes, temporary_output)
         support_mode_comparison(verified, input_hashes, temporary_output)
+        four_cube_support_mode_ratios(verified, input_hashes, temporary_output)
         stencil_comparison(verified, input_hashes, temporary_output)
         runtime_storage_summary(verified, input_hashes, temporary_output)
         omitted_figures: dict[str, str] = {}
