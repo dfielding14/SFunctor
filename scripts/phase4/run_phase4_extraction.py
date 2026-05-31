@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.phase1.cbin_tools import file_sha256
 from sfunctor.io.cube_extract import (
+    CORE_EXTRACTOR_SOURCE_PATHS,
     CubeExtractionError,
     CubeSelection,
     extract_cube,
@@ -76,11 +77,7 @@ def _source_version() -> dict[str, Any]:
     paths = (
         Path(__file__).resolve(),
         root / "job_scripts" / "phase4" / "run_phase4_extract_andes.sh",
-        root / "sfunctor" / "io" / "cube_extract.py",
-        root / "scripts" / "phase2" / "run_phase2_extraction.py",
-        root / "job_scripts" / "phase2" / "run_phase2_extract_andes.sh",
-        root / "scripts" / "phase1" / "cbin_tools.py",
-        root / "scripts" / "phase1" / "validate_reconstruction.py",
+        *(root / relative_path for relative_path in CORE_EXTRACTOR_SOURCE_PATHS),
     )
     hashes = {str(path.relative_to(root)): file_sha256(path) for path in paths}
     try:
@@ -245,13 +242,102 @@ def _materialization_record_path(output_root: Path, cube_id: str) -> Path:
     return output_root / MATERIALIZATION_ROOT / f"{cube_id}.json"
 
 
+def _is_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and value == value.lower()
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _load_hash_bound_json(path: Path, expected_sha256: str, *, label: str) -> dict[str, Any]:
+    encoded = path.read_bytes()
+    if not _is_sha256(expected_sha256) or hashlib.sha256(encoded).hexdigest() != expected_sha256:
+        raise CubeExtractionError(f"{label} changed while validating core provenance: {path}")
+    payload = json.loads(encoded)
+    if not isinstance(payload, dict):
+        raise CubeExtractionError(f"{label} must contain one JSON object: {path}")
+    return payload
+
+
+def _plan_manifest_core_provenance(
+    output_root: Path,
+    cube_id: str,
+    *,
+    plan_sha256: str,
+    manifest_sha256: str,
+) -> dict[str, Any]:
+    """Require one clean, hash-bound generic extractor inventory for a Phase 4 cube."""
+
+    plan = _load_hash_bound_json(
+        output_root / PLAN_FILENAME,
+        plan_sha256,
+        label="frozen Phase 4 extraction plan",
+    )
+    manifest = _load_hash_bound_json(
+        output_root / cube_id / "manifest.json",
+        manifest_sha256,
+        label="published cube manifest",
+    )
+    plan_version = plan.get("source_version")
+    manifest_version = manifest.get("code_version")
+    if not isinstance(plan_version, Mapping) or not isinstance(manifest_version, Mapping):
+        raise CubeExtractionError("missing Phase 4 plan-to-manifest core provenance")
+    if plan_version.get("dirty") is not False or manifest_version.get("dirty") is not False:
+        raise CubeExtractionError("Phase 4 materialization requires explicitly clean core provenance")
+    plan_hashes = plan_version.get("implementation_source_hashes")
+    manifest_hashes = manifest_version.get("implementation_source_hashes")
+    plan_sha256 = plan_version.get("implementation_sha256")
+    manifest_sha256 = manifest_version.get("implementation_sha256")
+    if (
+        not isinstance(plan_hashes, Mapping)
+        or not isinstance(manifest_hashes, Mapping)
+        or not _is_sha256(plan_sha256)
+        or not _is_sha256(manifest_sha256)
+        or any(
+            not isinstance(relative_path, str) or not _is_sha256(source_sha256)
+            for relative_path, source_sha256 in plan_hashes.items()
+        )
+        or any(
+            not isinstance(relative_path, str) or not _is_sha256(source_sha256)
+            for relative_path, source_sha256 in manifest_hashes.items()
+        )
+    ):
+        raise CubeExtractionError("malformed Phase 4 plan-to-manifest core provenance")
+    if _mapping_sha256(plan_hashes) != plan_sha256:
+        raise CubeExtractionError("incoherent frozen Phase 4 extraction source hashes")
+    try:
+        core_hashes = {
+            relative_path: plan_hashes[relative_path]
+            for relative_path in CORE_EXTRACTOR_SOURCE_PATHS
+        }
+    except KeyError as error:
+        raise CubeExtractionError("frozen Phase 4 plan is missing core extractor source hashes") from error
+    core_sha256 = _mapping_sha256(core_hashes)
+    if dict(manifest_hashes) != core_hashes or manifest_sha256 != core_sha256:
+        raise CubeExtractionError("Phase 4 plan-to-manifest core provenance mismatch")
+    return {
+        "implementation_source_hashes": core_hashes,
+        "implementation_sha256": core_sha256,
+    }
+
+
 def _materialization_record_payload(output_root: Path, cube_id: str) -> dict[str, Any]:
+    plan_identity = _plan_identity(output_root)
+    cube_publication = _cube_publication_identity(output_root, cube_id)
     return {
         "schema_version": 1,
         "status": "phase4_fresh_extraction",
         "cube_id": cube_id,
-        "phase4_extraction_plan": _plan_identity(output_root),
-        "cube_publication": _cube_publication_identity(output_root, cube_id),
+        "phase4_extraction_plan": plan_identity,
+        "cube_publication": cube_publication,
+        "plan_derived_core_extractor_provenance": _plan_manifest_core_provenance(
+            output_root,
+            cube_id,
+            plan_sha256=plan_identity["plan_sha256"],
+            manifest_sha256=cube_publication["manifest_sha256"],
+        ),
     }
 
 

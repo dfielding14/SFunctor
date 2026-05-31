@@ -570,6 +570,23 @@ def _verify_shard(output_root: Path, row: Mapping[str, Any]) -> dict[str, Any]:
     return marker
 
 
+def _assigned_shards(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    procid: int,
+    ntasks: int,
+) -> list[Mapping[str, Any]]:
+    """Assign complete cube groups to tasks to minimize repeated cube loading."""
+
+    if ntasks < 1 or procid < 0 or procid >= ntasks:
+        raise ValueError("invalid Slurm task assignment")
+    cube_ids = tuple(dict.fromkeys(str(row["cube_id"]) for row in rows))
+    assigned_cube_ids = {
+        cube_id for index, cube_id in enumerate(cube_ids) if index % ntasks == procid
+    }
+    return [row for row in rows if str(row["cube_id"]) in assigned_cube_ids]
+
+
 def work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any]:
     """Compute assigned fixed shards and atomically publish validated partials."""
 
@@ -578,7 +595,7 @@ def work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any
     rows = json.loads((output_root / "manifests" / "shards.json").read_text())["shards"]
     procid = int(os.environ.get("SLURM_PROCID", "0"))
     ntasks = int(os.environ.get("SLURM_NTASKS", "1"))
-    assigned = [row for index, row in enumerate(rows) if index % ntasks == procid]
+    assigned = _assigned_shards(rows, procid=procid, ntasks=ntasks)
     cache_cube_id = None
     cube = None
     published = reused = 0

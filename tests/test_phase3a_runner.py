@@ -319,6 +319,33 @@ def test_planned_shards_are_canonical_disjoint_exact_coverage(monkeypatch, tmp_p
     assert len({row["shard_id"] for row in shards}) == len(shards)
 
 
+def test_assigned_shards_group_complete_cubes_without_losing_exact_coverage():
+    rows = [
+        {"cube_id": f"cube-{cube}", "shard_id": f"cube-{cube}/shard-{shard}"}
+        for cube in range(5)
+        for shard in range(3)
+    ]
+
+    assignments = [
+        runner._assigned_shards(rows, procid=procid, ntasks=3) for procid in range(3)
+    ]
+
+    assert sorted(row["shard_id"] for assigned in assignments for row in assigned) == sorted(
+        row["shard_id"] for row in rows
+    )
+    assert sum(
+        index == 0 or row["cube_id"] != assigned[index - 1]["cube_id"]
+        for assigned in assignments
+        for index, row in enumerate(assigned)
+    ) == 5
+    for assigned in assignments:
+        cube_ids = {row["cube_id"] for row in assigned}
+        for cube_id in cube_ids:
+            assert [row["shard_id"] for row in assigned if row["cube_id"] == cube_id] == [
+                row["shard_id"] for row in rows if row["cube_id"] == cube_id
+            ]
+
+
 def test_verify_plan_rejects_rechecksummed_noncanonical_shard_inventory(tmp_path, monkeypatch):
     phase2_root, output_root = _build_bound_plan(tmp_path, monkeypatch)
     assert runner._verify_plan(phase2_root, output_root, verify_arrays=False)

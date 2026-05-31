@@ -30,6 +30,63 @@ def _selections(
     }
 
 
+def _core_source_hashes() -> dict[str, str]:
+    return {
+        relative_path: f"{index + 1:064x}"
+        for index, relative_path in enumerate(extraction.CORE_EXTRACTOR_SOURCE_PATHS)
+    }
+
+
+def _source_version(hashes: dict[str, str], *, dirty: bool = False) -> dict[str, object]:
+    return {
+        "commit": "commit",
+        "dirty": dirty,
+        "implementation_source_hashes": hashes,
+        "implementation_sha256": extraction._mapping_sha256(hashes),
+    }
+
+
+def _materialization_versions() -> tuple[dict[str, object], dict[str, object]]:
+    core_hashes = _core_source_hashes()
+    plan_hashes = {
+        "scripts/phase4/run_phase4_extraction.py": "a" * 64,
+        "job_scripts/phase4/run_phase4_extract_andes.sh": "b" * 64,
+        **core_hashes,
+    }
+    return _source_version(plan_hashes), _source_version(core_hashes)
+
+
+def _write_materialization_inputs(
+    output_root: Path,
+    cube_id: str,
+    *,
+    plan_version: dict[str, object] | None = None,
+    manifest_version: dict[str, object] | None = None,
+) -> tuple[Path, Path, Path, Path]:
+    default_plan_version, default_manifest_version = _materialization_versions()
+    plan_path = output_root / extraction.PLAN_FILENAME
+    marker_path = output_root / extraction.PLAN_MARKER_FILENAME
+    manifest_path = output_root / cube_id / "manifest.json"
+    completion_path = output_root / cube_id / "COMPLETE.json"
+    extraction._atomic_write_json(
+        plan_path,
+        {"source_version": default_plan_version if plan_version is None else plan_version},
+    )
+    extraction._atomic_write_json(marker_path, {"marker": True})
+    extraction._atomic_write_json(
+        manifest_path,
+        {"code_version": default_manifest_version if manifest_version is None else manifest_version},
+    )
+    extraction._atomic_write_json(
+        completion_path,
+        {
+            "cube_id": cube_id,
+            "manifest_sha256": extraction.file_sha256(manifest_path),
+        },
+    )
+    return plan_path, marker_path, manifest_path, completion_path
+
+
 def test_frozen_pilot_requires_exact_21_lsub640_members(monkeypatch):
     monkeypatch.setattr(extraction, "load_pilot_selections", lambda trusted_run: _selections())
     assert tuple(extraction._load_frozen_pilot(Path("/trusted"))) == extraction.PHASE4_PILOT_CUBE_IDS
@@ -338,18 +395,8 @@ def test_batch_a_source_identity_rejects_failed_strict_verification(tmp_path, mo
 
 def test_phase4_materialization_record_rejects_unrecorded_or_changed_cube(tmp_path):
     cube_id = extraction.PHASE4_PILOT_CUBE_IDS[0]
-    (tmp_path / extraction.PLAN_FILENAME).write_text('{"plan": true}\n')
-    (tmp_path / extraction.PLAN_MARKER_FILENAME).write_text('{"marker": true}\n')
+    _write_materialization_inputs(tmp_path, cube_id)
     cube_root = tmp_path / cube_id
-    cube_root.mkdir()
-    (cube_root / "manifest.json").write_text('{"cube": true}\n')
-    extraction._atomic_write_json(
-        cube_root / "COMPLETE.json",
-        {
-            "cube_id": cube_id,
-            "manifest_sha256": extraction.file_sha256(cube_root / "manifest.json"),
-        },
-    )
 
     with pytest.raises(FileNotFoundError):
         extraction._materialization_record_identity(tmp_path, cube_id)
@@ -376,6 +423,108 @@ def test_phase4_materialization_record_rejects_unrecorded_or_changed_cube(tmp_pa
     assert reused["phase4_materialization_record"] == fresh["phase4_materialization_record"]
     (cube_root / "manifest.json").write_text('{"changed": true}\n')
     with pytest.raises(CubeExtractionError, match="publication marker"):
+        extraction._materialization_record_identity(tmp_path, cube_id)
+
+
+@pytest.mark.parametrize("mutation", ("aggregate", "source_digest", "missing_source"))
+def test_phase4_materialization_guard_rejects_mismatched_core_provenance(tmp_path, mutation):
+    cube_id = extraction.PHASE4_PILOT_CUBE_IDS[0]
+    plan_version, manifest_version = _materialization_versions()
+    if mutation == "aggregate":
+        manifest_version["implementation_sha256"] = "f" * 64
+    else:
+        manifest_hashes = dict(manifest_version["implementation_source_hashes"])
+        core_path = extraction.CORE_EXTRACTOR_SOURCE_PATHS[0]
+        if mutation == "source_digest":
+            manifest_hashes[core_path] = "f" * 64
+        else:
+            manifest_hashes.pop(core_path)
+        manifest_version = _source_version(manifest_hashes)
+    _write_materialization_inputs(
+        tmp_path,
+        cube_id,
+        plan_version=plan_version,
+        manifest_version=manifest_version,
+    )
+
+    with pytest.raises(CubeExtractionError, match="core provenance mismatch"):
+        extraction._materialization_record_payload(tmp_path, cube_id)
+
+
+@pytest.mark.parametrize("dirty_record", ("plan", "manifest"))
+def test_phase4_materialization_guard_requires_clean_provenance(tmp_path, dirty_record):
+    cube_id = extraction.PHASE4_PILOT_CUBE_IDS[0]
+    plan_version, manifest_version = _materialization_versions()
+    if dirty_record == "plan":
+        plan_version["dirty"] = True
+    else:
+        manifest_version["dirty"] = True
+    _write_materialization_inputs(
+        tmp_path,
+        cube_id,
+        plan_version=plan_version,
+        manifest_version=manifest_version,
+    )
+
+    with pytest.raises(CubeExtractionError, match="explicitly clean"):
+        extraction._materialization_record_payload(tmp_path, cube_id)
+
+
+def test_phase4_materialization_guard_fails_closed_for_missing_plan_core_source(tmp_path):
+    cube_id = extraction.PHASE4_PILOT_CUBE_IDS[0]
+    plan_version, manifest_version = _materialization_versions()
+    plan_hashes = dict(plan_version["implementation_source_hashes"])
+    plan_hashes.pop(extraction.CORE_EXTRACTOR_SOURCE_PATHS[0])
+    _write_materialization_inputs(
+        tmp_path,
+        cube_id,
+        plan_version=_source_version(plan_hashes),
+        manifest_version=manifest_version,
+    )
+
+    with pytest.raises(CubeExtractionError, match="missing core extractor source hashes"):
+        extraction._materialization_record_payload(tmp_path, cube_id)
+
+
+def test_phase4_materialization_identity_rejects_coherently_repinned_core_provenance(tmp_path):
+    cube_id = extraction.PHASE4_PILOT_CUBE_IDS[0]
+    plan_path, marker_path, manifest_path, completion_path = _write_materialization_inputs(
+        tmp_path,
+        cube_id,
+    )
+    extraction._bind_extraction_materialization(tmp_path, cube_id, {"status": "extracted"})
+
+    plan = json.loads(plan_path.read_text())
+    manifest = json.loads(manifest_path.read_text())
+    core_path = extraction.CORE_EXTRACTOR_SOURCE_PATHS[0]
+    plan["source_version"]["implementation_source_hashes"][core_path] = "f" * 64
+    plan["source_version"]["implementation_sha256"] = extraction._mapping_sha256(
+        plan["source_version"]["implementation_source_hashes"]
+    )
+    manifest["code_version"]["implementation_source_hashes"][core_path] = "f" * 64
+    manifest["code_version"]["implementation_sha256"] = extraction._mapping_sha256(
+        manifest["code_version"]["implementation_source_hashes"]
+    )
+    extraction._atomic_write_json(plan_path, plan)
+    extraction._atomic_write_json(
+        marker_path,
+        {
+            "schema_version": 1,
+            "status": "passed",
+            "plan_sha256": extraction.file_sha256(plan_path),
+            "implementation_sha256": plan["source_version"]["implementation_sha256"],
+        },
+    )
+    extraction._atomic_write_json(manifest_path, manifest)
+    extraction._atomic_write_json(
+        completion_path,
+        {
+            "cube_id": cube_id,
+            "manifest_sha256": extraction.file_sha256(manifest_path),
+        },
+    )
+
+    with pytest.raises(CubeExtractionError, match="invalid or stale"):
         extraction._materialization_record_identity(tmp_path, cube_id)
 
 

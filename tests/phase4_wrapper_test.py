@@ -15,6 +15,7 @@ WRAPPERS = {
     "extract": REPO_ROOT / "job_scripts" / "phase4" / "run_phase4_extract_andes.sh",
     "batch_a": REPO_ROOT / "job_scripts" / "phase4" / "run_phase4_batch_a_sampler_andes.sh",
 }
+REPORT_WRAPPER = REPO_ROOT / "job_scripts" / "phase4" / "run_phase4_batch_a_report_andes.sh"
 LOCK_SUFFIXES = {
     "extract": "phase4_extract_action_lock",
     "batch_a": "phase4_batch_a_action_lock",
@@ -132,6 +133,38 @@ def _run_wrapper(
     )
 
 
+def _run_report_wrapper(
+    fake_andes: tuple[Path, Path],
+    output_root: Path,
+    run_dir: Path,
+    **environment: str,
+) -> subprocess.CompletedProcess[str]:
+    sfunctor_dir, fake_bin = fake_andes
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}:{env['PATH']}",
+            "SFUNCTOR_DIR": str(sfunctor_dir),
+            "EXTRACTION_ROOT": str(output_root.parent / "extract"),
+            "RELEASE_ROOT": str(output_root.parent / "release"),
+            "OUTPUT_DIR": str(output_root),
+            "RUN_DIR": str(run_dir),
+            "LEDGER_SUMMARY": str(output_root.parent / "ledger_snapshot.md"),
+            "SLURM_JOB_ID": "9001",
+            "FAKE_PYTHON_LOG": str(run_dir / "python.log"),
+        }
+    )
+    env.update(environment)
+    return subprocess.run(
+        ["bash", str(REPORT_WRAPPER)],
+        cwd=output_root.parent,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 @pytest.mark.parametrize("wrapper_name", tuple(WRAPPERS))
 def test_phase4_wrapper_recovers_inactive_lock_and_archives_sacct(
     tmp_path: Path,
@@ -198,3 +231,73 @@ def test_phase4_wrapper_preserves_lock_without_verified_inactive_owner(
 
     assert result.returncode == 3
     assert lock_dir.is_dir()
+
+
+def test_phase4_report_wrapper_passes_archived_ledger_and_archives_sacct(
+    tmp_path: Path,
+    fake_andes: tuple[Path, Path],
+) -> None:
+    output_root = tmp_path / "report_output"
+    run_dir = tmp_path / "report_run"
+
+    result = _run_report_wrapper(fake_andes, output_root, run_dir)
+
+    assert result.returncode == 0, result.stderr
+    arguments = (run_dir / "python.log").read_text()
+    assert "generate_phase4_batch_a_status_figures.py" in arguments
+    assert f"--ledger-summary {tmp_path / 'ledger_snapshot.md'}" in arguments
+    assert f"--output-dir {output_root}" in arguments
+    assert (run_dir / "resources" / "sacct_9001.psv").is_file()
+
+
+def test_phase4_report_wrapper_profiles_one_cube(
+    tmp_path: Path,
+    fake_andes: tuple[Path, Path],
+) -> None:
+    run_dir = tmp_path / "profile_run"
+
+    result = _run_report_wrapper(
+        fake_andes,
+        tmp_path / "report_output",
+        run_dir,
+        ACTION="profile",
+        PROFILE_CUBE_ID="L640_sub00370",
+    )
+
+    assert result.returncode == 0, result.stderr
+    arguments = (run_dir / "python.log").read_text()
+    assert "profile_phase4_batch_a_report_io.py" in arguments
+    assert "--cube-id L640_sub00370" in arguments
+    assert f"--output-json {run_dir / 'phase4_batch_a_report_io_profile.json'}" in arguments
+
+
+def test_phase4_report_wrapper_runs_structural_preflight(
+    tmp_path: Path,
+    fake_andes: tuple[Path, Path],
+) -> None:
+    run_dir = tmp_path / "preflight_run"
+
+    result = _run_report_wrapper(
+        fake_andes,
+        tmp_path / "report_output",
+        run_dir,
+        ACTION="preflight",
+    )
+
+    assert result.returncode == 0, result.stderr
+    arguments = (run_dir / "python.log").read_text()
+    assert "preflight_phase4_batch_a_report.py" in arguments
+    assert f"--output-json {run_dir / 'phase4_batch_a_report_structural_preflight.json'}" in arguments
+
+
+def test_phase4_report_wrapper_rejects_reused_run_dir(
+    tmp_path: Path,
+    fake_andes: tuple[Path, Path],
+) -> None:
+    run_dir = tmp_path / "report_run"
+    run_dir.mkdir()
+
+    result = _run_report_wrapper(fake_andes, tmp_path / "report_output", run_dir)
+
+    assert result.returncode == 3
+    assert "allocation directory already exists" in result.stderr

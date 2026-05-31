@@ -58,6 +58,13 @@ BENCHMARK_CUBE_IDS = (
     "L640_sub00738",
 )
 AXIS_ORDER = "KJI: array axes are (k=x3, j=x2, i=x1)"
+CORE_EXTRACTOR_SOURCE_PATHS = (
+    "sfunctor/io/cube_extract.py",
+    "scripts/phase2/run_phase2_extraction.py",
+    "job_scripts/phase2/run_phase2_extract_andes.sh",
+    "scripts/phase1/cbin_tools.py",
+    "scripts/phase1/validate_reconstruction.py",
+)
 
 
 @dataclass(frozen=True)
@@ -194,16 +201,9 @@ def _git_version(repo_root: Path | None = None) -> dict[str, Any]:
         )
     except (OSError, subprocess.CalledProcessError):
         return {"commit": "unknown", "dirty": None}
-    source_paths = (
-        Path(__file__).resolve(),
-        cwd / "scripts" / "phase2" / "run_phase2_extraction.py",
-        cwd / "job_scripts" / "phase2" / "run_phase2_extract_andes.sh",
-        cwd / "scripts" / "phase1" / "cbin_tools.py",
-        cwd / "scripts" / "phase1" / "validate_reconstruction.py",
-    )
     source_hashes = {
-        str(path.relative_to(cwd)): file_sha256(path)
-        for path in source_paths
+        relative_path: file_sha256(cwd / relative_path)
+        for relative_path in CORE_EXTRACTOR_SOURCE_PATHS
     }
     aggregate = hashlib.sha256(
         json.dumps(source_hashes, sort_keys=True, separators=(",", ":")).encode()
