@@ -177,6 +177,8 @@ deterministic signed integer 3-D offsets with:
 - per-bin realized counts;
 - separately reported zero-offset removals, post-rounding duplicate removals,
   and strict scale-limit exclusions;
+- a compatibility aggregate for zero-or-duplicate removals;
+- per-bin directional occupancy;
 - checksummed NPZ and JSON manifests.
 
 The release design uses `64` separation bins and `24` requested directions per
@@ -203,6 +205,13 @@ differences:
 
 Shell-local geometry is always derived from the frozen full census, not from a
 worker shard. Every partial stores the frozen support-census checksum.
+
+Every publication shard also stores staging logical and allocated byte counts.
+Task-local resource records retain Slurm job and task IDs, worker count, shard
+wall times, estimator elapsed sums, serialization and verification times,
+reuse times, mapped-input bytes, parent-stacked-vector bytes, and
+parent-process RSS. These runner values are distinct from Slurm step-level
+high-water RSS.
 
 Reduction reuse is conservative: the reduction manifest is parsed and rebound
 to the current campaign, current shard-marker checksums, source identity, and
@@ -252,10 +261,21 @@ under the explicit allocation `RUN_DIR`, sets threaded numerical libraries to
 one thread per process, contains no email directives, and does not reference
 the broken SGS products.
 
-The wrapper uses an action lock to prevent concurrent publication into one
-output root. A stale lock is removed only after checking that no live
-allocation owns the output root; the lock must not be deleted merely because a
-previous run appears interrupted.
+The wrapper uses a hidden sibling action lock to prevent concurrent
+publication into one output root without making a fresh `plan` root non-empty.
+A stale lock is removed only after an `squeue` snapshot proves that its numeric
+owner allocation is inactive. The lock must not be deleted merely because a
+previous run appears interrupted. Each wrapper exit also archives a
+step-resolved `sacct` snapshot under the explicit allocation `RUN_DIR`; use its
+Python-step `MaxRSS` as the scheduling high-water measurement rather than the
+wrapper launcher RSS.
+
+The bounded convergence action binds its representative Phase 2 cube identity
+and verifies every scenario artifact checksum. Bin-count and
+direction-density comparisons use their complete generated displacement
+censuses. Other bounded sensitivity scenarios use a documented
+shell-stratified subset. Wider-stencil `nested_core` diagnostics remain
+labeled comparisons where their retained core is non-empty.
 
 ## Publication Layout
 
@@ -270,6 +290,7 @@ OUTPUT_ROOT/
   shards/
   reductions/
   attempts/
+  work_resource_records/
   phase3a_summary.json
 ```
 

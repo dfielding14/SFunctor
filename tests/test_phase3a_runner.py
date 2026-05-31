@@ -120,6 +120,68 @@ def test_verify_json_diagnostic_rejects_stale_source_hash(tmp_path, monkeypatch)
         )
 
 
+def test_verify_json_diagnostic_rejects_changed_phase2_source_and_artifact(tmp_path, monkeypatch):
+    output_root = tmp_path / "diagnostic"
+    artifact_path = output_root / "scenarios" / "scenario_000.npz"
+    artifact_path.parent.mkdir(parents=True)
+    np.savez(artifact_path, value=np.asarray((1,)))
+    source = {"implementation_sha256": "source"}
+    phase2_identity = {"cube_id": "cube-a", "arrays_sha256": "phase2"}
+    monkeypatch.setattr(runner, "_source_version", lambda: source)
+    monkeypatch.setattr(
+        runner,
+        "_phase2_source_identity",
+        lambda phase2_root, cube_id, *, verify_arrays: phase2_identity,
+    )
+    runner._publish_json_diagnostic(
+        output_root,
+        "convergence.json",
+        "CONVERGENCE_COMPLETE.json",
+        {
+            "operational_status": "complete",
+            "source_version": source,
+            "cube_id": "cube-a",
+            "phase2_source": phase2_identity,
+            "rows": [
+                {
+                    "artifact_relative_path": "scenarios/scenario_000.npz",
+                    "artifact_sha256": runner.file_sha256(artifact_path),
+                }
+            ],
+        },
+    )
+
+    assert runner._verify_json_diagnostic(
+        output_root,
+        "convergence.json",
+        "CONVERGENCE_COMPLETE.json",
+        phase2_root=tmp_path / "phase2",
+    )
+    artifact_path.write_bytes(b"changed")
+    with pytest.raises(RuntimeError, match="artifact binding"):
+        runner._verify_json_diagnostic(
+            output_root,
+            "convergence.json",
+            "CONVERGENCE_COMPLETE.json",
+            phase2_root=tmp_path / "phase2",
+        )
+
+
+def test_convergence_design_uses_full_census_only_for_bin_and_direction_evidence():
+    displacements = np.column_stack(
+        (np.arange(1, 121, dtype=np.int64), np.zeros(120, dtype=np.int64), np.zeros(120, dtype=np.int64))
+    )
+    edges = np.asarray((0.5, 40.5, 80.5, 120.5))
+
+    full, full_policy = runner._convergence_offset_subset("directions", displacements, edges)
+    bounded, bounded_policy = runner._convergence_offset_subset("origins", displacements, edges)
+
+    assert np.array_equal(full, displacements)
+    assert full_policy == "full_displacement_census"
+    assert len(bounded) == 96
+    assert bounded_policy == "shell_stratified_maximum_96_offsets"
+
+
 def test_planned_shards_are_canonical_disjoint_exact_coverage(monkeypatch, tmp_path):
     lengths = {2: 5, 5: 3}
     monkeypatch.setattr(runner, "BENCHMARK_CUBE_IDS", ("cube-a",))

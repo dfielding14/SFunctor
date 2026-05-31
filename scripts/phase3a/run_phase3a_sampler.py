@@ -127,6 +127,8 @@ def _verify_json_diagnostic(
     output_root: Path,
     filename: str,
     marker_filename: str,
+    *,
+    phase2_root: Path | None = None,
 ) -> dict[str, Any]:
     """Reject stale or source-mixed bounded diagnostic publications."""
 
@@ -146,6 +148,25 @@ def _verify_json_diagnostic(
         or payload.get("operational_status") != "complete"
     ):
         raise RuntimeError(f"invalid or stale Phase 3a diagnostic: {output_root}")
+    if phase2_root is not None:
+        cube_id = payload.get("cube_id")
+        if not isinstance(cube_id, str) or payload.get("phase2_source") != _phase2_source_identity(
+            phase2_root, cube_id, verify_arrays=True
+        ):
+            raise RuntimeError(f"Phase 2 source changed after diagnostic publication: {output_root}")
+    for row in payload.get("rows", ()):
+        artifact_relative_path = row.get("artifact_relative_path")
+        artifact_sha256 = row.get("artifact_sha256")
+        if (artifact_relative_path is None) != (artifact_sha256 is None):
+            raise RuntimeError(f"incomplete diagnostic artifact binding: {output_root}")
+        if artifact_relative_path is None:
+            continue
+        artifact_path = output_root / artifact_relative_path
+        if (
+            artifact_path.resolve().parent != (output_root / "scenarios").resolve()
+            or artifact_sha256 != file_sha256(artifact_path)
+        ):
+            raise RuntimeError(f"invalid diagnostic artifact binding: {artifact_path}")
     return payload
 
 
@@ -190,6 +211,74 @@ def _source_version() -> dict[str, Any]:
 
 def _peak_rss_kib() -> int:
     return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+
+
+def _tree_size_accounting(root: Path) -> dict[str, int]:
+    """Return logical and allocated regular-file bytes below one root."""
+
+    logical_bytes = allocated_bytes = 0
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        stat = path.stat()
+        logical_bytes += stat.st_size
+        allocated_bytes += stat.st_blocks * 512
+    return {
+        "logical_bytes": logical_bytes,
+        "allocated_bytes": allocated_bytes,
+    }
+
+
+def _cube_memory_footprint(cube: Mapping[str, np.ndarray]) -> dict[str, int]:
+    """Return mapped-input and parent-stacked-vector byte footprints."""
+
+    return {
+        "input_mmap_bytes": sum(
+            np.asarray(values).nbytes for name, values in cube.items() if not name.startswith("_")
+        ),
+        "parent_stacked_vector_bytes": sum(
+            np.asarray(values).nbytes for name, values in cube.items() if name.startswith("_")
+        ),
+    }
+
+
+def _publish_work_resource_record(
+    output_root: Path,
+    *,
+    action: str,
+    workers: int,
+    started: float,
+    rows: list[dict[str, Any]],
+    cube_footprints: Mapping[str, Mapping[str, int]],
+) -> dict[str, Any]:
+    """Persist task-local execution accounting without changing science markers."""
+
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "action": action,
+        "slurm_job_id": os.environ.get("SLURM_JOB_ID", "local"),
+        "slurm_procid": int(os.environ.get("SLURM_PROCID", "0")),
+        "slurm_ntasks": int(os.environ.get("SLURM_NTASKS", "1")),
+        "workers": workers,
+        "action_wall_seconds": time.perf_counter() - started,
+        "published_count": sum(not row["reused"] for row in rows),
+        "reused_count": sum(row["reused"] for row in rows),
+        "cube_footprints": cube_footprints,
+        "rows": rows,
+        "parent_process_peak_rss_kib": _peak_rss_kib(),
+        "source_version": _source_version(),
+    }
+    root = output_root / "work_resource_records"
+    path = root / (
+        f"{action}_job_{payload['slurm_job_id']}_proc_{payload['slurm_procid']:04d}_"
+        f"{time.time_ns()}.json"
+    )
+    _atomic_write_json(path, payload)
+    return {
+        "resource_record_relative_path": str(path.relative_to(output_root)),
+        "resource_record_sha256": file_sha256(path),
+        **{name: payload[name] for name in ("published_count", "reused_count", "action_wall_seconds")},
+    }
 
 
 def _manifest_paths(output_root: Path, stencil_width: int) -> tuple[Path, Path]:
@@ -436,6 +525,13 @@ def _verify_shard(output_root: Path, row: Mapping[str, Any]) -> dict[str, Any]:
         or marker.get("support_displacements_sha256") != metadata["offsets_sha256"]
         or marker.get("phase2_source") != campaign["phase2_sources"][row["cube_id"]]
         or marker.get("sampling_schedule_sha256") != _sampling_schedule_sha256(row)
+        or any(
+            not isinstance(marker.get(name), int) or marker[name] < 0
+            for name in (
+                "staging_logical_bytes_before_marker",
+                "staging_allocated_bytes_before_marker",
+            )
+        )
     ):
         raise RuntimeError(f"invalid Phase 3a shard marker: {root}")
     result = load_finite_domain_partial_npz(partial_path)
@@ -462,6 +558,7 @@ def _verify_shard(output_root: Path, row: Mapping[str, Any]) -> dict[str, Any]:
 def work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any]:
     """Compute assigned fixed shards and atomically publish validated partials."""
 
+    work_started = time.perf_counter()
     campaign = _verify_plan(phase2_root, output_root, verify_arrays=False)
     rows = json.loads((output_root / "manifests" / "shards.json").read_text())["shards"]
     procid = int(os.environ.get("SLURM_PROCID", "0"))
@@ -470,10 +567,23 @@ def work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any
     cache_cube_id = None
     cube = None
     published = reused = 0
+    resource_rows: list[dict[str, Any]] = []
+    cube_footprints: dict[str, dict[str, int]] = {}
     for row in assigned:
         root, _, marker_path = _shard_paths(output_root, row["shard_id"])
         if marker_path.exists():
+            reuse_started = time.perf_counter()
             _verify_shard(output_root, row)
+            resource_rows.append(
+                {
+                    "shard_id": row["shard_id"],
+                    "cube_id": row["cube_id"],
+                    "stencil_width": row["stencil_width"],
+                    "support_mode": row["support_mode"],
+                    "reused": True,
+                    "reuse_verification_wall_seconds": time.perf_counter() - reuse_started,
+                }
+            )
             reused += 1
             continue
         if root.exists():
@@ -487,10 +597,12 @@ def work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any
             ):
                 raise RuntimeError(f"Phase 2 arrays changed before work: {row['cube_id']}")
             cube = prepare_cube_for_parallel(_load_cube(phase2_root, row["cube_id"]))
+            cube_footprints[row["cube_id"]] = _cube_memory_footprint(cube)
             cache_cube_id = row["cube_id"]
         assert cube is not None
         start, stop = int(row["offset_start"]), int(row["offset_stop"])
         shard_offsets = displacements[start:stop]
+        compute_started = time.perf_counter()
         partials = compute_finite_domain_structure_functions_parallel(
             cube,
             shard_offsets,
@@ -500,12 +612,16 @@ def work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any
             support_displacements_ijk=displacements,
         )
         result = reduce_finite_domain_shards(partials)
+        compute_wall_seconds = time.perf_counter() - compute_started
         if result.support_displacements_sha256 != metadata["offsets_sha256"]:
             raise RuntimeError("computed shard lost frozen support census binding")
         attempt = output_root / "attempts" / f"proc_{procid}" / f"{row['shard_id'].replace('/', '__')}_{time.time_ns()}"
         attempt.mkdir(parents=True)
         partial_path = attempt / "partial.npz"
+        serialization_started = time.perf_counter()
         save_finite_domain_partial_npz(partial_path, result)
+        serialization_wall_seconds = time.perf_counter() - serialization_started
+        staging_bytes = _tree_size_accounting(attempt)
         _atomic_write_json(
             attempt / "COMPLETE.json",
             {
@@ -518,14 +634,47 @@ def work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any
                 "phase2_source": campaign["phase2_sources"][row["cube_id"]],
                 "sampling_schedule_sha256": _sampling_schedule_sha256(row),
                 "partial_sha256": file_sha256(partial_path),
+                "staging_logical_bytes_before_marker": staging_bytes["logical_bytes"],
+                "staging_allocated_bytes_before_marker": staging_bytes["allocated_bytes"],
                 "published_unix_seconds": time.time(),
             },
         )
+        publish_started = time.perf_counter()
         root.parent.mkdir(parents=True, exist_ok=True)
         attempt.replace(root)
         _verify_shard(output_root, row)
+        publish_verification_wall_seconds = time.perf_counter() - publish_started
+        resource_rows.append(
+            {
+                "shard_id": row["shard_id"],
+                "cube_id": row["cube_id"],
+                "stencil_width": row["stencil_width"],
+                "support_mode": row["support_mode"],
+                "reused": False,
+                "compute_wall_seconds": compute_wall_seconds,
+                "estimator_elapsed_seconds_sum": result.elapsed_seconds,
+                "serialization_wall_seconds": serialization_wall_seconds,
+                "publish_verification_wall_seconds": publish_verification_wall_seconds,
+                "staging_logical_bytes_before_marker": staging_bytes["logical_bytes"],
+                "staging_allocated_bytes_before_marker": staging_bytes["allocated_bytes"],
+            }
+        )
         published += 1
-    return {"procid": procid, "ntasks": ntasks, "assigned": len(assigned), "published": published, "reused": reused}
+    return {
+        "procid": procid,
+        "ntasks": ntasks,
+        "assigned": len(assigned),
+        "published": published,
+        "reused": reused,
+        **_publish_work_resource_record(
+            output_root,
+            action="work",
+            workers=workers,
+            started=work_started,
+            rows=resource_rows,
+            cube_footprints=cube_footprints,
+        ),
+    }
 
 
 def _group_rows(output_root: Path) -> dict[str, list[dict[str, Any]]]:
@@ -665,6 +814,13 @@ def _verify_reduction(output_root: Path, group_id: str) -> dict[str, Any]:
     campaign = json.loads((output_root / "manifests" / "campaign.json").read_text())
     rows = _group_rows(output_root)[group_id]
     expected = tuple(row["shard_id"] for row in rows)
+    timing_names = (
+        "reduction_elapsed_seconds",
+        "jackknife_elapsed_seconds",
+        "bootstrap_elapsed_seconds",
+        "staging_logical_bytes_before_marker",
+        "staging_allocated_bytes_before_marker",
+    )
     marker_hashes = {}
     for row in rows:
         _verify_shard(output_root, row)
@@ -683,6 +839,12 @@ def _verify_reduction(output_root: Path, group_id: str) -> dict[str, Any]:
         or reduction_manifest.get("ordered_shard_marker_sha256") != marker_hashes
         or reduction_manifest.get("implementation_sha256")
         != campaign["source_version"]["implementation_sha256"]
+        or any(
+            not isinstance(marker.get(name), (int, float))
+            or not np.isfinite(marker[name])
+            or marker[name] < 0
+            for name in timing_names
+        )
     ):
         raise RuntimeError(f"invalid Phase 3a reduction marker: {root}")
     result = load_finite_domain_partial_npz(result_path)
@@ -716,8 +878,13 @@ def reduce(phase2_root: Path, output_root: Path) -> dict[str, Any]:
             if marker["implementation_sha256"] != campaign["source_version"]["implementation_sha256"]:
                 raise RuntimeError(f"mixed source hash in shard: {row['shard_id']}")
         expected = tuple(row["shard_id"] for row in rows)
+        reduction_started = time.perf_counter()
         result = reduce_finite_domain_shards(partials, expected_shard_ids=expected)
+        reduction_elapsed_seconds = time.perf_counter() - reduction_started
+        jackknife_started = time.perf_counter()
         jackknife = block_jackknife_moment_uncertainty(result)
+        jackknife_elapsed_seconds = time.perf_counter() - jackknife_started
+        bootstrap_started = time.perf_counter()
         bootstrap = block_bootstrap_moment_uncertainty(
             result,
             n_resamples=BOOTSTRAP_N_RESAMPLES,
@@ -725,6 +892,7 @@ def reduce(phase2_root: Path, output_root: Path) -> dict[str, Any]:
             confidence_level=BOOTSTRAP_CONFIDENCE_LEVEL,
             return_replicates=True,
         )
+        bootstrap_elapsed_seconds = time.perf_counter() - bootstrap_started
         attempt = output_root / "attempts" / f"reduction_{group_id.replace('/', '__')}_{time.time_ns()}"
         attempt.mkdir(parents=True)
         result_path = attempt / "result.npz"
@@ -740,6 +908,7 @@ def reduce(phase2_root: Path, output_root: Path) -> dict[str, Any]:
                 "implementation_sha256": campaign["source_version"]["implementation_sha256"],
             },
         )
+        staging_bytes = _tree_size_accounting(attempt)
         _atomic_write_json(
             attempt / "COMPLETE.json",
             {
@@ -749,6 +918,11 @@ def reduce(phase2_root: Path, output_root: Path) -> dict[str, Any]:
                 "result_sha256": file_sha256(result_path),
                 "uncertainty_sha256": file_sha256(uncertainty_path),
                 "reduction_manifest_sha256": file_sha256(attempt / "reduction_manifest.json"),
+                "reduction_elapsed_seconds": reduction_elapsed_seconds,
+                "jackknife_elapsed_seconds": jackknife_elapsed_seconds,
+                "bootstrap_elapsed_seconds": bootstrap_elapsed_seconds,
+                "staging_logical_bytes_before_marker": staging_bytes["logical_bytes"],
+                "staging_allocated_bytes_before_marker": staging_bytes["allocated_bytes"],
                 "published_unix_seconds": time.time(),
             },
         )
@@ -893,6 +1067,21 @@ def _stratified_offset_subset(
     return np.asarray(selected, dtype=np.int64).reshape((-1, 3))
 
 
+def _convergence_offset_subset(
+    family: str,
+    displacements: np.ndarray,
+    ell_bin_edges: np.ndarray,
+) -> tuple[np.ndarray, str]:
+    """Retain the evidence needed for each bounded convergence question."""
+
+    if family in {"bins", "directions"}:
+        return np.asarray(displacements, dtype=np.int64), "full_displacement_census"
+    return (
+        _stratified_offset_subset(displacements, ell_bin_edges, maximum=96),
+        "shell_stratified_maximum_96_offsets",
+    )
+
+
 def _convergence_uncertainty_payload(result) -> dict[str, np.ndarray]:
     """Return bounded block uncertainty products for one convergence scenario."""
 
@@ -936,6 +1125,7 @@ def _convergence_uncertainty_payload(result) -> dict[str, np.ndarray]:
         "support_policy_excluded_origins": result.support_policy_excluded_origins,
         "displacements_per_bin": result.displacements_per_bin,
         "displacements_ijk": result.displacements_ijk,
+        "elapsed_seconds_per_ell_bin": result.elapsed_seconds_per_ell_bin,
     }
 
 
@@ -1158,13 +1348,21 @@ def controls(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str,
         "scientific_acceptance": "diagnostic_only",
         "workers": workers,
         "cube_id": BENCHMARK_CUBE_IDS[0],
-        "peak_rss_kib": _peak_rss_kib(),
+        "phase2_source": _phase2_source_identity(
+            phase2_root, BENCHMARK_CUBE_IDS[0], verify_arrays=True
+        ),
+        "parent_process_peak_rss_kib": _peak_rss_kib(),
         "phase3_anchor_regression": _phase3_anchor_regression(phase2_root, cube),
         "rows": rows,
         "source_version": _source_version(),
     }
     _publish_json_diagnostic(output_root, "controls.json", "CONTROLS_COMPLETE.json", payload)
-    return _verify_json_diagnostic(output_root, "controls.json", "CONTROLS_COMPLETE.json")
+    return _verify_json_diagnostic(
+        output_root,
+        "controls.json",
+        "CONTROLS_COMPLETE.json",
+        phase2_root=phase2_root,
+    )
 
 
 def _multinode_design() -> tuple[np.ndarray, np.ndarray, np.ndarray, FiniteDomainConfig]:
@@ -1248,6 +1446,13 @@ def _verify_multinode_task(
     if (
         {key: marker.get(key) for key in expected} != expected
         or marker.get("partial_sha256") != file_sha256(task_root / "partial.npz")
+        or any(
+            not isinstance(marker.get(name), int) or marker[name] < 0
+            for name in (
+                "staging_logical_bytes_before_marker",
+                "staging_allocated_bytes_before_marker",
+            )
+        )
     ):
         raise RuntimeError(f"invalid multi-node control task: {task_root}")
     result = load_finite_domain_partial_npz(task_root / "partial.npz")
@@ -1266,6 +1471,7 @@ def _verify_multinode_task(
 def multinode_work(phase2_root: Path, output_root: Path, *, workers: int) -> dict[str, Any]:
     """Publish one deterministic multi-node control partial per Slurm task."""
 
+    work_started = time.perf_counter()
     output_root.mkdir(parents=True, exist_ok=True)
     procid = int(os.environ.get("SLURM_PROCID", "0"))
     ntasks = int(os.environ.get("SLURM_NTASKS", "1"))
@@ -1273,19 +1479,9 @@ def multinode_work(phase2_root: Path, output_root: Path, *, workers: int) -> dic
     task_offsets = selected[procid::ntasks]
     if not len(task_offsets):
         raise RuntimeError("multi-node control assigned an empty task offset set")
-    cube = prepare_cube_for_parallel(_load_cube(phase2_root, BENCHMARK_CUBE_IDS[0]))
-    result = reduce_finite_domain_shards(
-        compute_finite_domain_structure_functions_parallel(
-            cube,
-            task_offsets,
-            config=config,
-            q_names=Q_NAMES,
-            worker_count=workers,
-            support_displacements_ijk=displacements,
-        )
-    )
     task_root = output_root / "multinode_control" / f"task_{procid:04d}"
     if task_root.exists():
+        reuse_started = time.perf_counter()
         _verify_multinode_task(
             phase2_root,
             output_root,
@@ -1296,10 +1492,48 @@ def multinode_work(phase2_root: Path, output_root: Path, *, workers: int) -> dic
             support_displacements=displacements,
             config=config,
         )
-        return {"reused": True, "procid": procid, "ntasks": ntasks}
+        return {
+            "reused": True,
+            "procid": procid,
+            "ntasks": ntasks,
+            **_publish_work_resource_record(
+                output_root,
+                action="multinode_work",
+                workers=workers,
+                started=work_started,
+                rows=[
+                    {
+                        "shard_id": f"task_{procid:04d}",
+                        "cube_id": BENCHMARK_CUBE_IDS[0],
+                        "stencil_width": config.stencil_width,
+                        "support_mode": config.pair_mode,
+                        "reused": True,
+                        "reuse_verification_wall_seconds": time.perf_counter() - reuse_started,
+                    }
+                ],
+                cube_footprints={},
+            ),
+        }
+    cube = prepare_cube_for_parallel(_load_cube(phase2_root, BENCHMARK_CUBE_IDS[0]))
+    cube_footprint = _cube_memory_footprint(cube)
+    compute_started = time.perf_counter()
+    result = reduce_finite_domain_shards(
+        compute_finite_domain_structure_functions_parallel(
+            cube,
+            task_offsets,
+            config=config,
+            q_names=Q_NAMES,
+            worker_count=workers,
+            support_displacements_ijk=displacements,
+        )
+    )
+    compute_wall_seconds = time.perf_counter() - compute_started
     attempt = output_root / "attempts" / f"multinode_task_{procid}_{time.time_ns()}"
     attempt.mkdir(parents=True)
+    serialization_started = time.perf_counter()
     save_finite_domain_partial_npz(attempt / "partial.npz", result)
+    serialization_wall_seconds = time.perf_counter() - serialization_started
+    staging_bytes = _tree_size_accounting(attempt)
     _atomic_write_json(
         attempt / "COMPLETE.json",
         {
@@ -1313,11 +1547,51 @@ def multinode_work(phase2_root: Path, output_root: Path, *, workers: int) -> dic
                 workers=workers,
             ),
             "partial_sha256": file_sha256(attempt / "partial.npz"),
+            "staging_logical_bytes_before_marker": staging_bytes["logical_bytes"],
+            "staging_allocated_bytes_before_marker": staging_bytes["allocated_bytes"],
         },
     )
+    publish_started = time.perf_counter()
     task_root.parent.mkdir(parents=True, exist_ok=True)
     attempt.replace(task_root)
-    return {"reused": False, "procid": procid, "ntasks": ntasks, "offset_count": len(task_offsets)}
+    _verify_multinode_task(
+        phase2_root,
+        output_root,
+        procid=procid,
+        ntasks=ntasks,
+        workers=workers,
+        task_offsets=task_offsets,
+        support_displacements=displacements,
+        config=config,
+    )
+    return {
+        "reused": False,
+        "procid": procid,
+        "ntasks": ntasks,
+        "offset_count": len(task_offsets),
+        **_publish_work_resource_record(
+            output_root,
+            action="multinode_work",
+            workers=workers,
+            started=work_started,
+            rows=[
+                {
+                    "shard_id": f"task_{procid:04d}",
+                    "cube_id": BENCHMARK_CUBE_IDS[0],
+                    "stencil_width": config.stencil_width,
+                    "support_mode": config.pair_mode,
+                    "reused": False,
+                    "compute_wall_seconds": compute_wall_seconds,
+                    "estimator_elapsed_seconds_sum": result.elapsed_seconds,
+                    "serialization_wall_seconds": serialization_wall_seconds,
+                    "publish_verification_wall_seconds": time.perf_counter() - publish_started,
+                    "staging_logical_bytes_before_marker": staging_bytes["logical_bytes"],
+                    "staging_allocated_bytes_before_marker": staging_bytes["allocated_bytes"],
+                }
+            ],
+            cube_footprints={BENCHMARK_CUBE_IDS[0]: cube_footprint},
+        ),
+    }
 
 
 def multinode_reduce(
@@ -1329,8 +1603,8 @@ def multinode_reduce(
 ) -> dict[str, Any]:
     """Reduce multi-node control partials and compare with a serial calculation."""
 
-    if task_count < 2:
-        raise ValueError("multi-node control requires at least two Slurm tasks")
+    if task_count < 1:
+        raise ValueError("multi-node control requires at least one Slurm task")
     displacements, _, selected, config = _multinode_design()
     partials = {}
     for procid in range(task_count):
@@ -1348,14 +1622,16 @@ def multinode_reduce(
         task_root = output_root / "multinode_control" / f"task_{procid:04d}"
         partials[f"task_{procid:04d}"] = load_finite_domain_partial_npz(task_root / "partial.npz")
     expected = tuple(sorted(partials))
-    missing_shard_rejected = False
-    try:
-        reduce_finite_domain_shards(
-            {key: value for key, value in partials.items() if key != expected[-1]},
-            expected_shard_ids=expected,
-        )
-    except ValueError:
-        missing_shard_rejected = True
+    missing_shard_rejected = None
+    if task_count > 1:
+        missing_shard_rejected = False
+        try:
+            reduce_finite_domain_shards(
+                {key: value for key, value in partials.items() if key != expected[-1]},
+                expected_shard_ids=expected,
+            )
+        except ValueError:
+            missing_shard_rejected = True
     reduced = reduce_finite_domain_shards(partials, expected_shard_ids=expected)
     reversed_reduced = reduce_finite_domain_shards(
         dict(reversed(tuple(partials.items()))), expected_shard_ids=expected
@@ -1370,7 +1646,7 @@ def multinode_reduce(
     )
     serial_vs_multinode = _relative_difference(serial.moments, reduced.moments)
     forward_vs_reverse = _relative_difference(reduced.moments, reversed_reduced.moments)
-    if not missing_shard_rejected:
+    if task_count > 1 and not missing_shard_rejected:
         raise RuntimeError("multi-node reducer accepted an intentionally omitted shard")
     _require_equivalent(serial_vs_multinode, "serial-versus-multinode control")
     _require_equivalent(forward_vs_reverse, "forward-versus-reverse multi-node reduction")
@@ -1380,11 +1656,15 @@ def multinode_reduce(
         "validation_status": "passed",
         "task_count": task_count,
         "workers_per_task": workers,
+        "cube_id": BENCHMARK_CUBE_IDS[0],
+        "phase2_source": _phase2_source_identity(
+            phase2_root, BENCHMARK_CUBE_IDS[0], verify_arrays=True
+        ),
         "selected_offset_count": len(selected),
         "missing_shard_rejected": missing_shard_rejected,
         "serial_vs_multinode": serial_vs_multinode,
         "forward_vs_reverse_reduction": forward_vs_reverse,
-        "peak_rss_kib": _peak_rss_kib(),
+        "parent_process_peak_rss_kib": _peak_rss_kib(),
         "source_version": _source_version(),
     }
     _publish_json_diagnostic(
@@ -1397,6 +1677,7 @@ def multinode_reduce(
         output_root,
         "multinode_control.json",
         "MULTINODE_CONTROL_COMPLETE.json",
+        phase2_root=phase2_root,
     )
 
 
@@ -1404,6 +1685,9 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
     """Measure the bounded representative-cube design sensitivity matrix."""
 
     output_root.mkdir(parents=True, exist_ok=True)
+    phase2_source = _phase2_source_identity(
+        phase2_root, BENCHMARK_CUBE_IDS[0], verify_arrays=True
+    )
     cube = prepare_cube_for_parallel(_load_cube(phase2_root, BENCHMARK_CUBE_IDS[0]))
     scenarios = []
     for bin_count in (32, 64, 128):
@@ -1422,6 +1706,9 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
         scenarios.append(("support", 2, 320, 64, 12, 256, PRODUCTION_SEED, support_mode, (160, 160, 160)))
     for stencil_width, ell_max in ((3, 80), (3, 160), (5, 40), (5, 80)):
         scenarios.append(("stencils", stencil_width, ell_max, 32, 12, 256, PRODUCTION_SEED, "shell_local", (160, 160, 160)))
+    for stencil_width, ell_max in ((3, 160), (5, 80)):
+        for support_mode in ("all_valid_origins", "nested_core"):
+            scenarios.append(("stencil_support", stencil_width, ell_max, 32, 12, 256, PRODUCTION_SEED, support_mode, (160, 160, 160)))
     rows = []
     for index, scenario in enumerate(scenarios):
         family, stencil_width, ell_max, bins, directions, samples, seed, support_mode, block_shape = scenario
@@ -1431,7 +1718,7 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
             bin_count=bins,
             directions_per_bin=directions,
         )
-        selected = _stratified_offset_subset(displacements, edges, maximum=96)
+        selected, selection_policy = _convergence_offset_subset(family, displacements, edges)
         config = FiniteDomainConfig(
             edges,
             pair_mode=support_mode,
@@ -1469,6 +1756,7 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
                     "seed": seed,
                     "support_mode": support_mode,
                     "block_shape_kji": block_shape,
+                    "selection_policy": selection_policy,
                 }
             )
             continue
@@ -1497,6 +1785,7 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
                 "manifest_sha256": manifest["manifest_sha256"],
                 "realized_offset_count": manifest["realized_offset_count"],
                 "measured_subset_offset_count": len(selected),
+                "selection_policy": selection_policy,
                 "measured_subset_sha256": hashlib.sha256(selected.tobytes()).hexdigest(),
                 "elapsed_seconds_sum": result.elapsed_seconds,
                 "sampled_pairs": int(result.sampled_pairs.sum()),
@@ -1515,7 +1804,7 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
                         )
                     )
                 ),
-                "peak_rss_kib": _peak_rss_kib(),
+                "parent_process_peak_rss_kib": _peak_rss_kib(),
             }
         )
     payload = {
@@ -1523,6 +1812,7 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
         "operational_status": "complete",
         "scientific_acceptance": "pending_interpretation",
         "cube_id": BENCHMARK_CUBE_IDS[0],
+        "phase2_source": phase2_source,
         "workers": workers,
         "rows": rows,
         "source_version": _source_version(),
@@ -1534,6 +1824,7 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
         output_root,
         "convergence.json",
         "CONVERGENCE_COMPLETE.json",
+        phase2_root=phase2_root,
     )
 
 
@@ -1555,6 +1846,7 @@ def summarize(phase2_root: Path, output_root: Path) -> dict[str, Any]:
                     np.min(result.eligible_pairs / np.maximum(result.cube_candidate_pairs, 1))
                 ),
                 "elapsed_seconds_sum": result.elapsed_seconds,
+                "elapsed_seconds_per_ell_bin": result.elapsed_seconds_per_ell_bin,
             }
         )
     payload = {
@@ -1563,7 +1855,8 @@ def summarize(phase2_root: Path, output_root: Path) -> dict[str, Any]:
         "scientific_acceptance": "pending_report_level_gate",
         "verification": verification,
         "groups": groups,
-        "peak_rss_kib": _peak_rss_kib(),
+        "parent_process_peak_rss_kib": _peak_rss_kib(),
+        "settled_release_bytes_before_summary_marker": _tree_size_accounting(output_root),
         "source_version": _source_version(),
     }
     summary_path = output_root / "phase3a_summary.json"

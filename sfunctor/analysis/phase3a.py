@@ -34,7 +34,7 @@ __all__ = [
 
 
 _NPZ_FORMAT = "sfunctor.phase3a.finite_domain_partial"
-_NPZ_VERSION = 1
+_NPZ_VERSION = 2
 
 _AGGREGATE_ARRAY_NAMES = (
     "counts",
@@ -46,6 +46,7 @@ _AGGREGATE_ARRAY_NAMES = (
     "cube_candidate_pairs",
     "excluded_boundary_pairs",
     "displacements_per_bin",
+    "elapsed_seconds_per_ell_bin",
     "intrinsic_eligible_origins",
     "boundary_excluded_origins",
     "support_policy_excluded_origins",
@@ -205,6 +206,7 @@ def _validate_result(result: FiniteDomainResult) -> None:
         "cube_candidate_pairs": (n_ell,),
         "excluded_boundary_pairs": (n_ell,),
         "displacements_per_bin": (n_ell,),
+        "elapsed_seconds_per_ell_bin": (n_ell,),
         "intrinsic_eligible_origins": (n_ell,),
         "boundary_excluded_origins": (n_ell,),
         "support_policy_excluded_origins": (n_ell,),
@@ -227,8 +229,10 @@ def _validate_result(result: FiniteDomainResult) -> None:
             raise ValueError(f"{name} has shape {array.shape}; expected {expected_shape}")
         if name in integer_names:
             _validate_nonnegative_integer_array(array, name)
-        elif np.any(~np.isfinite(array)):
-            raise ValueError(f"{name} must contain finite values")
+        elif np.any(~np.isfinite(array)) or (
+            name == "elapsed_seconds_per_ell_bin" and np.any(array < 0.0)
+        ):
+            raise ValueError(f"{name} must contain finite non-negative values")
 
     offsets = np.asarray(result.displacements_ijk)
     if offsets.ndim != 2 or offsets.shape[1:] != (3,):
@@ -634,6 +638,9 @@ def finite_domain_partial_from_npz_payload(payload: Mapping[str, Any]) -> Finite
         pair_batch_size=int(metadata["pair_batch_size"]),
         seed=int(metadata["seed"]),
         elapsed_seconds=float(metadata["elapsed_seconds"]),
+        elapsed_seconds_per_ell_bin=_required_payload_array(
+            payload, "elapsed_seconds_per_ell_bin"
+        ),
         stencil_width=int(metadata["stencil_width"]),
         shell_core_bounds_kji=shell_bounds,
         block_shape_kji=(

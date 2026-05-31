@@ -121,6 +121,7 @@ def dense_displacement_manifest(
             np.arange(len(retained), dtype=np.int64).tobytes()
         ).hexdigest(),
         "realized_offsets_per_bin": counts.tolist(),
+        "realized_directional_occupancy_per_bin": counts.tolist(),
         "realized_empty_bin_count": int(np.count_nonzero(counts == 0)),
         "realized_minimum_ell_cells": float(retained_ell.min()),
         "realized_maximum_ell_cells": float(retained_ell.max()),

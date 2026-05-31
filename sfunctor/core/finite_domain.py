@@ -163,6 +163,7 @@ class FiniteDomainResult:
     pair_batch_size: int
     seed: int
     elapsed_seconds: float
+    elapsed_seconds_per_ell_bin: np.ndarray
     stencil_width: int = 2
     shell_core_bounds_kji: tuple[
         tuple[tuple[int, int], tuple[int, int], tuple[int, int]] | None, ...
@@ -633,6 +634,7 @@ def _allocate_result(
         pair_batch_size=config.pair_batch_size,
         seed=config.seed,
         elapsed_seconds=0.0,
+        elapsed_seconds_per_ell_bin=np.zeros(n_ell, dtype=float),
         stencil_width=config.stencil_width,
         block_shape_kji=config.block_shape_kji,
         block_counts=np.zeros((block_count, *shape), dtype=np.int64) if block_count else None,
@@ -864,6 +866,7 @@ def compute_finite_domain_structure_functions(
     multipliers, increment_weights, local_B_weights = stencil_definition(config.stencil_width)
 
     for displacement_index, displacement in enumerate(displacements):
+        displacement_started = perf_counter()
         r_vector = cube_offset_to_vector(displacement, config.cell_sizes)
         ell_index = _ell_bin_index(float(np.linalg.norm(r_vector)), config.ell_bin_edges)
         result.ell_bin_index_per_displacement[displacement_index] = ell_index
@@ -1045,6 +1048,7 @@ def compute_finite_domain_structure_functions(
                                 ell_index,
                                 block_ids,
                             )
+        result.elapsed_seconds_per_ell_bin[ell_index] += perf_counter() - displacement_started
     result.elapsed_seconds = perf_counter() - started
     return result
 

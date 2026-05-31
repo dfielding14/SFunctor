@@ -105,6 +105,10 @@ def test_reducer_is_order_invariant_and_concatenates_sorted_offset_support():
         forward.block_counts,
         sum((shard.block_counts for shard in shards)),
     )
+    assert np.allclose(
+        forward.elapsed_seconds_per_ell_bin,
+        sum((shard.elapsed_seconds_per_ell_bin for shard in shards)),
+    )
 
 
 def test_reducer_rejects_overlapping_offsets_and_missing_or_duplicate_shard_ids():
