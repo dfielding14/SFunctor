@@ -49,6 +49,8 @@ PRODUCTION_SEED = 20260530
 BOOTSTRAP_SEED = 20260531
 BOOTSTRAP_N_RESAMPLES = 200
 BOOTSTRAP_CONFIDENCE_LEVEL = 0.95
+MINIMUM_LOCAL_SLOPE_EFFECTIVE_BLOCKS = 8.0
+MINIMUM_LOCAL_SLOPE_VALID_BOOTSTRAP_FRACTION = 0.9
 PARALLEL_EQUIVALENCE_RTOL = 5.0e-13
 PRODUCTION_SAMPLE_COUNT = 2048
 PRODUCTION_PAIR_BATCH_SIZE = 1024
@@ -167,6 +169,19 @@ def _verify_json_diagnostic(
             or artifact_sha256 != file_sha256(artifact_path)
         ):
             raise RuntimeError(f"invalid diagnostic artifact binding: {artifact_path}")
+    for binding in payload.get("artifact_bindings", ()):
+        relative_path = binding.get("relative_path")
+        sha256 = binding.get("sha256")
+        if not isinstance(relative_path, str) or not isinstance(sha256, str):
+            raise RuntimeError(f"incomplete supplemental artifact binding: {output_root}")
+        artifact_path = output_root / relative_path
+        if (
+            output_root.resolve() not in artifact_path.resolve().parents
+            or sha256 != file_sha256(artifact_path)
+        ):
+            raise RuntimeError(f"invalid supplemental artifact binding: {artifact_path}")
+    if "resource_record_bindings" in payload:
+        _verify_multinode_resource_record_bindings(output_root, payload)
     return payload
 
 
@@ -685,10 +700,16 @@ def _group_rows(output_root: Path) -> dict[str, list[dict[str, Any]]]:
     return groups
 
 
-def _finite_distribution_summary(values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _finite_distribution_summary(
+    values: np.ndarray,
+    *,
+    minimum_valid_count: int = 2,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return finite sample SD, central interval, and counts along axis zero."""
 
     values = np.asarray(values, dtype=float)
+    if minimum_valid_count < 2:
+        raise ValueError("minimum_valid_count must be at least two")
     output_shape = values.shape[1:]
     standard_error = np.full(output_shape, np.nan, dtype=float)
     interval_low = np.full(output_shape, np.nan, dtype=float)
@@ -697,7 +718,7 @@ def _finite_distribution_summary(values: np.ndarray) -> tuple[np.ndarray, np.nda
     for index in np.ndindex(output_shape):
         finite = values[(slice(None), *index)]
         finite = finite[np.isfinite(finite)]
-        if finite.size < 2:
+        if finite.size < minimum_valid_count:
             continue
         standard_error[index] = np.std(finite, ddof=1)
         interval_low[index], interval_high[index] = np.quantile(
@@ -705,6 +726,52 @@ def _finite_distribution_summary(values: np.ndarray) -> tuple[np.ndarray, np.nda
             (0.5 * (1.0 - BOOTSTRAP_CONFIDENCE_LEVEL), 0.5 * (1.0 + BOOTSTRAP_CONFIDENCE_LEVEL)),
         )
     return standard_error, interval_low, interval_high, valid_count
+
+
+def _local_slope_support_mask(
+    contributing_blocks: np.ndarray,
+    effective_blocks: np.ndarray,
+    *,
+    window: int,
+) -> np.ndarray:
+    """Return cells whose complete local-slope window has spatial support."""
+
+    contributing = np.asarray(contributing_blocks)
+    effective = np.asarray(effective_blocks, dtype=float)
+    if contributing.shape != effective.shape or contributing.ndim < 1:
+        raise ValueError("local-slope support arrays must have matching non-scalar shapes")
+    if window < 3 or window % 2 == 0 or window > contributing.shape[-1]:
+        raise ValueError("local-slope support window must be odd, at least three, and fit the bins")
+    supported_bins = (contributing >= 2) & (
+        effective >= MINIMUM_LOCAL_SLOPE_EFFECTIVE_BLOCKS
+    )
+    supported_slopes = np.zeros_like(supported_bins, dtype=bool)
+    radius = window // 2
+    for center in range(radius, contributing.shape[-1] - radius):
+        supported_slopes[..., center] = np.all(
+            supported_bins[..., center - radius : center + radius + 1],
+            axis=-1,
+        )
+    return supported_slopes
+
+
+def _supported_local_log_slopes(
+    ell: np.ndarray,
+    moments: np.ndarray,
+    contributing_blocks: np.ndarray,
+    effective_blocks: np.ndarray,
+    *,
+    window: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return local slopes masked by a documented spatial-support gate."""
+
+    support_mask = _local_slope_support_mask(
+        contributing_blocks,
+        effective_blocks,
+        window=window,
+    )
+    slopes = local_log_slope(ell, moments, window=window)
+    return np.where(support_mask, slopes, np.nan), support_mask
 
 
 def _uncertainty_payload(
@@ -717,10 +784,26 @@ def _uncertainty_payload(
     if bootstrap.replicate_moments is None:
         raise ValueError("bootstrap replicates are required for local-slope uncertainty")
     ell = np.sqrt(result.ell_bin_edges[:-1] * result.ell_bin_edges[1:])
-    local_slope = local_log_slope(ell, result.moments, window=5)
-    local_slope_replicates = local_log_slope(ell, bootstrap.replicate_moments, window=5)
+    local_slope, local_slope_support = _supported_local_log_slopes(
+        ell,
+        result.moments,
+        bootstrap.contributing_blocks,
+        bootstrap.effective_blocks,
+        window=5,
+    )
+    local_slope_replicates = np.where(
+        local_slope_support[None, ...],
+        local_log_slope(ell, bootstrap.replicate_moments, window=5),
+        np.nan,
+    )
     slope_se, slope_low, slope_high, slope_valid = _finite_distribution_summary(
-        local_slope_replicates
+        local_slope_replicates,
+        minimum_valid_count=int(
+            np.ceil(
+                MINIMUM_LOCAL_SLOPE_VALID_BOOTSTRAP_FRACTION
+                * bootstrap.n_resamples
+            )
+        ),
     )
     assert result.block_sampled_origins is not None
     assert result.block_eligible_origins is not None
@@ -731,11 +814,16 @@ def _uncertainty_payload(
         "bootstrap_n_resamples": bootstrap.n_resamples,
         "bootstrap_confidence_level": bootstrap.confidence_level,
         "jackknife_method": jackknife.method,
+        "jackknife_resampling_population": jackknife.resampling_population,
         "resampling_population": bootstrap.resampling_population,
         "geometric_block_count": bootstrap.geometric_block_count,
         "block_shape_kji": result.block_shape_kji,
         "block_assignment": result.block_assignment,
         "local_slope_window_bins": 5,
+        "minimum_local_slope_effective_blocks": MINIMUM_LOCAL_SLOPE_EFFECTIVE_BLOCKS,
+        "minimum_local_slope_valid_bootstrap_fraction": (
+            MINIMUM_LOCAL_SLOPE_VALID_BOOTSTRAP_FRACTION
+        ),
     }
     return {
         "metadata_json": np.asarray(json.dumps(metadata, sort_keys=True)),
@@ -751,6 +839,7 @@ def _uncertainty_payload(
         "eligible_blocks_per_shell": np.count_nonzero(result.block_eligible_origins > 0, axis=0),
         "valid_bootstrap_resamples": bootstrap.valid_resamples,
         "local_log_slope": local_slope,
+        "local_log_slope_support_mask": local_slope_support,
         "local_log_slope_bootstrap_standard_error": slope_se,
         "local_log_slope_bootstrap_interval_low": slope_low,
         "local_log_slope_bootstrap_interval_high": slope_high,
@@ -775,6 +864,7 @@ def _verify_uncertainty_payload(path: Path, result) -> None:
         "eligible_blocks_per_shell",
         "valid_bootstrap_resamples",
         "local_log_slope",
+        "local_log_slope_support_mask",
         "local_log_slope_bootstrap_standard_error",
         "local_log_slope_bootstrap_interval_low",
         "local_log_slope_bootstrap_interval_high",
@@ -793,17 +883,28 @@ def _verify_uncertainty_payload(path: Path, result) -> None:
             or metadata.get("bootstrap_seed") != BOOTSTRAP_SEED
             or metadata.get("bootstrap_n_resamples") != BOOTSTRAP_N_RESAMPLES
             or metadata.get("bootstrap_confidence_level") != BOOTSTRAP_CONFIDENCE_LEVEL
+            or metadata.get("jackknife_resampling_population")
+            != "delete_contributing_blocks_only"
             or metadata.get("resampling_population")
             != "fixed_geometric_layout_including_empty_blocks"
             or tuple(metadata.get("block_shape_kji", ())) != result.block_shape_kji
             or metadata.get("block_assignment") != result.block_assignment
             or metadata.get("local_slope_window_bins") != 5
+            or metadata.get("minimum_local_slope_effective_blocks")
+            != MINIMUM_LOCAL_SLOPE_EFFECTIVE_BLOCKS
+            or metadata.get("minimum_local_slope_valid_bootstrap_fraction")
+            != MINIMUM_LOCAL_SLOPE_VALID_BOOTSTRAP_FRACTION
         ):
             raise RuntimeError(f"invalid Phase 3a uncertainty metadata: {path}")
         if not np.array_equal(payload["moments"], result.moments, equal_nan=True):
             raise RuntimeError(f"Phase 3a uncertainty moments do not match result: {path}")
         if payload["accepted_effective_blocks"].shape != result.sums.shape:
             raise RuntimeError(f"Phase 3a uncertainty block shape mismatch: {path}")
+        if (
+            payload["local_log_slope_support_mask"].shape != result.sums.shape
+            or payload["local_log_slope_support_mask"].dtype.kind != "b"
+        ):
+            raise RuntimeError(f"Phase 3a local-slope support mask mismatch: {path}")
 
 
 def _verify_reduction(output_root: Path, group_id: str) -> dict[str, Any]:
@@ -1074,8 +1175,13 @@ def _convergence_offset_subset(
 ) -> tuple[np.ndarray, str]:
     """Retain the evidence needed for each bounded convergence question."""
 
-    if family in {"bins", "directions"}:
+    if family in {"bins", "directions", "directions_all_valid", "support"}:
         return np.asarray(displacements, dtype=np.int64), "full_displacement_census"
+    if family in {"origins", "origin_seeds"}:
+        return (
+            _stratified_offset_subset(displacements, ell_bin_edges, maximum=256),
+            "shell_stratified_maximum_256_offsets",
+        )
     return (
         _stratified_offset_subset(displacements, ell_bin_edges, maximum=96),
         "shell_stratified_maximum_96_offsets",
@@ -1096,12 +1202,61 @@ def _convergence_uncertainty_payload(result) -> dict[str, np.ndarray]:
     if bootstrap.replicate_moments is None:
         raise RuntimeError("convergence bootstrap did not retain replicates")
     ell = np.sqrt(result.ell_bin_edges[:-1] * result.ell_bin_edges[1:])
-    slopes = local_log_slope(ell, result.moments, window=5)
-    slope_replicates = local_log_slope(ell, bootstrap.replicate_moments, window=5)
+    slopes, slope_support = _supported_local_log_slopes(
+        ell,
+        result.moments,
+        bootstrap.contributing_blocks,
+        bootstrap.effective_blocks,
+        window=5,
+    )
+    slope_replicates = np.where(
+        slope_support[None, ...],
+        local_log_slope(ell, bootstrap.replicate_moments, window=5),
+        np.nan,
+    )
     slope_se, slope_low, slope_high, slope_valid = _finite_distribution_summary(
-        slope_replicates
+        slope_replicates,
+        minimum_valid_count=int(
+            np.ceil(
+                MINIMUM_LOCAL_SLOPE_VALID_BOOTSTRAP_FRACTION
+                * bootstrap.n_resamples
+            )
+        ),
     )
     return {
+        "metadata_json": np.asarray(
+            json.dumps(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "q_names": result.q_names,
+                    "density_conventions": result.density_conventions,
+                    "geometry_names": result.geometry_names,
+                    "measurement_names": result.measurement_names,
+                    "direction_names": result.direction_names,
+                    "p_values": result.p_values,
+                    "bootstrap_method": bootstrap.method,
+                    "bootstrap_seed": bootstrap.seed,
+                    "bootstrap_n_resamples": bootstrap.n_resamples,
+                    "bootstrap_confidence_level": bootstrap.confidence_level,
+                    "jackknife_method": jackknife.method,
+                    "jackknife_resampling_population": (
+                        jackknife.resampling_population
+                    ),
+                    "resampling_population": bootstrap.resampling_population,
+                    "geometric_block_count": bootstrap.geometric_block_count,
+                    "block_shape_kji": result.block_shape_kji,
+                    "block_assignment": result.block_assignment,
+                    "local_slope_window_bins": 5,
+                    "minimum_local_slope_effective_blocks": (
+                        MINIMUM_LOCAL_SLOPE_EFFECTIVE_BLOCKS
+                    ),
+                    "minimum_local_slope_valid_bootstrap_fraction": (
+                        MINIMUM_LOCAL_SLOPE_VALID_BOOTSTRAP_FRACTION
+                    ),
+                },
+                sort_keys=True,
+            )
+        ),
         "ell_bin_edges": result.ell_bin_edges,
         "moments": result.moments,
         "counts": result.counts,
@@ -1114,6 +1269,7 @@ def _convergence_uncertainty_payload(result) -> dict[str, np.ndarray]:
         "accepted_effective_blocks": bootstrap.effective_blocks,
         "valid_bootstrap_resamples": bootstrap.valid_resamples,
         "local_log_slope": slopes,
+        "local_log_slope_support_mask": slope_support,
         "local_log_slope_bootstrap_standard_error": slope_se,
         "local_log_slope_bootstrap_interval_low": slope_low,
         "local_log_slope_bootstrap_interval_high": slope_high,
@@ -1125,7 +1281,37 @@ def _convergence_uncertainty_payload(result) -> dict[str, np.ndarray]:
         "support_policy_excluded_origins": result.support_policy_excluded_origins,
         "displacements_per_bin": result.displacements_per_bin,
         "displacements_ijk": result.displacements_ijk,
+        "ell_bin_index_per_displacement": result.ell_bin_index_per_displacement,
+        "sampled_origins_per_displacement": result.sampled_pairs_per_displacement,
+        "eligible_origins_per_displacement": result.eligible_pairs_per_displacement,
+        "intrinsic_eligible_origins_per_displacement": (
+            result.intrinsic_eligible_origins_per_displacement
+        ),
+        "boundary_excluded_origins_per_displacement": (
+            result.boundary_excluded_origins_per_displacement
+        ),
+        "support_policy_excluded_origins_per_displacement": (
+            result.support_policy_excluded_origins_per_displacement
+        ),
         "elapsed_seconds_per_ell_bin": result.elapsed_seconds_per_ell_bin,
+    }
+
+
+def _occupied_effective_block_summary(
+    effective_blocks: np.ndarray,
+) -> dict[str, float | int | None]:
+    """Summarize non-empty Kish effective-block populations only."""
+
+    values = np.asarray(effective_blocks, dtype=float)
+    occupied = values[np.isfinite(values) & (values > 0.0)]
+    return {
+        "minimum_accepted_effective_blocks": (
+            float(np.min(occupied)) if occupied.size else None
+        ),
+        "median_accepted_effective_blocks": (
+            float(np.median(occupied)) if occupied.size else None
+        ),
+        "occupied_effective_block_cells": int(occupied.size),
     }
 
 
@@ -1594,6 +1780,109 @@ def multinode_work(phase2_root: Path, output_root: Path, *, workers: int) -> dic
     }
 
 
+def _select_fresh_multinode_resource_records(
+    output_root: Path,
+    *,
+    task_count: int,
+    workers: int,
+) -> list[dict[str, str]]:
+    """Bind exactly one complete fresh multi-node work allocation."""
+
+    by_job: dict[str, dict[int, tuple[Path, dict[str, Any]]]] = {}
+    current_source = _source_version()["implementation_sha256"]
+    for path in sorted((output_root / "work_resource_records").glob("*.json")):
+        payload = json.loads(path.read_text())
+        rows = payload.get("rows", ())
+        if (
+            payload.get("action") != "multinode_work"
+            or payload.get("schema_version") != SCHEMA_VERSION
+            or payload.get("source_version", {}).get("implementation_sha256")
+            != current_source
+            or payload.get("slurm_ntasks") != task_count
+            or payload.get("workers") != workers
+            or payload.get("published_count") != 1
+            or payload.get("reused_count") != 0
+            or len(rows) != 1
+            or rows[0].get("reused") is not False
+        ):
+            continue
+        procid = payload.get("slurm_procid")
+        if (
+            not isinstance(procid, int)
+            or not 0 <= procid < task_count
+            or rows[0].get("shard_id") != f"task_{procid:04d}"
+        ):
+            continue
+        job_id = str(payload.get("slurm_job_id"))
+        if procid in by_job.setdefault(job_id, {}):
+            raise RuntimeError(f"duplicate fresh multi-node resource record: {path}")
+        by_job[job_id][procid] = (path, payload)
+    candidates = [
+        (max(path.stat().st_mtime_ns for path, _ in records.values()), job_id, records)
+        for job_id, records in by_job.items()
+        if set(records) == set(range(task_count))
+    ]
+    if not candidates:
+        raise RuntimeError("no complete fresh multi-node resource allocation is retained")
+    _, _, selected = max(candidates)
+    return [
+        {
+            "relative_path": str(selected[procid][0].relative_to(output_root)),
+            "sha256": file_sha256(selected[procid][0]),
+        }
+        for procid in range(task_count)
+    ]
+
+
+def _verify_multinode_resource_record_bindings(
+    output_root: Path,
+    payload: Mapping[str, Any],
+) -> None:
+    """Recheck the top-level resource-record inventory for one profile."""
+
+    task_count = payload.get("task_count")
+    workers = payload.get("workers_per_task")
+    bindings = payload.get("resource_record_bindings")
+    if (
+        not isinstance(task_count, int)
+        or task_count < 1
+        or not isinstance(workers, int)
+        or workers < 1
+        or not isinstance(bindings, list)
+        or len(bindings) != task_count
+    ):
+        raise RuntimeError("invalid multi-node resource-record binding inventory")
+    observed_procids = set()
+    observed_jobs = set()
+    for binding in bindings:
+        path = output_root / str(binding.get("relative_path"))
+        if binding.get("sha256") != file_sha256(path):
+            raise RuntimeError(f"invalid multi-node resource-record checksum: {path}")
+        record = json.loads(path.read_text())
+        rows = record.get("rows", ())
+        if (
+            record.get("action") != "multinode_work"
+            or record.get("schema_version") != SCHEMA_VERSION
+            or record.get("slurm_ntasks") != task_count
+            or record.get("workers") != workers
+            or record.get("published_count") != 1
+            or record.get("reused_count") != 0
+            or len(rows) != 1
+            or rows[0].get("reused") is not False
+        ):
+            raise RuntimeError(f"invalid multi-node resource record: {path}")
+        procid = record.get("slurm_procid")
+        if (
+            not isinstance(procid, int)
+            or rows[0].get("shard_id") != f"task_{procid:04d}"
+        ):
+            raise RuntimeError(f"invalid multi-node resource-record task binding: {path}")
+        observed_procids.add(procid)
+        observed_jobs.add(str(record.get("slurm_job_id")))
+    if observed_procids != set(range(task_count)) or len(observed_jobs) != 1:
+        raise RuntimeError("multi-node resource records do not describe one complete allocation")
+
+
 def multinode_reduce(
     phase2_root: Path,
     output_root: Path,
@@ -1650,6 +1939,11 @@ def multinode_reduce(
         raise RuntimeError("multi-node reducer accepted an intentionally omitted shard")
     _require_equivalent(serial_vs_multinode, "serial-versus-multinode control")
     _require_equivalent(forward_vs_reverse, "forward-versus-reverse multi-node reduction")
+    resource_record_bindings = _select_fresh_multinode_resource_records(
+        output_root,
+        task_count=task_count,
+        workers=workers,
+    )
     payload = {
         "schema_version": SCHEMA_VERSION,
         "operational_status": "complete",
@@ -1665,8 +1959,21 @@ def multinode_reduce(
         "serial_vs_multinode": serial_vs_multinode,
         "forward_vs_reverse_reduction": forward_vs_reverse,
         "parent_process_peak_rss_kib": _peak_rss_kib(),
+        "artifact_bindings": [],
+        "resource_record_bindings": resource_record_bindings,
         "source_version": _source_version(),
     }
+    for procid in range(task_count):
+        task_root = output_root / "multinode_control" / f"task_{procid:04d}"
+        for path in (task_root / "COMPLETE.json", task_root / "partial.npz"):
+            payload["artifact_bindings"].append(
+                {
+                    "relative_path": str(path.relative_to(output_root)),
+                    "sha256": file_sha256(path),
+                }
+            )
+    payload["artifact_bindings"].extend(resource_record_bindings)
+    _verify_multinode_resource_record_bindings(output_root, payload)
     _publish_json_diagnostic(
         output_root,
         "multinode_control.json",
@@ -1692,8 +1999,10 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
     scenarios = []
     for bin_count in (32, 64, 128):
         scenarios.append(("bins", 2, 320, bin_count, 12, 256, PRODUCTION_SEED, "shell_local", (160, 160, 160)))
-    for directions in (12, 24):
+    for directions in (12, 24, 48):
         scenarios.append(("directions", 2, 320, 64, directions, 256, PRODUCTION_SEED, "shell_local", (160, 160, 160)))
+    for directions in (12, 24, 48):
+        scenarios.append(("directions_all_valid", 2, 320, 64, directions, 256, PRODUCTION_SEED, "all_valid_origins", (160, 160, 160)))
     for samples in (256, 1024, 2048, 4096):
         scenarios.append(("origins", 2, 320, 64, 12, samples, PRODUCTION_SEED, "shell_local", (160, 160, 160)))
     for seed in (PRODUCTION_SEED, PRODUCTION_SEED + 1):
@@ -1762,11 +2071,24 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
             continue
         artifact_path = output_root / "scenarios" / f"scenario_{index:03d}.npz"
         artifact_payload = _convergence_uncertainty_payload(result)
-        artifact_payload["local_log_slope_window_3"] = local_log_slope(
-            np.sqrt(edges[:-1] * edges[1:]), result.moments, window=3
+        ell_centers = np.sqrt(edges[:-1] * edges[1:])
+        artifact_payload["local_log_slope_window_3"], artifact_payload[
+            "local_log_slope_window_3_support_mask"
+        ] = _supported_local_log_slopes(
+            ell_centers,
+            result.moments,
+            artifact_payload["accepted_contributing_blocks"],
+            artifact_payload["accepted_effective_blocks"],
+            window=3,
         )
-        artifact_payload["local_log_slope_window_7"] = local_log_slope(
-            np.sqrt(edges[:-1] * edges[1:]), result.moments, window=7
+        artifact_payload["local_log_slope_window_7"], artifact_payload[
+            "local_log_slope_window_7_support_mask"
+        ] = _supported_local_log_slopes(
+            ell_centers,
+            result.moments,
+            artifact_payload["accepted_contributing_blocks"],
+            artifact_payload["accepted_effective_blocks"],
+            window=7,
         )
         _atomic_write_npz(artifact_path, **artifact_payload)
         rows.append(
@@ -1791,8 +2113,8 @@ def convergence(phase2_root: Path, output_root: Path, *, workers: int) -> dict[s
                 "sampled_pairs": int(result.sampled_pairs.sum()),
                 "artifact_relative_path": str(artifact_path.relative_to(output_root)),
                 "artifact_sha256": file_sha256(artifact_path),
-                "minimum_accepted_effective_blocks": float(
-                    np.nanmin(artifact_payload["accepted_effective_blocks"])
+                **_occupied_effective_block_summary(
+                    artifact_payload["accepted_effective_blocks"]
                 ),
                 "minimum_shell_valid_fraction": float(
                     np.min(

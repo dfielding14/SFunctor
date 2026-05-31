@@ -190,11 +190,21 @@ def test_block_uncertainty_is_spatial_and_bootstrap_is_seed_deterministic():
     assert np.allclose(jackknife.effective_blocks, expected_effective_blocks)
     assert np.allclose(first.effective_blocks, expected_effective_blocks)
     assert jackknife.geometric_block_count == first.geometric_block_count == result.block_counts.shape[0]
-    assert (
-        jackknife.resampling_population
-        == first.resampling_population
-        == "fixed_geometric_layout_including_empty_blocks"
+    assert jackknife.resampling_population == "delete_contributing_blocks_only"
+    assert first.resampling_population == "fixed_geometric_layout_including_empty_blocks"
+
+
+def test_block_jackknife_rejects_one_contributing_block_as_unsupported():
+    result = _calculate(
+        np.array([[1, 0, 0]]),
+        block_shape_kji=(8, 8, 8),
     )
+
+    jackknife = block_jackknife_moment_uncertainty(result)
+    occupied = result.counts > 0
+
+    assert np.all(jackknife.contributing_blocks[occupied] == 1)
+    assert np.all(np.isnan(jackknife.standard_error[occupied]))
 
 
 def test_local_log_slope_uses_complete_centered_regression_window():
@@ -209,6 +219,37 @@ def test_local_log_slope_uses_complete_centered_regression_window():
     moments[0, 3] = np.nan
     slopes = local_log_slope(ell, moments, window=3)
     assert np.all(np.isnan(slopes[0, 2:5]))
+
+
+def test_runner_local_slope_support_gate_requires_complete_well_supported_window():
+    contributing = np.full((7,), 2)
+    effective = np.full((7,), phase3a_runner.MINIMUM_LOCAL_SLOPE_EFFECTIVE_BLOCKS)
+    effective[3] -= 1.0
+
+    supported = phase3a_runner._local_slope_support_mask(
+        contributing,
+        effective,
+        window=3,
+    )
+
+    assert np.array_equal(supported, (False, True, False, False, False, True, False))
+
+
+def test_runner_distribution_summary_requires_requested_finite_population():
+    values = np.asarray(((1.0, 1.0), (2.0, 2.0), (3.0, np.nan)))
+
+    standard_error, low, high, valid = phase3a_runner._finite_distribution_summary(
+        values,
+        minimum_valid_count=3,
+    )
+
+    assert np.isfinite(standard_error[0])
+    assert np.isfinite(low[0])
+    assert np.isfinite(high[0])
+    assert valid.tolist() == [3, 2]
+    assert np.isnan(standard_error[1])
+    assert np.isnan(low[1])
+    assert np.isnan(high[1])
 
 
 def test_partial_npz_round_trip_loads_without_pickle_and_reduces(tmp_path):

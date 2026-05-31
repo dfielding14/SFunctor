@@ -701,16 +701,17 @@ def _effective_block_counts(block_counts: np.ndarray) -> np.ndarray:
 def block_jackknife_moment_uncertainty(result: FiniteDomainResult) -> MomentUncertainty:
     """Estimate moment uncertainty by deleting each fixed-layout origin block.
 
-    Empty blocks are retained in the shared spatial schedule so the jackknife
-    and bootstrap use the same geometric population. Cells with fewer than two
-    effective delete-one replicates receive ``NaN`` uncertainty.
+    Empty blocks remain represented in the shared geometric layout, but they
+    are not delete-one replicates for a cell to which they contributed
+    nothing. Cells with fewer than two contributing delete-one replicates
+    receive ``NaN`` uncertainty.
     """
 
     block_counts, block_sums = _block_accumulators(result)
     remaining_counts = result.counts[None, ...] - block_counts
     remaining_sums = result.sums[None, ...] - block_sums
     contributing = block_counts > 0
-    replicate_valid = remaining_counts > 0
+    replicate_valid = contributing & (remaining_counts > 0)
     replicates = np.full_like(block_sums, np.nan, dtype=float)
     np.divide(remaining_sums, remaining_counts, out=replicates, where=replicate_valid)
     contributing_blocks = np.count_nonzero(contributing, axis=0)
@@ -732,6 +733,7 @@ def block_jackknife_moment_uncertainty(result: FiniteDomainResult) -> MomentUnce
             where=replicate_counts > 1,
         )
     )
+    standard_error[contributing_blocks < 2] = np.nan
     return MomentUncertainty(
         method="spatial_block_jackknife",
         estimate=result.moments.copy(),
@@ -739,7 +741,7 @@ def block_jackknife_moment_uncertainty(result: FiniteDomainResult) -> MomentUnce
         contributing_blocks=contributing_blocks,
         effective_blocks=_effective_block_counts(block_counts),
         geometric_block_count=block_counts.shape[0],
-        resampling_population="fixed_geometric_layout_including_empty_blocks",
+        resampling_population="delete_contributing_blocks_only",
     )
 
 

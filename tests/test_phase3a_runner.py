@@ -167,19 +167,116 @@ def test_verify_json_diagnostic_rejects_changed_phase2_source_and_artifact(tmp_p
         )
 
 
-def test_convergence_design_uses_full_census_only_for_bin_and_direction_evidence():
+def test_convergence_design_uses_full_census_for_policy_and_direction_evidence():
     displacements = np.column_stack(
         (np.arange(1, 121, dtype=np.int64), np.zeros(120, dtype=np.int64), np.zeros(120, dtype=np.int64))
     )
     edges = np.asarray((0.5, 40.5, 80.5, 120.5))
 
     full, full_policy = runner._convergence_offset_subset("directions", displacements, edges)
-    bounded, bounded_policy = runner._convergence_offset_subset("origins", displacements, edges)
+    policy, policy_name = runner._convergence_offset_subset("support", displacements, edges)
+    all_valid, all_valid_policy = runner._convergence_offset_subset(
+        "directions_all_valid", displacements, edges
+    )
+    bounded_offsets = np.column_stack(
+        (
+            np.arange(1, 361, dtype=np.int64),
+            np.zeros(360, dtype=np.int64),
+            np.zeros(360, dtype=np.int64),
+        )
+    )
+    bounded_edges = np.asarray((0.5, 120.5, 240.5, 360.5))
+    bounded, bounded_policy = runner._convergence_offset_subset(
+        "origins", bounded_offsets, bounded_edges
+    )
 
     assert np.array_equal(full, displacements)
+    assert np.array_equal(policy, displacements)
+    assert np.array_equal(all_valid, displacements)
     assert full_policy == "full_displacement_census"
-    assert len(bounded) == 96
-    assert bounded_policy == "shell_stratified_maximum_96_offsets"
+    assert policy_name == "full_displacement_census"
+    assert all_valid_policy == "full_displacement_census"
+    assert len(bounded) == 255
+    assert bounded_policy == "shell_stratified_maximum_256_offsets"
+
+
+def test_verify_json_diagnostic_rejects_changed_supplemental_artifact(tmp_path, monkeypatch):
+    output_root = tmp_path / "diagnostic"
+    artifact_path = output_root / "multinode_control" / "task_0000" / "COMPLETE.json"
+    artifact_path.parent.mkdir(parents=True)
+    artifact_path.write_text("{}\n")
+    source = {"implementation_sha256": "source"}
+    monkeypatch.setattr(runner, "_source_version", lambda: source)
+    runner._publish_json_diagnostic(
+        output_root,
+        "multinode_control.json",
+        "MULTINODE_CONTROL_COMPLETE.json",
+        {
+            "operational_status": "complete",
+            "source_version": source,
+            "artifact_bindings": [
+                {
+                    "relative_path": str(artifact_path.relative_to(output_root)),
+                    "sha256": runner.file_sha256(artifact_path),
+                }
+            ],
+        },
+    )
+
+    assert runner._verify_json_diagnostic(
+        output_root,
+        "multinode_control.json",
+        "MULTINODE_CONTROL_COMPLETE.json",
+    )
+    artifact_path.write_text('{"changed": true}\n')
+    with pytest.raises(RuntimeError, match="supplemental artifact binding"):
+        runner._verify_json_diagnostic(
+            output_root,
+            "multinode_control.json",
+            "MULTINODE_CONTROL_COMPLETE.json",
+        )
+
+
+def test_multinode_resource_binding_selects_one_complete_fresh_allocation(tmp_path, monkeypatch):
+    output_root = tmp_path / "diagnostic"
+    source = {"implementation_sha256": "source"}
+    monkeypatch.setattr(runner, "_source_version", lambda: source)
+    record_root = output_root / "work_resource_records"
+    for job_id, procid in (("old", 0), ("new", 0), ("new", 1)):
+        path = record_root / f"{job_id}_{procid}.json"
+        _write_json(
+            path,
+            {
+                "schema_version": runner.SCHEMA_VERSION,
+                "action": "multinode_work",
+                "slurm_job_id": job_id,
+                "slurm_procid": procid,
+                "slurm_ntasks": 2,
+                "workers": 1,
+                "published_count": 1,
+                "reused_count": 0,
+                "rows": [{"shard_id": f"task_{procid:04d}", "reused": False}],
+                "source_version": source,
+            },
+        )
+
+    bindings = runner._select_fresh_multinode_resource_records(
+        output_root,
+        task_count=2,
+        workers=1,
+    )
+    payload = {
+        "task_count": 2,
+        "workers_per_task": 1,
+        "resource_record_bindings": bindings,
+    }
+
+    assert len(bindings) == 2
+    assert {Path(binding["relative_path"]).name for binding in bindings} == {
+        "new_0.json",
+        "new_1.json",
+    }
+    runner._verify_multinode_resource_record_bindings(output_root, payload)
 
 
 def test_planned_shards_are_canonical_disjoint_exact_coverage(monkeypatch, tmp_path):

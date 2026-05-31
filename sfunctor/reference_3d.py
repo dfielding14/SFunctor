@@ -91,6 +91,7 @@ def _empty_result(
     rho0: float,
     rho0_provenance: str,
     displacements_ijk: np.ndarray,
+    support_displacements_ijk: np.ndarray,
 ) -> FiniteDomainResult:
     n_ell = config.ell_bin_edges.size - 1
     displacement_count = len(displacements_ijk)
@@ -163,8 +164,10 @@ def _empty_result(
         block_counts=np.zeros((block_count, *shape), dtype=np.int64) if block_count else None,
         block_sums=np.zeros((block_count, *shape), dtype=float) if block_count else None,
         block_sums_sq=np.zeros((block_count, *shape), dtype=float) if block_count else None,
-        support_displacements_sha256=hashlib.sha256(displacements_ijk.tobytes()).hexdigest(),
-        support_displacement_count=len(displacements_ijk),
+        support_displacements_sha256=hashlib.sha256(
+            support_displacements_ijk.tobytes()
+        ).hexdigest(),
+        support_displacement_count=len(support_displacements_ijk),
         block_assignment="stencil_midpoint" if block_count else None,
         block_sampled_origins=np.zeros((block_count, n_ell), dtype=np.int64) if block_count else None,
         block_eligible_origins=np.zeros((block_count, n_ell), dtype=np.int64) if block_count else None,
@@ -238,17 +241,33 @@ def compute_finite_domain_structure_functions_reference(
     rho0_provenance: str | None = None,
     rho_floor: float = 0.0,
     q_names: Sequence[str] | None = None,
+    support_displacements_ijk: np.ndarray | None = None,
 ) -> FiniteDomainResult:
     """Compute finite-domain moments with explicit point-pair loops."""
 
     started = perf_counter()
     displacements = _require_integer_displacements(displacements_ijk)
+    support_displacements = (
+        displacements
+        if support_displacements_ijk is None
+        else _require_integer_displacements(support_displacements_ijk)
+    )
     if np.any(np.all(displacements == 0, axis=1)):
         raise ValueError("zero displacement is not permitted")
+    if np.any(np.all(support_displacements == 0, axis=1)):
+        raise ValueError("zero support displacement is not permitted")
     if len({tuple(row) for row in displacements.tolist()}) != len(displacements):
         raise ValueError("displacements_ijk must not contain duplicates")
+    if len({tuple(row) for row in support_displacements.tolist()}) != len(
+        support_displacements
+    ):
+        raise ValueError("support_displacements_ijk must not contain duplicates")
+    measured_offsets = {tuple(row) for row in displacements.tolist()}
+    support_offsets = {tuple(row) for row in support_displacements.tolist()}
+    if not measured_offsets <= support_offsets:
+        raise ValueError("every measured displacement must belong to support_displacements_ijk")
     if config.pair_mode == "nested_core":
-        _require_signed_closure(displacements)
+        _require_signed_closure(support_displacements)
 
     inferred_rho0 = rho0 is None
     B, q_fields, rho0 = build_cube_q_variants(
@@ -280,10 +299,24 @@ def compute_finite_domain_structure_functions_reference(
         ],
         dtype=np.int64,
     ).reshape((-1, 3))
+    in_range_support_displacements = np.asarray(
+        [
+            displacement
+            for displacement in support_displacements
+            if _fast_ell_bin_index(
+                float(np.linalg.norm(cube_offset_to_vector(displacement, config.cell_sizes))),
+                config.ell_bin_edges,
+            )
+            >= 0
+        ],
+        dtype=np.int64,
+    ).reshape((-1, 3))
     if config.pair_mode == "nested_core" and not in_range_displacements.size:
         raise ValueError("no in-range displacements remain for nested_core")
     core_bounds = (
-        nested_core_bounds_kji(cube_shape, in_range_displacements, config.stencil_width)
+        nested_core_bounds_kji(
+            cube_shape, in_range_support_displacements, config.stencil_width
+        )
         if config.pair_mode == "nested_core"
         else None
     )
@@ -295,7 +328,7 @@ def compute_finite_domain_structure_functions_reference(
             members = np.asarray(
                 [
                     displacement
-                    for displacement in in_range_displacements
+                    for displacement in in_range_support_displacements
                     if _ell_bin_index(
                         float(np.linalg.norm(cube_offset_to_vector(displacement, config.cell_sizes))),
                         config.ell_bin_edges,
@@ -321,6 +354,7 @@ def compute_finite_domain_structure_functions_reference(
         rho0,
         rho0_provenance,
         displacements,
+        support_displacements,
     )
     result.shell_core_bounds_kji = tuple(shell_bounds) if config.pair_mode == "shell_local" else None
     finite_B = np.all(np.isfinite(B), axis=0)

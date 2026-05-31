@@ -174,6 +174,40 @@ def test_shell_local_uses_one_shared_box_within_each_shell():
     assert np.array_equal(result.eligible_pairs_per_displacement, (150, 150, 70, 70))
 
 
+def test_slow_oracle_matches_optimized_with_larger_frozen_support_census():
+    measured = np.asarray(((1, 0, 0), (-1, 0, 0)))
+    support = np.asarray(
+        ((1, 0, 0), (-1, 0, 0), (0, 2, 0), (0, -2, 0)),
+        dtype=np.int64,
+    )
+    config = FiniteDomainConfig(
+        np.asarray((0.5, 1.5, 2.5)),
+        pair_mode="shell_local",
+        sample_count=9,
+        stencil_width=3,
+        block_shape_kji=(2, 3, 4),
+        include_subvolume_mean=False,
+    )
+    optimized = compute_finite_domain_structure_functions(
+        _cube(),
+        measured,
+        config=config,
+        q_names=("B", "u"),
+        support_displacements_ijk=support,
+    )
+    oracle = compute_finite_domain_structure_functions_reference(
+        _cube(),
+        measured,
+        config=config,
+        q_names=("B", "u"),
+        support_displacements_ijk=support,
+    )
+    _assert_moments_match(optimized, oracle)
+    assert optimized.shell_core_bounds_kji == oracle.shell_core_bounds_kji
+    assert optimized.support_displacements_sha256 == oracle.support_displacements_sha256
+    assert optimized.support_displacement_count == oracle.support_displacement_count == len(support)
+
+
 def test_origin_block_accumulators_sum_to_global_statistics():
     result = compute_finite_domain_structure_functions(
         _cube((5, 6, 7)),

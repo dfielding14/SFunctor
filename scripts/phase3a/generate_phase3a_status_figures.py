@@ -282,6 +282,8 @@ def _verify_required_diagnostic(
         relative = row.get("artifact_relative_path")
         if relative is not None:
             input_hashes.add(diagnostic_root / str(relative))
+    for binding in payload.get("artifact_bindings", ()):
+        input_hashes.add(diagnostic_root / str(binding["relative_path"]))
     return payload
 
 

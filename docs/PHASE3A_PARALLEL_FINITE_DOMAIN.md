@@ -132,7 +132,8 @@ stable. Edge blocks are truncated naturally by the cube bounds.
 
 - deterministic fixed-layout spatial block bootstrap, including empty blocks
   in the common layout so covariance across curves is preserved;
-- delete-one spatial block jackknife;
+- delete-one spatial block jackknife over contributing blocks, with
+  one-block cells rejected as unsupported;
 - contributing-block counts and Kish effective accepted-block counts;
 - centered local regressions for:
 
@@ -161,6 +162,10 @@ $$
 Uncertainty products retain moment bands and local-slope bands. Here $n_b$ is
 the accepted-sample count in block $b$. The effective count makes visible when
 a nominal block layout is dominated by a smaller number of spatial regions.
+Published local-slope bands require every bin in the centered regression
+window to have at least two contributing blocks and at least `8` Kish
+effective accepted blocks. A band is published only when at least `90%` of
+the bootstrap local-slope replicates remain finite after that support gate.
 
 Pair-sampling standard errors remain separately labeled diagnostics. They are
 not physical uncertainty bars.
@@ -225,6 +230,8 @@ uncertainty metadata before an existing reduction is accepted. Multi-node
 control tasks apply the same principle to task-local partials: each task marker
 binds its source hash, Phase 2 input identity, support census, sampling
 configuration, and expected offset inventory before reuse or aggregation.
+The top-level multi-node control summary also binds the verified task markers,
+task partials, and retained task-local resource records by checksum.
 
 The default Andes setting is one worker per node. Preliminary controls found
 the path to be memory-bound, so higher worker counts are explicit benchmark
@@ -272,16 +279,22 @@ publication into one output root without making a fresh `plan` root non-empty.
 A stale lock is removed only after an `squeue` snapshot proves that its numeric
 owner allocation is inactive. The lock must not be deleted merely because a
 previous run appears interrupted. Each wrapper exit also archives a
-step-resolved `sacct` snapshot under the explicit allocation `RUN_DIR`; use its
-Python-step `MaxRSS` as the scheduling high-water measurement rather than the
-wrapper launcher RSS.
+step-resolved `sacct` snapshot under the explicit allocation `RUN_DIR`. Treat
+its Python-step `MaxRSS` as a secondary scheduler-accounting diagnostic. The
+runner parent-process RSS remains the conservative scheduling value until the
+Slurm step accounting is reconciled with the Python process tree.
 
 The bounded convergence action binds its representative Phase 2 cube identity
 and verifies every scenario artifact checksum. Bin-count and
 direction-density comparisons use their complete generated displacement
-censuses. Other bounded sensitivity scenarios use a documented
-shell-stratified subset. Wider-stencil `nested_core` diagnostics remain
-labeled comparisons where their retained core is non-empty.
+censuses. Direction density is measured at `12`, `24`, and `48` requested
+directions for both `shell_local` and `all_valid_origins`. Support-policy
+comparisons also use the complete generated census. Origin-depth and repeat-
+seed diagnostics use up to `256` shell-stratified offsets, while other bounded
+sensitivity scenarios use up to `96`. Convergence artifacts retain offset-
+resolved support accounting and self-describing bootstrap metadata. Wider-
+stencil `nested_core` diagnostics remain labeled comparisons where their
+retained core is non-empty.
 
 ## Publication Layout
 
