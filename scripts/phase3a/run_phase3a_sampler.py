@@ -22,6 +22,7 @@ from scripts.phase1.cbin_tools import file_sha256
 from scripts.phase3.run_phase3_sampler import (
     BENCHMARK_CUBE_IDS,
     DEFAULT_PHASE2_ROOT,
+    SCHEMA_VERSION as PHASE3_SCHEMA_VERSION,
     _load_cube,
     _phase2_source_identity,
 )
@@ -948,7 +949,7 @@ def _phase3_anchor_regression(
     cube_root = PHASE3_ANCHOR_ROOT / cube_id
     marker = json.loads((cube_root / "COMPLETE.json").read_text())
     if (
-        marker.get("schema_version") != SCHEMA_VERSION
+        marker.get("schema_version") != PHASE3_SCHEMA_VERSION
         or marker.get("status") != "passed"
         or marker.get("cube_id") != cube_id
         or marker.get("phase2_source")
