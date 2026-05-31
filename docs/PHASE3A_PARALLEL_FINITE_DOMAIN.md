@@ -162,10 +162,14 @@ $$
 Uncertainty products retain moment bands and local-slope bands. Here $n_b$ is
 the accepted-sample count in block $b$. The effective count makes visible when
 a nominal block layout is dominated by a smaller number of spatial regions.
-Published local-slope bands require every bin in the centered regression
-window to have at least two contributing blocks and at least `8` Kish
-effective accepted blocks. A band is published only when at least `90%` of
-the bootstrap local-slope replicates remain finite after that support gate.
+Moment bands are conditional on the retained sampled-origin and displacement
+census. They require at least two contributing blocks and two finite
+bootstrap resamples; weak-support tails can therefore retain a reduced
+resample population and must be flagged or masked by science-facing reporting
+policy. Published local-slope bands require every bin in the centered
+regression window to have at least two contributing blocks and at least `8`
+Kish effective accepted blocks. A band is published only when at least `90%`
+of the bootstrap local-slope replicates remain finite after that support gate.
 
 Pair-sampling standard errors remain separately labeled diagnostics. They are
 not physical uncertainty bars.
@@ -234,9 +238,11 @@ The top-level multi-node control summary also binds the verified task markers,
 task partials, and retained task-local resource records by checksum.
 
 The default Andes setting is one worker per node. Preliminary controls found
-the path to be memory-bound, so higher worker counts are explicit benchmark
-overrides rather than the publication default. This is a scheduling default,
-not a claim that one worker is universally optimal on other machines.
+that additional node-local workers did not improve this bounded workload.
+Higher worker counts are therefore explicit benchmark overrides rather than
+the publication default. The limiting resource was not independently profiled,
+and this is not a claim that one worker is universally optimal on other
+machines.
 
 ## CLI And Slurm Wrapper
 
@@ -280,9 +286,10 @@ A stale lock is removed only after an `squeue` snapshot proves that its numeric
 owner allocation is inactive. The lock must not be deleted merely because a
 previous run appears interrupted. Each wrapper exit also archives a
 step-resolved `sacct` snapshot under the explicit allocation `RUN_DIR`. Treat
-its Python-step `MaxRSS` as a secondary scheduler-accounting diagnostic. The
-runner parent-process RSS remains the conservative scheduling value until the
-Slurm step accounting is reconciled with the Python process tree.
+its Python-step `MaxRSS` as a scheduler-accounting diagnostic. Runner
+parent-process RSS is directly applicable to the retained one-worker-per-node
+publication. It does not account for a multiworker process tree, so reconcile
+Slurm step accounting before extrapolating multiworker memory requirements.
 
 The bounded convergence action binds its representative Phase 2 cube identity
 and verifies every scenario artifact checksum. Bin-count and

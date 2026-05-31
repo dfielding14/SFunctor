@@ -55,6 +55,7 @@ MODE_COLORS = {
 REPRESENTATIVE_CUBE_ID = BENCHMARK_CUBE_IDS[0]
 PRIMARY_STENCIL_WIDTH = 2
 PRIMARY_SUPPORT_MODE = "shell_local"
+WEAK_SHELL_SUPPORT_DIAGNOSTIC_FRACTION = 0.01
 
 
 @dataclass(frozen=True)
@@ -1197,21 +1198,18 @@ def convergence_scale_and_block_diagnostics(
     axes[1].bar(positions, uncertainty_widths, color="#f58518")
     axes[1].set_xticks(positions, block_labels)
     axes[1].set_xlabel("spatial block side length [cells]")
-    axes[1].set_ylabel(
-        r"$B$ $\lambda$-wedge median 95% block-band fractional half-width, "
-        r"$32 \leq \ell \leq 160$"
-    )
+    axes[1].set_ylabel("median 95% block-band fractional half-width")
+    axes[1].set_title(r"$B$ $\lambda$ wedge, $32 \leq \ell \leq 160$ cells", fontsize=9)
     axes[1].grid(axis="y", alpha=0.22)
     axes[2].bar(positions, effective_blocks, color="#54a24b")
     axes[2].set_xticks(positions, block_labels)
     axes[2].set_xlabel("spatial block side length [cells]")
-    axes[2].set_ylabel(
-        r"$B$ $\lambda$-wedge median Kish effective blocks, $32 \leq \ell \leq 160$"
-    )
+    axes[2].set_ylabel("median Kish effective blocks")
+    axes[2].set_title(r"$B$ $\lambda$ wedge, $32 \leq \ell \leq 160$ cells", fontsize=9)
     axes[2].grid(axis="y", alpha=0.22)
     figure.suptitle(
-        f"{REPRESENTATIVE_CUBE_ID}: bounded outer-scale support and block-layout diagnostic "
-        "(12 directions/bin, <=96 offsets, 256 origins/offset)"
+        f"{REPRESENTATIVE_CUBE_ID}: bounded outer-scale support and block-layout diagnostic",
+        fontsize=11,
     )
     return _save(figure, output_dir, "phase3a_convergence_scale_and_block_diagnostics.png")
 
@@ -1308,6 +1306,13 @@ def four_cube_support_mode_ratios(
             support_mode="all_valid_origins",
         ).result
         ell = _centers(shell.ell_bin_edges)
+        shell_support = np.divide(
+            shell.eligible_pairs,
+            shell.cube_candidate_pairs,
+            out=np.zeros_like(shell.eligible_pairs, dtype=float),
+            where=shell.cube_candidate_pairs > 0,
+        )
+        weak_support = shell_support < WEAK_SHELL_SUPPORT_DIAGNOSTIC_FRACTION
         for column, q_name in enumerate(("B", "u")):
             axis = axes[row, column]
             for direction in ("parallel", "xi", "lambda"):
@@ -1318,9 +1323,23 @@ def four_cube_support_mode_ratios(
                     out=np.full_like(shell.moments[index], np.nan, dtype=float),
                     where=np.isfinite(shell.moments[index]) & (shell.moments[index] != 0.0),
                 )
-                axis.plot(ell, ratio, color=DIRECTION_COLORS[direction], label=direction)
+                axis.plot(
+                    ell,
+                    np.where(weak_support, np.nan, ratio),
+                    color=DIRECTION_COLORS[direction],
+                    label=direction,
+                )
+                axis.plot(
+                    ell[weak_support],
+                    ratio[weak_support],
+                    color="#888888",
+                    linestyle="none",
+                    marker="x",
+                    markersize=3.0,
+                )
             axis.axhline(1.0, color="#777777", linestyle="--", linewidth=1.0)
             axis.set_xscale("log")
+            axis.set_yscale("log")
             axis.grid(alpha=0.22)
             axis.set_xlabel(r"$\ell$ [cells]")
             axis.set_ylabel(
@@ -1328,7 +1347,10 @@ def four_cube_support_mode_ratios(
                 + rf"$S_{{2,\perp}}^{{{q_name},\mathrm{{all}}}} / S_{{2,\perp}}^{{{q_name},\mathrm{{shell}}}}$"
             )
     axes[0, 0].legend(fontsize=7)
-    figure.suptitle("Four-cube 2-point support-policy sensitivity; ratios are descriptive, not corrections")
+    figure.suptitle(
+        "Four-cube 2-point support-policy sensitivity; gray x: shell-local support <1% "
+        "(diagnostic only)"
+    )
     return _save(figure, output_dir, "phase3a_four_cube_support_mode_ratios.png")
 
 
