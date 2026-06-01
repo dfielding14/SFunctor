@@ -32,6 +32,9 @@ SCIENCE_SCALE_MINIMUM = 32.0
 SHELL_CURVE_MINIMUM = 0.05
 TAIL_FACTOR_THRESHOLD = 1.5
 FOCUS_CUBE = "L640_sub03026"
+COUPLED_RATIO_BOOTSTRAP_SEED = 20260531
+COUPLED_RATIO_BOOTSTRAP_N_RESAMPLES = 200
+COUPLED_RATIO_BOOTSTRAP_CONFIDENCE_LEVEL = 0.95
 P_COLORS = {
     1.0: "#4c78a8",
     2.0: "#f58518",
@@ -82,6 +85,105 @@ def _load_groups(
     return groups
 
 
+def _moment_concentration(result: Any, index: tuple[int, ...]) -> dict[str, np.ndarray]:
+    """Return block-level concentration fractions for one moment curve."""
+
+    if result.block_sums is None:
+        raise RuntimeError("moment concentration requires retained block sums")
+    block_sums = np.asarray(result.block_sums[(slice(None), *index)], dtype=float)
+    if block_sums.ndim != 2 or block_sums.shape[1] != result.sums[index].shape[0]:
+        raise RuntimeError("unexpected retained block-sum shape")
+    if np.any(block_sums < 0.0):
+        raise RuntimeError("moment concentration requires non-negative block sums")
+    total = block_sums.sum(axis=0)
+    ordered = np.sort(block_sums, axis=0)[::-1]
+
+    def fraction(count: int) -> np.ndarray:
+        return np.divide(
+            ordered[:count].sum(axis=0),
+            total,
+            out=np.full_like(total, np.nan, dtype=float),
+            where=total > 0.0,
+        )
+
+    return {
+        "largest_block_fraction": fraction(1),
+        "largest_5_blocks_fraction": fraction(5),
+        "largest_10_blocks_fraction": fraction(10),
+    }
+
+
+def _coupled_ratio_bootstrap(
+    primary: base.Group,
+    shell: base.Group,
+    index: tuple[int, ...],
+) -> dict[str, np.ndarray]:
+    """Bootstrap a policy ratio with one shared fixed-layout block schedule."""
+
+    if (
+        primary.result.block_counts is None
+        or primary.result.block_sums is None
+        or shell.result.block_counts is None
+        or shell.result.block_sums is None
+    ):
+        raise RuntimeError("coupled ratio bootstrap requires retained block accumulators")
+    primary_counts = np.asarray(primary.result.block_counts[(slice(None), *index)], dtype=float)
+    primary_sums = np.asarray(primary.result.block_sums[(slice(None), *index)], dtype=float)
+    shell_counts = np.asarray(shell.result.block_counts[(slice(None), *index)], dtype=float)
+    shell_sums = np.asarray(shell.result.block_sums[(slice(None), *index)], dtype=float)
+    if (
+        primary_counts.shape != primary_sums.shape
+        or primary_counts.shape != shell_counts.shape
+        or primary_counts.shape != shell_sums.shape
+        or primary_counts.ndim != 2
+        or primary.result.block_shape_kji != shell.result.block_shape_kji
+        or primary.result.block_assignment != shell.result.block_assignment
+    ):
+        raise RuntimeError("policy products do not share one compatible block layout")
+    block_count, bin_count = primary_counts.shape
+    rng = np.random.default_rng(COUPLED_RATIO_BOOTSTRAP_SEED)
+    probabilities = np.full(block_count, 1.0 / block_count)
+    replicates = np.full((COUPLED_RATIO_BOOTSTRAP_N_RESAMPLES, bin_count), np.nan)
+    for replicate_index in range(COUPLED_RATIO_BOOTSTRAP_N_RESAMPLES):
+        multiplicity = rng.multinomial(block_count, probabilities)
+        primary_moment = np.divide(
+            multiplicity @ primary_sums,
+            multiplicity @ primary_counts,
+            out=np.full(bin_count, np.nan),
+            where=(multiplicity @ primary_counts) > 0.0,
+        )
+        shell_moment = np.divide(
+            multiplicity @ shell_sums,
+            multiplicity @ shell_counts,
+            out=np.full(bin_count, np.nan),
+            where=(multiplicity @ shell_counts) > 0.0,
+        )
+        np.divide(
+            primary_moment,
+            shell_moment,
+            out=replicates[replicate_index],
+            where=np.isfinite(shell_moment) & (shell_moment > 0.0),
+        )
+    valid = np.isfinite(replicates) & (replicates > 0.0)
+    valid_counts = np.count_nonzero(valid, axis=0)
+    low = np.full(bin_count, np.nan)
+    median = np.full(bin_count, np.nan)
+    high = np.full(bin_count, np.nan)
+    alpha = 0.5 * (1.0 - COUPLED_RATIO_BOOTSTRAP_CONFIDENCE_LEVEL)
+    for bin_index in range(bin_count):
+        values = replicates[valid[:, bin_index], bin_index]
+        if values.size >= 2:
+            low[bin_index], median[bin_index], high[bin_index] = np.quantile(
+                values, (alpha, 0.5, 1.0 - alpha)
+            )
+    return {
+        "interval_low": low,
+        "median": median,
+        "interval_high": high,
+        "valid_resamples": valid_counts,
+    }
+
+
 def _curve_rows(
     groups: Mapping[tuple[str, str], base.Group],
     cube_ids: tuple[str, ...],
@@ -115,6 +217,13 @@ def _curve_rows(
                     )
                     finite_ratio = np.isfinite(ratio) & (ratio > 0.0)
                     supported = science & geometry & uncertainty & finite_ratio
+                    ratio_bootstrap = None
+                    primary_concentration = None
+                    shell_concentration = None
+                    if p_value == P6:
+                        ratio_bootstrap = _coupled_ratio_bootstrap(primary, shell, index)
+                        primary_concentration = _moment_concentration(primary.result, index)
+                        shell_concentration = _moment_concentration(shell.result, index)
                     census.append(
                         {
                             "cube_id": cube_id,
@@ -134,8 +243,7 @@ def _curve_rows(
                     )
                     for bin_index in np.flatnonzero(supported):
                         value = float(ratio[bin_index])
-                        retained.append(
-                            {
+                        row = {
                                 "cube_id": cube_id,
                                 "p_value": p_value,
                                 "q_name": q_name,
@@ -161,7 +269,44 @@ def _curve_rows(
                                     shell.uncertainty["valid_bootstrap_resamples"][index][bin_index]
                                 ),
                             }
-                        )
+                        if ratio_bootstrap is not None:
+                            assert primary_concentration is not None
+                            assert shell_concentration is not None
+                            row.update(
+                                {
+                                    "coupled_ratio_bootstrap_interval_low": float(
+                                        ratio_bootstrap["interval_low"][bin_index]
+                                    ),
+                                    "coupled_ratio_bootstrap_median": float(
+                                        ratio_bootstrap["median"][bin_index]
+                                    ),
+                                    "coupled_ratio_bootstrap_interval_high": float(
+                                        ratio_bootstrap["interval_high"][bin_index]
+                                    ),
+                                    "coupled_ratio_bootstrap_valid_resamples": int(
+                                        ratio_bootstrap["valid_resamples"][bin_index]
+                                    ),
+                                    "primary_largest_block_fraction": float(
+                                        primary_concentration["largest_block_fraction"][bin_index]
+                                    ),
+                                    "primary_largest_5_blocks_fraction": float(
+                                        primary_concentration["largest_5_blocks_fraction"][bin_index]
+                                    ),
+                                    "primary_largest_10_blocks_fraction": float(
+                                        primary_concentration["largest_10_blocks_fraction"][bin_index]
+                                    ),
+                                    "shell_largest_block_fraction": float(
+                                        shell_concentration["largest_block_fraction"][bin_index]
+                                    ),
+                                    "shell_largest_5_blocks_fraction": float(
+                                        shell_concentration["largest_5_blocks_fraction"][bin_index]
+                                    ),
+                                    "shell_largest_10_blocks_fraction": float(
+                                        shell_concentration["largest_10_blocks_fraction"][bin_index]
+                                    ),
+                                }
+                            )
+                        retained.append(row)
     return retained, census
 
 
@@ -291,6 +436,12 @@ def p6_policy_ratios(
                 alpha=0.8,
                 label=cube_id,
             )
+            axis.fill_between(
+                [row["ell_cells"] for row in rows],
+                [row["coupled_ratio_bootstrap_interval_low"] for row in rows],
+                [row["coupled_ratio_bootstrap_interval_high"] for row in rows],
+                alpha=0.055,
+            )
         axis.axhline(1.0, color="#777777", linestyle="--")
         axis.set_xscale("log")
         axis.set_yscale("log")
@@ -302,6 +453,43 @@ def p6_policy_ratios(
     axes[0, -1].legend(fontsize=5.7, ncol=2)
     figure.suptitle(r"Supported signed policy sensitivity for the representative $p=6$ tails")
     return _save(figure, output_dir, "phase4_batch_b_p6_signed_policy_ratios.png")
+
+
+def p6_moment_concentration(
+    retained: list[dict[str, Any]],
+    cube_ids: tuple[str, ...],
+    output_dir: Path,
+) -> Path:
+    channels = [(q_name, direction) for q_name in base.Q_NAMES for direction in base.DIRECTIONS]
+    figure, axes = plt.subplots(1, 2, figsize=(14.0, 5.4), constrained_layout=True)
+    for axis, policy in zip(axes, ("primary", "shell")):
+        values = np.zeros((len(cube_ids), len(channels)))
+        for row_index, cube_id in enumerate(cube_ids):
+            for column, (q_name, direction) in enumerate(channels):
+                rows = [
+                    row
+                    for row in retained
+                    if row["p_value"] == P6
+                    and row["cube_id"] == cube_id
+                    and row["q_name"] == q_name
+                    and row["direction"] == direction
+                ]
+                values[row_index, column] = max(
+                    row[f"{policy}_largest_5_blocks_fraction"] for row in rows
+                )
+        image = axis.imshow(values, vmin=0.0, vmax=1.0, cmap="magma", aspect="auto")
+        axis.set_xticks(
+            np.arange(len(channels)),
+            [f"{q_name} {direction}" for q_name, direction in channels],
+        )
+        axis.set_yticks(np.arange(len(cube_ids)), cube_ids)
+        axis.tick_params(axis="x", rotation=35)
+        for row, column in np.ndindex(values.shape):
+            axis.text(column, row, f"{values[row, column]:.0%}", ha="center", va="center", fontsize=7)
+        axis.set_title(f"{policy}: maximum top-5 block share")
+    figure.colorbar(image, ax=axes, label=r"largest 5 blocks / total $S_6$ contribution")
+    figure.suptitle(r"Representative $p=6$ moment-contribution concentration")
+    return _save(figure, output_dir, "phase4_batch_b_p6_moment_concentration.png")
 
 
 def p6_retention_heatmap(
@@ -406,6 +594,7 @@ def main() -> None:
         shutil.copyfile(args.ledger_summary, temporary_output / LEDGER_SNAPSHOT_FILENAME)
         order_retention(census, temporary_output)
         p6_policy_ratios(retained, cube_ids, temporary_output)
+        p6_moment_concentration(retained, cube_ids, temporary_output)
         p6_retention_heatmap(census, cube_ids, temporary_output)
         focus_tail(groups, temporary_output)
         summary = {
@@ -426,6 +615,17 @@ def main() -> None:
                 "shell_local_curve_overlay_minimum_fraction": SHELL_CURVE_MINIMUM,
                 "tail_factor_threshold": TAIL_FACTOR_THRESHOLD,
                 "directional_fitted_exponents_published": False,
+                "coupled_ratio_bootstrap_seed": COUPLED_RATIO_BOOTSTRAP_SEED,
+                "coupled_ratio_bootstrap_n_resamples": COUPLED_RATIO_BOOTSTRAP_N_RESAMPLES,
+                "coupled_ratio_bootstrap_confidence_level": (
+                    COUPLED_RATIO_BOOTSTRAP_CONFIDENCE_LEVEL
+                ),
+                "coupled_ratio_bootstrap_interpretation": (
+                    "spatial-block ratio uncertainty conditional on the retained origin schedules"
+                ),
+                "moment_concentration_interpretation": (
+                    "fraction of one moment sum contributed by its largest spatial blocks"
+                ),
             },
             "retention_by_order": _summarize_census(census),
             "p6_supported_row_count": len(p6_rows),
@@ -456,6 +656,9 @@ def main() -> None:
                     name: file_sha256(temporary_output / name) for name in figure_names
                 },
                 "generated_artifacts_before_manifest": artifacts,
+                "artifact_sha256": {
+                    name: file_sha256(temporary_output / name) for name in artifacts
+                },
                 "input_sha256": input_hashes.as_dict(),
             },
         )

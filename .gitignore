@@ -53,6 +53,7 @@ test_*.py
 !tests/test_phase3a_parallel.py
 !tests/test_phase3a_analysis.py
 !tests/test_phase3a_runner.py
+!tests/test_phase4_batch_b_review.py
 *_diagnostic.py
 *_REPORT*.md
 !PHASE3A_STATUS_UPDATE.md
