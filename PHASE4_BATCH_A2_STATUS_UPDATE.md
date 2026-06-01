@@ -9,7 +9,7 @@
 | Scope | Four retained `L_sub = 640` representative cubes; labeled 3-point and 5-point filters |
 | Baseline | Retained 21-cube 2-point Phase 4 Batch A release |
 | Compute environment | Andes CPU Slurm allocations, account `AST207`, partition `batch` |
-| Status | **Representative Batch A2 PASS. Proceed with the guarded 21-cube 3-point extension. Keep 5-point bounded.** |
+| Status | **Representative Batch A2 PASS. The guarded 21-cube 3-point acquisition subsequently ran under explicit human authorization. Keep 5-point bounded.** |
 
 ## Decision
 
@@ -30,11 +30,13 @@ overlay. The filters remain explicitly labeled. A 3-point or 5-point value is
 not presented as a higher-accuracy replacement for a 2-point value.
 
 The 3-point comparison is informative and sufficiently stable for the
-previously approved conditional next step: extend the labeled 3-point product
-to all 21 retained cubes. The 5-point product remains bounded to the four
-representative cubes. Its curves are useful robustness diagnostics, but a few
-localized support-policy sensitivities are stronger than for the 2-point and
-3-point products.
+previously approved conditional next acquisition: extend the labeled 3-point
+product to all 21 retained cubes. That acquisition subsequently ran after
+explicit human authorization; this representative report did not
+automatically authorize expansion. The 5-point product remains bounded to the
+four representative cubes. Its curves are useful robustness diagnostics, but
+a few localized support-policy sensitivities are stronger than for the
+2-point and 3-point products.
 
 No directional fitted exponent is published by this checkpoint. Centered
 five-bin local slopes remain diagnostics only.
@@ -175,11 +177,10 @@ baseline uses `1.6G`.
 
 ## Next Step
 
-Proceed with a guarded all-21-cube 3-point extension using the same
-$q = B, u$, $p = 2$, $\ell_{\max} = 160$, 64-bin, two-policy configuration.
-Keep the 5-point product bounded to these four cubes. After the 3-point
-extension is reduced and verified, return to the staged Phase 4 review gate
-before higher-order 2-point Batch B work.
+Review the completed guarded all-21-cube 3-point extension using
+`PHASE4_BATCH_A2_3POINT_EXTENSION_STATUS_UPDATE.md`. Keep the 5-point product
+bounded to these four cubes. Return to the staged Phase 4 review gate before
+higher-order 2-point Batch B work.
 
 ## Reproducibility
 

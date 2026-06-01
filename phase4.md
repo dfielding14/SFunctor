@@ -253,14 +253,25 @@ higher-accuracy replacements for the 2-point statistic.
 
 ## Batch B: order dependence
 
-Only after Batch A and the bounded Batch A2 review pass, expand the baseline
-2-point variables to:
+Only after Batch A, the bounded Batch A2 review, and the all-21-cube labeled
+3-point extension review pass, begin a representative-cube baseline 2-point
+probe with:
 
     q = B, u
     p = 1, 2, 3, 4
 
-Measure higher-order exponents only where the accepted counts and fit intervals
-are defensible.
+Require an explicit human-reviewed Batch B launch decision before starting
+this probe. Inspect accepted counts, effective block counts, bootstrap
+validity, support-policy sensitivity, and especially the $p = 4$ tails. Expand
+the same labeled 2-point matrix to all 21 cubes only after a second explicit
+reviewed decision.
+
+Batch B retains the equal-origin, volume-weighted `B,u` estimators. Do not
+introduce density weighting in this batch; `rho_0` is not applicable until the
+separately reviewed Batch C variable variants.
+
+Measure higher-order exponents only where the accepted counts and fit
+intervals are defensible.
 
 ## Batch C: compressible-MHD variable comparisons
 
@@ -404,6 +415,8 @@ For representative low-, intermediate-, high-`dBB`, and weak-mean-field cubes:
 - vary angular wedge widths;
 - vary separation-bin widths;
 - vary sampled-pair count;
+- compare matched-origin policy diagnostics or vary deterministic origin seeds
+  before interpreting policy differences physically;
 - vary displacement density;
 - vary spatial block layout;
 - inspect accepted and excluded counts;

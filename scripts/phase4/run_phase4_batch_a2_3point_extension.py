@@ -138,6 +138,22 @@ def _phase2_source_identity(
     ):
         if observed.get(key) != frozen.get(key):
             raise RuntimeError(f"Phase 4 Batch A2 extension input differs from Batch A: {cube_id}")
+    for identity_key, path_key, sha_key in (
+        ("phase4_extraction_plan", "plan_relative_path", "plan_sha256"),
+        (
+            "phase4_extraction_plan",
+            "marker_relative_path",
+            "marker_sha256",
+        ),
+        (
+            "phase4_materialization_record",
+            "materialization_record_relative_path",
+            "materialization_record_sha256",
+        ),
+        ("phase4_restart_check", "restart_check_relative_path", "restart_check_sha256"),
+    ):
+        identity = frozen[identity_key]
+        representative._require_file_sha256(phase2_root, identity[path_key], identity[sha_key])
     return {
         **frozen,
         "phase4_batch_a_reference": batch_a_reference,

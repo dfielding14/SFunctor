@@ -327,6 +327,89 @@ def test_batch_a2_extension_source_binding_and_phase4_summary_marker(tmp_path, m
             batch_a2_extension._verify(tmp_path / "extract", tmp_path / "sampler")
 
 
+@pytest.mark.parametrize(
+    "mutated_relative_path",
+    ("plan.json", "plan_marker.json", "materialization.json", "restart_check.json"),
+)
+def test_batch_a2_extension_replays_frozen_extraction_sidecar_hashes(
+    tmp_path, monkeypatch, mutated_relative_path
+):
+    cube_id = extraction.PHASE4_PILOT_CUBE_IDS[0]
+    sidecars = {
+        "plan.json": '{"plan": true}\n',
+        "plan_marker.json": '{"plan_marker": true}\n',
+        "materialization.json": '{"materialization": true}\n',
+        "restart_check.json": '{"restart_check": true}\n',
+    }
+    for relative_path, text in sidecars.items():
+        (tmp_path / relative_path).write_text(text)
+    frozen = {
+        "cube_id": cube_id,
+        "phase2_root": str(tmp_path.resolve()),
+        "completion_relative_path": f"{cube_id}/COMPLETE.json",
+        "completion_sha256": "completion-sha",
+        "manifest_relative_path": f"{cube_id}/manifest.json",
+        "manifest_sha256": "manifest-sha",
+        "analysis_field_sha256": "analysis-field-sha",
+        "phase4_extraction_plan": {
+            "plan_relative_path": "plan.json",
+            "plan_sha256": extraction.file_sha256(tmp_path / "plan.json"),
+            "marker_relative_path": "plan_marker.json",
+            "marker_sha256": extraction.file_sha256(tmp_path / "plan_marker.json"),
+        },
+        "phase4_materialization_record": {
+            "materialization_record_relative_path": "materialization.json",
+            "materialization_record_sha256": extraction.file_sha256(
+                tmp_path / "materialization.json"
+            ),
+        },
+        "phase4_restart_check": {
+            "restart_check_relative_path": "restart_check.json",
+            "restart_check_sha256": extraction.file_sha256(tmp_path / "restart_check.json"),
+        },
+    }
+    observed = {
+        key: frozen[key]
+        for key in (
+            "cube_id",
+            "phase2_root",
+            "completion_relative_path",
+            "completion_sha256",
+            "manifest_relative_path",
+            "manifest_sha256",
+            "analysis_field_sha256",
+        )
+    }
+    monkeypatch.setattr(
+        batch_a2_extension.representative,
+        "_batch_a_reference_sources",
+        lambda phase2_root, batch_a_root: ({cube_id: frozen}, {"batch_a": "bound"}),
+    )
+    monkeypatch.setattr(
+        batch_a2_extension,
+        "_INHERITED_PHASE2_SOURCE_IDENTITY",
+        lambda phase2_root, requested_cube_id, verify_arrays: observed,
+    )
+    monkeypatch.setattr(
+        batch_a2_extension,
+        "_representative_a2_reference",
+        lambda batch_a_root, representative_a2_root: {"representative_a2": "bound"},
+    )
+    monkeypatch.setattr(batch_a2_extension, "_configured_batch_a_root", tmp_path / "batch_a")
+    monkeypatch.setattr(
+        batch_a2_extension,
+        "_configured_representative_a2_root",
+        tmp_path / "representative_a2",
+    )
+
+    identity = batch_a2_extension._phase2_source_identity(tmp_path, cube_id)
+    assert identity["phase4_batch_a_reference"] == {"batch_a": "bound"}
+
+    (tmp_path / mutated_relative_path).write_text('{"mutated": true}\n')
+    with pytest.raises(RuntimeError, match="stale Phase 4 Batch A reference artifact"):
+        batch_a2_extension._phase2_source_identity(tmp_path, cube_id)
+
+
 def test_batch_a_binds_phase4_extraction_plan_marker(tmp_path, monkeypatch):
     plan_path = tmp_path / extraction.PLAN_FILENAME
     marker_path = tmp_path / extraction.PLAN_MARKER_FILENAME
