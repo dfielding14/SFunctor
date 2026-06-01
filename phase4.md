@@ -273,6 +273,24 @@ separately reviewed Batch C variable variants.
 Measure higher-order exponents only where the accepted counts and fit
 intervals are defensible.
 
+### Batch B representative checkpoint: HOLD before all-21 expansion
+
+The approved eight-cube representative probe completed on 2026-06-01. Its
+validated 2-point products cover `B,u`, both support policies, and
+`p = 1,2,3,4,5,6`. The retained review is documented in
+`PHASE4_BATCH_B_REPRESENTATIVE_STATUS_UPDATE.md`.
+
+Do not expand Batch B to all 21 cubes yet. The representative review found
+supported large-scale high-order tail sensitivity between
+`all_valid_origins` and `shell_local`. Before reconsidering expansion, run a
+bounded matched-origin comparison and a bounded origin-seed sensitivity sweep
+on the retained priority cases. Decompose common interior origins,
+intrinsic-valid exterior origins, and their population-weighted recomposition.
+Repeat selected $p = 2,4,6$ cases across deterministic seeds at increased
+sample depth, and inspect cumulative $p = 6$ contributions or top
+contributors. Review the complete $p = 6$ tails and sixth-root amplitude
+factors. Keep the 5-point product bounded.
+
 ## Batch C: compressible-MHD variable comparisons
 
 Only after Batches A and B pass and after reviewing incremental cost and

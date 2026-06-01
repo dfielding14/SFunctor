@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "decision_date": "2026-06-01",
+  "status": "hold_all21_batch_b_expansion_pending_tail_diagnostic",
+  "evidence_checkpoint": "PHASE4_BATCH_B_REPRESENTATIVE_STATUS_UPDATE.md",
+  "probe_release": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase4/batch_b_representative_primary_20260601T185131Z",
+  "review_summary": "figures/phase4_batch_b_representative_review/phase4_batch_b_representative_review_summary.json",
+  "review_summary_sha256": "46517e4f082249c4c7fb59638374b547bb8b68b33dec424e6ec9d61ab193d8f9",
+  "figure_manifest": "figures/phase4_batch_b_representative_review/figure_manifest.json",
+  "figure_manifest_sha256": "ebec0a33d15fb420d340fe24cfb29e3663b88b0756e4aa672c9923878681ed0e",
+  "reviewed_scope": {
+    "cube_count": 8,
+    "q_names": [
+      "B",
+      "u"
+    ],
+    "p_values": [
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      6.0
+    ],
+    "stencil_widths": [
+      2
+    ],
+    "support_modes": [
+      "all_valid_origins",
+      "shell_local"
+    ]
+  },
+  "observed_tail_sensitivity": {
+    "p6_supported_rows": 1376,
+    "p6_rows_above_factor_1p5": 751,
+    "maximum_p6_policy_factor": 215.3669571840861,
+    "maximum_p6_case": "L640_sub02822 B/parallel ell_cells=182.15927096911648",
+    "maximum_p6_coupled_ratio_bootstrap_interval_95": [
+      42.63229866842898,
+      556.4678502644532
+    ],
+    "maximum_p6_primary_largest_5_blocks_fraction": 0.874772000853153
+  },
+  "required_next_diagnostics": [
+    "bounded matched-origin decomposition into common shell-local interior origins, intrinsic-valid exterior origins, and their population-weighted recomposition",
+    "bounded deterministic origin-seed sensitivity sweep at increased sample depth for p=2,4,6",
+    "cumulative p=6 contribution curves or top-contributor diagnostics for rare-increment inspection",
+    "human review of complete large-scale p=6 tails and sixth-root amplitude factors"
+  ],
+  "priority_cases": [
+    "L640_sub02822 B/parallel",
+    "L640_sub03026 B/xi",
+    "L640_sub02602 u/parallel",
+    "L640_sub02602 u/xi",
+    "L640_sub00738 stable control"
+  ],
+  "all21_batch_b_expansion_authorized": false,
+  "five_point_expansion_authorized": false,
+  "fitted_directional_exponents_authorized": false,
+  "batch_c_authorized": false,
+  "sgs_channels_authorized": false,
+  "lsub1280_authorized": false
+}
