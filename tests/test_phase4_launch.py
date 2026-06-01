@@ -902,3 +902,24 @@ def test_extraction_wrapper_exposes_cleanup_flags():
     assert "EXTRACT_FLAGS+=(--clean-partial)" in text
     assert "EXTRACT_FLAGS+=(--clean-incomplete)" in text
     assert "EXTRACT_FLAGS+=(--clean-stale-lock)" in text
+
+
+def test_batch_b_review_wrapper_is_cpu_batch_policy_compliant():
+    root = Path(__file__).resolve().parents[1]
+    path = root / "job_scripts" / "phase4" / "run_phase4_batch_b_representative_review_andes.sh"
+    text = path.read_text()
+
+    subprocess.run(("bash", "-n", str(path)), check=True)
+    assert "#SBATCH -A AST207" in text
+    assert "#SBATCH -p batch" in text
+    assert "#SBATCH -o logs/" in text
+    assert "#SBATCH -e logs/" in text
+    assert "#SBATCH --cpus-per-task=" in text
+    assert "--mail" not in text
+    assert "sgs" not in text.lower()
+    assert "sbatch " not in text
+    assert "archive_slurm_resources" in text
+    assert "sacct -j" in text
+    assert "generate_phase4_batch_b_representative_review.py" in text
+    for root_name in ("RELEASE_ROOT", "LEDGER_SUMMARY", "OUTPUT_DIR", "RUN_DIR"):
+        assert f': "${{{root_name}:?' in text
