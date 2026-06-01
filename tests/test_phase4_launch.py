@@ -9,6 +9,7 @@ import subprocess
 import pytest
 
 from scripts.phase4 import run_phase4_batch_a_sampler as batch_a
+from scripts.phase4 import run_phase4_batch_a2_sampler as batch_a2
 from scripts.phase4 import run_phase4_extraction as extraction
 from sfunctor.io.cube_extract import CubeExtractionError, CubeSelection
 
@@ -170,6 +171,27 @@ def test_batch_a_configures_only_exact_approved_matrix_and_restores_inherited_mo
     assert batch_a.inherited.STENCIL_SPECS == original_stencils
 
 
+def test_batch_a2_configures_only_exact_approved_matrix_and_restores_inherited_module(tmp_path):
+    original_ids = batch_a2.inherited.BENCHMARK_CUBE_IDS
+    original_modes = batch_a2.inherited.SUPPORT_MODES
+    original_stencils = batch_a2.inherited.STENCIL_SPECS
+
+    with batch_a2._configured_runner(tmp_path / "batch_a"):
+        configuration = batch_a2.inherited._campaign_configuration()
+        assert batch_a2.inherited.BENCHMARK_CUBE_IDS == batch_a2.PHASE4_A2_CUBE_IDS
+        assert batch_a2.phase3.BENCHMARK_CUBE_IDS == batch_a2.PHASE4_A2_CUBE_IDS
+        assert configuration["q_names"] == ("B", "u")
+        assert configuration["p_values"] == (2.0,)
+        assert configuration["support_modes"] == ("all_valid_origins", "shell_local")
+        assert set(configuration["stencils"]) == {3, 5}
+        assert configuration["stencils"][3]["ell_max"] == 160
+        assert configuration["stencils"][5]["ell_max"] == 80
+
+    assert batch_a2.inherited.BENCHMARK_CUBE_IDS == original_ids
+    assert batch_a2.inherited.SUPPORT_MODES == original_modes
+    assert batch_a2.inherited.STENCIL_SPECS == original_stencils
+
+
 def test_batch_a_source_binding_and_phase4_summary_marker(tmp_path, monkeypatch):
     source = batch_a._source_version()
     hashes = source["implementation_source_hashes"]
@@ -197,6 +219,40 @@ def test_batch_a_source_binding_and_phase4_summary_marker(tmp_path, monkeypatch)
     (tmp_path / "sampler" / batch_a.SUMMARY_FILENAME).write_text('{"tampered": true}\n')
     with pytest.raises(RuntimeError, match="summary marker"):
         batch_a._verify(tmp_path / "extract", tmp_path / "sampler")
+
+
+def test_batch_a2_source_binding_and_phase4_summary_marker(tmp_path, monkeypatch):
+    source = batch_a2._source_version()
+    hashes = source["implementation_source_hashes"]
+    assert "scripts/phase4/run_phase4_batch_a2_sampler.py" in hashes
+    assert "scripts/phase3a/run_phase3a_sampler.py" in hashes
+    assert "sfunctor/core/phase3a.py" in hashes
+
+    monkeypatch.setattr(
+        batch_a2.inherited,
+        "summarize",
+        lambda phase2_root, output_root: {
+            "source_version": {"implementation_sha256": "phase4-a2-sha"},
+            "verification": {"status": "passed"},
+        },
+    )
+    with batch_a2._configured_runner(tmp_path / "batch_a"):
+        payload = batch_a2._summarize(tmp_path / "extract", tmp_path / "sampler")
+    marker = json.loads((tmp_path / "sampler" / batch_a2.SUMMARY_MARKER_FILENAME).read_text())
+
+    assert payload["phase"] == "phase4_batch_a2_bounded_4_cube_3point_5point"
+    assert marker["status"] == "release_aggregation_complete"
+    assert marker["implementation_sha256"] == "phase4-a2-sha"
+    monkeypatch.setattr(batch_a2.inherited, "verify", lambda phase2_root, output_root: {"status": "passed"})
+    monkeypatch.setattr(batch_a2, "_source_version", lambda: {"implementation_sha256": "phase4-a2-sha"})
+    with batch_a2._configured_runner(tmp_path / "batch_a"):
+        assert batch_a2._verify(tmp_path / "extract", tmp_path / "sampler")[
+            "phase4_batch_a2_summary_status"
+        ] == "passed"
+    (tmp_path / "sampler" / batch_a2.SUMMARY_FILENAME).write_text('{"tampered": true}\n')
+    with batch_a2._configured_runner(tmp_path / "batch_a"):
+        with pytest.raises(RuntimeError, match="summary marker"):
+            batch_a2._verify(tmp_path / "extract", tmp_path / "sampler")
 
 
 def test_batch_a_binds_phase4_extraction_plan_marker(tmp_path, monkeypatch):
