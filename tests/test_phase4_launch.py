@@ -9,6 +9,7 @@ import subprocess
 import pytest
 
 from scripts.phase4 import run_phase4_batch_a_sampler as batch_a
+from scripts.phase4 import run_phase4_batch_a2_3point_extension as batch_a2_extension
 from scripts.phase4 import run_phase4_batch_a2_sampler as batch_a2
 from scripts.phase4 import run_phase4_extraction as extraction
 from sfunctor.io.cube_extract import CubeExtractionError, CubeSelection
@@ -192,6 +193,31 @@ def test_batch_a2_configures_only_exact_approved_matrix_and_restores_inherited_m
     assert batch_a2.inherited.STENCIL_SPECS == original_stencils
 
 
+def test_batch_a2_extension_configures_only_exact_approved_matrix_and_restores_inherited_module(
+    tmp_path,
+):
+    original_ids = batch_a2_extension.inherited.BENCHMARK_CUBE_IDS
+    original_modes = batch_a2_extension.inherited.SUPPORT_MODES
+    original_stencils = batch_a2_extension.inherited.STENCIL_SPECS
+
+    with batch_a2_extension._configured_runner(tmp_path / "batch_a", tmp_path / "batch_a2"):
+        configuration = batch_a2_extension.inherited._campaign_configuration()
+        assert (
+            batch_a2_extension.inherited.BENCHMARK_CUBE_IDS
+            == extraction.PHASE4_PILOT_CUBE_IDS
+        )
+        assert batch_a2_extension.phase3.BENCHMARK_CUBE_IDS == extraction.PHASE4_PILOT_CUBE_IDS
+        assert configuration["q_names"] == ("B", "u")
+        assert configuration["p_values"] == (2.0,)
+        assert configuration["support_modes"] == ("all_valid_origins", "shell_local")
+        assert set(configuration["stencils"]) == {3}
+        assert configuration["stencils"][3]["ell_max"] == 160
+
+    assert batch_a2_extension.inherited.BENCHMARK_CUBE_IDS == original_ids
+    assert batch_a2_extension.inherited.SUPPORT_MODES == original_modes
+    assert batch_a2_extension.inherited.STENCIL_SPECS == original_stencils
+
+
 def test_batch_a_source_binding_and_phase4_summary_marker(tmp_path, monkeypatch):
     source = batch_a._source_version()
     hashes = source["implementation_source_hashes"]
@@ -253,6 +279,52 @@ def test_batch_a2_source_binding_and_phase4_summary_marker(tmp_path, monkeypatch
     with batch_a2._configured_runner(tmp_path / "batch_a"):
         with pytest.raises(RuntimeError, match="summary marker"):
             batch_a2._verify(tmp_path / "extract", tmp_path / "sampler")
+
+
+def test_batch_a2_extension_source_binding_and_phase4_summary_marker(tmp_path, monkeypatch):
+    source = batch_a2_extension._source_version()
+    hashes = source["implementation_source_hashes"]
+    assert "scripts/phase4/run_phase4_batch_a2_3point_extension.py" in hashes
+    assert "scripts/phase3a/run_phase3a_sampler.py" in hashes
+    assert "sfunctor/core/phase3a.py" in hashes
+
+    monkeypatch.setattr(
+        batch_a2_extension.inherited,
+        "summarize",
+        lambda phase2_root, output_root: {
+            "source_version": {"implementation_sha256": "phase4-a2-extension-sha"},
+            "verification": {"status": "passed"},
+        },
+    )
+    with batch_a2_extension._configured_runner(tmp_path / "batch_a", tmp_path / "batch_a2"):
+        payload = batch_a2_extension._summarize(tmp_path / "extract", tmp_path / "sampler")
+    marker = json.loads(
+        (tmp_path / "sampler" / batch_a2_extension.SUMMARY_MARKER_FILENAME).read_text()
+    )
+
+    assert payload["phase"] == "phase4_batch_a2_all21_3point_extension"
+    assert marker["status"] == "release_aggregation_complete"
+    assert marker["implementation_sha256"] == "phase4-a2-extension-sha"
+    monkeypatch.setattr(
+        batch_a2_extension.inherited,
+        "verify",
+        lambda phase2_root, output_root: {"status": "passed"},
+    )
+    monkeypatch.setattr(
+        batch_a2_extension,
+        "_source_version",
+        lambda: {"implementation_sha256": "phase4-a2-extension-sha"},
+    )
+    with batch_a2_extension._configured_runner(tmp_path / "batch_a", tmp_path / "batch_a2"):
+        assert batch_a2_extension._verify(tmp_path / "extract", tmp_path / "sampler")[
+            "phase4_batch_a2_3point_extension_summary_status"
+        ] == "passed"
+    (tmp_path / "sampler" / batch_a2_extension.SUMMARY_FILENAME).write_text(
+        '{"tampered": true}\n'
+    )
+    with batch_a2_extension._configured_runner(tmp_path / "batch_a", tmp_path / "batch_a2"):
+        with pytest.raises(RuntimeError, match="summary marker"):
+            batch_a2_extension._verify(tmp_path / "extract", tmp_path / "sampler")
 
 
 def test_batch_a_binds_phase4_extraction_plan_marker(tmp_path, monkeypatch):
