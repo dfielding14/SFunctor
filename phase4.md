@@ -258,11 +258,11 @@ Only after Batch A, the bounded Batch A2 review, and the all-21-cube labeled
 probe with:
 
     q = B, u
-    p = 1, 2, 3, 4
+    p = 1, 2, 3, 4, 5, 6
 
 Require an explicit human-reviewed Batch B launch decision before starting
 this probe. Inspect accepted counts, effective block counts, bootstrap
-validity, support-policy sensitivity, and especially the $p = 4$ tails. Expand
+validity, support-policy sensitivity, and especially the $p = 6$ tails. Expand
 the same labeled 2-point matrix to all 21 cubes only after a second explicit
 reviewed decision.
 

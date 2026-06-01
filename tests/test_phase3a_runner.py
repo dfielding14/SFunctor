@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -51,7 +52,7 @@ def _build_bound_plan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[
     npz_path.parent.mkdir(parents=True, exist_ok=True)
     np.savez(npz_path, synthetic=np.asarray((1,)))
 
-    configuration = {"synthetic": True}
+    configuration = runner._campaign_configuration()
     displacement_row = {
         "json_relative_path": str(json_path.relative_to(output_root)),
         "json_sha256": runner.file_sha256(json_path),
@@ -378,6 +379,64 @@ def test_verify_plan_rejects_rechecksummed_campaign_displacement_hash(tmp_path, 
 
     with pytest.raises(RuntimeError, match="lost displacement-manifest binding"):
         runner._verify_plan(phase2_root, output_root, verify_arrays=False)
+
+
+@pytest.mark.parametrize("configuration_name", ("q_names", "p_values", "density_conventions"))
+def test_verify_plan_rejects_rechecksummed_active_configuration_drift(
+    tmp_path, monkeypatch, configuration_name
+):
+    phase2_root, output_root = _build_bound_plan(tmp_path, monkeypatch)
+    campaign_path = output_root / "manifests" / "campaign.json"
+    campaign = json.loads(campaign_path.read_text())
+    campaign["configuration"][configuration_name] = ["coherently", "repinned"]
+    campaign["configuration_sha256"] = runner._mapping_sha256(campaign["configuration"])
+    _write_json(campaign_path, campaign)
+    marker_path = output_root / "PLAN_COMPLETE.json"
+    marker = json.loads(marker_path.read_text())
+    marker["campaign_sha256"] = runner.file_sha256(campaign_path)
+    _write_json(marker_path, marker)
+
+    with pytest.raises(RuntimeError, match="invalid Phase 3a plan marker"):
+        runner._verify_plan(phase2_root, output_root, verify_arrays=False)
+
+
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    [
+        ("q_names", ("B", "changed")),
+        ("p_values", (2.0, 3.0)),
+        ("density_conventions", ("not applicable", "changed")),
+        ("rho0", 1.0),
+        ("rho0_provenance", "changed"),
+    ],
+)
+def test_active_result_configuration_rejects_quantity_axis_or_rho0_drift(
+    tmp_path, attribute, value
+):
+    result = SimpleNamespace(
+        q_names=runner.Q_NAMES,
+        p_values=runner.P_VALUES,
+        density_conventions=runner.DENSITY_CONVENTIONS,
+        rho0=np.nan,
+        rho0_provenance="not applicable for requested q variants",
+    )
+    setattr(result, attribute, value)
+
+    with pytest.raises(RuntimeError, match="wrong active quantity configuration"):
+        runner._verify_active_result_configuration(result, context=tmp_path)
+
+
+def test_sampling_schedule_hash_binds_active_quantity_axes(monkeypatch):
+    row = {
+        "group_id": "cube/stencil_2point/all_valid_origins",
+        "shard_id": "cube/stencil_2point/all_valid_origins/shard_0000",
+        "offset_start": 0,
+        "offset_stop": 1,
+    }
+    baseline = runner._sampling_schedule_sha256(row)
+    monkeypatch.setattr(runner, "P_VALUES", (1.0, 2.0, 3.0))
+
+    assert runner._sampling_schedule_sha256(row) != baseline
 
 
 def test_require_equivalent_rejects_finite_nan_mismatch():

@@ -111,7 +111,7 @@ def test_optimized_stencils_match_slow_oracle(stencil_width, pair_mode):
     )
     config = FiniteDomainConfig(
         np.asarray((0.5, 1.5)),
-        p_values=(1.0, 2.0),
+        p_values=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0),
         pair_mode=pair_mode,
         sample_count=9,
         pair_batch_size=4,
@@ -519,7 +519,7 @@ def test_fork_workers_reduce_to_serial_with_frozen_shell_support(stencil_width):
     )
     config = FiniteDomainConfig(
         np.asarray((0.5, 1.5)),
-        p_values=(2.0,),
+        p_values=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0),
         pair_mode="shell_local",
         sample_count=9,
         pair_batch_size=4,

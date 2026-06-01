@@ -19,6 +19,10 @@ WRAPPERS = {
     / "job_scripts"
     / "phase4"
     / "run_phase4_batch_a2_3point_extension_andes.sh",
+    "batch_b_representative": REPO_ROOT
+    / "job_scripts"
+    / "phase4"
+    / "run_phase4_batch_b_representative_andes.sh",
 }
 REPORT_WRAPPER = REPO_ROOT / "job_scripts" / "phase4" / "run_phase4_batch_a_report_andes.sh"
 LOCK_SUFFIXES = {
@@ -26,6 +30,7 @@ LOCK_SUFFIXES = {
     "batch_a": "phase4_batch_a_action_lock",
     "batch_a2": "phase4_batch_a2_action_lock",
     "batch_a2_extension": "phase4_batch_a2_3point_extension_action_lock",
+    "batch_b_representative": "phase4_batch_b_representative_action_lock",
 }
 
 
@@ -124,6 +129,7 @@ def _run_wrapper(
             "PHASE2_ROOT": str(output_root.parent / "extract"),
             "BATCH_A_ROOT": str(output_root.parent / "batch_a"),
             "REPRESENTATIVE_A2_ROOT": str(output_root.parent / "batch_a2"),
+            "ALL21_3POINT_EXTENSION_ROOT": str(output_root.parent / "batch_a2_all21"),
             "OUTPUT_ROOT": str(output_root),
             "RUN_DIR": str(run_dir),
             "ACTION": "extract" if wrapper_name == "extract" else "plan",

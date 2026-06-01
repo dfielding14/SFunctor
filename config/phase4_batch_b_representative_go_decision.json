@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "status": "approved_bounded_representative_probe",
+  "decision_date": "2026-06-01",
+  "evidence_checkpoint": "PHASE4_BATCH_A2_3POINT_EXTENSION_STATUS_UPDATE.md",
+  "cube_ids": [
+    "L640_sub00370",
+    "L640_sub03942",
+    "L640_sub00579",
+    "L640_sub00738",
+    "L640_sub03026",
+    "L640_sub00732",
+    "L640_sub02822",
+    "L640_sub02602"
+  ],
+  "q_names": [
+    "B",
+    "u"
+  ],
+  "p_values": [
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0
+  ],
+  "stencils": {
+    "2": {
+      "label": "2-point",
+      "ell_max": 320,
+      "bin_count": 64,
+      "directions_per_bin": 24
+    }
+  },
+  "support_modes": [
+    "all_valid_origins",
+    "shell_local"
+  ],
+  "density_conventions": [
+    "not applicable",
+    "not applicable"
+  ],
+  "all21_batch_b_expansion_authorized": false,
+  "five_point_expansion_authorized": false,
+  "fitted_directional_exponents_authorized": false,
+  "batch_c_authorized": false,
+  "sgs_channels_authorized": false,
+  "lsub1280_authorized": false
+}

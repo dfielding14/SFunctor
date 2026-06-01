@@ -57,6 +57,8 @@ PRODUCTION_PAIR_BATCH_SIZE = 1024
 PRODUCTION_BLOCK_SHAPE_KJI = (80, 80, 80)
 OFFSETS_PER_SHARD = 480
 Q_NAMES = ("B", "u")
+P_VALUES = (2.0,)
+DENSITY_CONVENTIONS = ("not applicable", "not applicable")
 SUPPORT_MODES = ("shell_local", "all_valid_origins")
 DIAGNOSTIC_SUPPORT_MODES = (*SUPPORT_MODES, "nested_core")
 STENCIL_SPECS = {
@@ -342,7 +344,8 @@ def _load_displacement_manifest(output_root: Path, stencil_width: int) -> tuple[
 def _campaign_configuration() -> dict[str, Any]:
     return {
         "q_names": Q_NAMES,
-        "p_values": (2.0,),
+        "p_values": P_VALUES,
+        "density_conventions": DENSITY_CONVENTIONS,
         "support_modes": SUPPORT_MODES,
         "production_seed": PRODUCTION_SEED,
         "bootstrap_seed": BOOTSTRAP_SEED,
@@ -460,6 +463,8 @@ def _verify_plan(phase2_root: Path, output_root: Path, *, verify_arrays: bool) -
         or marker.get("campaign_sha256") != file_sha256(campaign_path)
         or marker.get("shards_sha256") != file_sha256(shards_path)
         or campaign.get("configuration_sha256") != _mapping_sha256(campaign.get("configuration", {}))
+        or _json_builtin(campaign.get("configuration", {}))
+        != _json_builtin(_campaign_configuration())
     ):
         raise RuntimeError("invalid Phase 3a plan marker")
     current_source = _source_version()
@@ -498,7 +503,7 @@ def _verify_plan(phase2_root: Path, output_root: Path, *, verify_arrays: bool) -
 def _result_configuration(row: Mapping[str, Any], edges: np.ndarray) -> FiniteDomainConfig:
     return FiniteDomainConfig(
         ell_bin_edges=edges,
-        p_values=(2.0,),
+        p_values=P_VALUES,
         pair_mode=str(row["support_mode"]),
         sample_count=PRODUCTION_SAMPLE_COUNT,
         pair_batch_size=PRODUCTION_PAIR_BATCH_SIZE,
@@ -520,8 +525,24 @@ def _sampling_schedule_sha256(row: Mapping[str, Any]) -> str:
             "seed": PRODUCTION_SEED,
             "block_shape_kji": PRODUCTION_BLOCK_SHAPE_KJI,
             "block_assignment": "stencil_midpoint",
+            "q_names": Q_NAMES,
+            "p_values": P_VALUES,
+            "density_conventions": DENSITY_CONVENTIONS,
         }
     )
+
+
+def _verify_active_result_configuration(result, *, context: Path) -> None:
+    """Reject result products that do not match the active campaign matrix."""
+
+    if (
+        result.q_names != Q_NAMES
+        or result.p_values != P_VALUES
+        or result.density_conventions != DENSITY_CONVENTIONS
+        or not np.isnan(result.rho0)
+        or result.rho0_provenance != "not applicable for requested q variants"
+    ):
+        raise RuntimeError(f"Phase 3a result has wrong active quantity configuration: {context}")
 
 
 def _verify_shard(output_root: Path, row: Mapping[str, Any]) -> dict[str, Any]:
@@ -550,6 +571,7 @@ def _verify_shard(output_root: Path, row: Mapping[str, Any]) -> dict[str, Any]:
     ):
         raise RuntimeError(f"invalid Phase 3a shard marker: {root}")
     result = load_finite_domain_partial_npz(partial_path)
+    _verify_active_result_configuration(result, context=root)
     expected = displacements[int(row["offset_start"]) : int(row["offset_stop"])]
     order = np.lexsort((expected[:, 2], expected[:, 1], expected[:, 0]))
     expected = expected[order]
@@ -826,6 +848,11 @@ def _uncertainty_payload(
     assert result.block_eligible_origins is not None
     metadata = {
         "schema_version": SCHEMA_VERSION,
+        "q_names": result.q_names,
+        "p_values": result.p_values,
+        "density_conventions": result.density_conventions,
+        "rho0": result.rho0,
+        "rho0_provenance": result.rho0_provenance,
         "bootstrap_method": bootstrap.method,
         "bootstrap_seed": bootstrap.seed,
         "bootstrap_n_resamples": bootstrap.n_resamples,
@@ -896,6 +923,12 @@ def _verify_uncertainty_payload(path: Path, result) -> None:
         metadata = json.loads(str(metadata_array.item()))
         if (
             metadata.get("schema_version") != SCHEMA_VERSION
+            or tuple(metadata.get("q_names", ())) != result.q_names
+            or tuple(metadata.get("p_values", ())) != result.p_values
+            or tuple(metadata.get("density_conventions", ())) != result.density_conventions
+            or not isinstance(metadata.get("rho0"), (int, float))
+            or not np.isnan(metadata["rho0"])
+            or metadata.get("rho0_provenance") != result.rho0_provenance
             or metadata.get("bootstrap_method") != "spatial_block_bootstrap"
             or metadata.get("bootstrap_seed") != BOOTSTRAP_SEED
             or metadata.get("bootstrap_n_resamples") != BOOTSTRAP_N_RESAMPLES
@@ -966,6 +999,7 @@ def _verify_reduction(output_root: Path, group_id: str) -> dict[str, Any]:
     ):
         raise RuntimeError(f"invalid Phase 3a reduction marker: {root}")
     result = load_finite_domain_partial_npz(result_path)
+    _verify_active_result_configuration(result, context=root)
     _verify_uncertainty_payload(uncertainty_path, result)
     return marker
 

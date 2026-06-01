@@ -11,6 +11,7 @@ import pytest
 from scripts.phase4 import run_phase4_batch_a_sampler as batch_a
 from scripts.phase4 import run_phase4_batch_a2_3point_extension as batch_a2_extension
 from scripts.phase4 import run_phase4_batch_a2_sampler as batch_a2
+from scripts.phase4 import run_phase4_batch_b_representative_sampler as batch_b
 from scripts.phase4 import run_phase4_extraction as extraction
 from sfunctor.io.cube_extract import CubeExtractionError, CubeSelection
 
@@ -216,6 +217,94 @@ def test_batch_a2_extension_configures_only_exact_approved_matrix_and_restores_i
     assert batch_a2_extension.inherited.BENCHMARK_CUBE_IDS == original_ids
     assert batch_a2_extension.inherited.SUPPORT_MODES == original_modes
     assert batch_a2_extension.inherited.STENCIL_SPECS == original_stencils
+
+
+def test_batch_b_configures_only_exact_approved_matrix_and_restores_inherited_module(tmp_path):
+    original_ids = batch_b.inherited.BENCHMARK_CUBE_IDS
+    original_q_names = batch_b.inherited.Q_NAMES
+    original_p_values = batch_b.inherited.P_VALUES
+    original_density_conventions = batch_b.inherited.DENSITY_CONVENTIONS
+    original_modes = batch_b.inherited.SUPPORT_MODES
+    original_stencils = batch_b.inherited.STENCIL_SPECS
+
+    with batch_b._configured_runner(
+        tmp_path / "batch_a", tmp_path / "batch_a2", tmp_path / "batch_a2_all21"
+    ):
+        configuration = batch_b.inherited._campaign_configuration()
+        assert batch_b.inherited.BENCHMARK_CUBE_IDS == batch_b.PHASE4_BATCH_B_CUBE_IDS
+        assert batch_b.phase3.BENCHMARK_CUBE_IDS == batch_b.PHASE4_BATCH_B_CUBE_IDS
+        assert configuration["q_names"] == ("B", "u")
+        assert configuration["p_values"] == (1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
+        assert configuration["density_conventions"] == ("not applicable", "not applicable")
+        assert configuration["support_modes"] == ("all_valid_origins", "shell_local")
+        assert set(configuration["stencils"]) == {2}
+        assert configuration["stencils"][2]["ell_max"] == 320
+
+    assert batch_b.inherited.BENCHMARK_CUBE_IDS == original_ids
+    assert batch_b.inherited.Q_NAMES == original_q_names
+    assert batch_b.inherited.P_VALUES == original_p_values
+    assert batch_b.inherited.DENSITY_CONVENTIONS == original_density_conventions
+    assert batch_b.inherited.SUPPORT_MODES == original_modes
+    assert batch_b.inherited.STENCIL_SPECS == original_stencils
+
+
+def test_batch_b_restores_inherited_module_after_exception(tmp_path):
+    original = (
+        batch_b.phase3.BENCHMARK_CUBE_IDS,
+        batch_b.inherited.BENCHMARK_CUBE_IDS,
+        batch_b.inherited.Q_NAMES,
+        batch_b.inherited.P_VALUES,
+        batch_b.inherited.DENSITY_CONVENTIONS,
+        batch_b.inherited.STENCIL_SPECS,
+        batch_b.inherited.SUPPORT_MODES,
+    )
+
+    with pytest.raises(RuntimeError, match="synthetic forced exit"):
+        with batch_b._configured_runner(
+            tmp_path / "batch_a", tmp_path / "batch_a2", tmp_path / "batch_a2_all21"
+        ):
+            raise RuntimeError("synthetic forced exit")
+
+    assert (
+        batch_b.phase3.BENCHMARK_CUBE_IDS,
+        batch_b.inherited.BENCHMARK_CUBE_IDS,
+        batch_b.inherited.Q_NAMES,
+        batch_b.inherited.P_VALUES,
+        batch_b.inherited.DENSITY_CONVENTIONS,
+        batch_b.inherited.STENCIL_SPECS,
+        batch_b.inherited.SUPPORT_MODES,
+    ) == original
+
+
+def test_batch_b_decision_artifact_rejects_expansion_authorization_mutation(tmp_path, monkeypatch):
+    source_path = Path(__file__).resolve().parents[1] / batch_b.DECISION_RELATIVE_PATH
+    decision_path = tmp_path / "decision.json"
+    decision_path.write_text(source_path.read_text())
+    monkeypatch.setattr(batch_b, "DECISION_RELATIVE_PATH", str(decision_path))
+
+    assert batch_b._decision_identity()["decision_sha256"] == batch_b.file_sha256(decision_path)
+    decision = json.loads(decision_path.read_text())
+    decision["all21_batch_b_expansion_authorized"] = True
+    batch_b.inherited._atomic_write_json(decision_path, decision)
+
+    with pytest.raises(RuntimeError, match="invalid Phase 4 Batch B"):
+        batch_b._decision_identity()
+
+
+def test_batch_b_rejects_cube_outside_exact_representative_set(tmp_path, monkeypatch):
+    monkeypatch.setattr(batch_b, "_configured_batch_a_root", tmp_path / "batch_a")
+    monkeypatch.setattr(batch_b, "_configured_representative_a2_root", tmp_path / "batch_a2")
+    monkeypatch.setattr(
+        batch_b, "_configured_all21_3point_extension_root", tmp_path / "batch_a2_all21"
+    )
+    monkeypatch.setattr(
+        batch_b,
+        "_batch_a_reference_sources",
+        lambda phase2_root, batch_a_root: ({}, {"batch_a": "bound"}),
+    )
+
+    with pytest.raises(ValueError, match="restricted to approved representative IDs"):
+        batch_b._phase2_source_identity(tmp_path, "L640_unapproved")
 
 
 def test_batch_a_source_binding_and_phase4_summary_marker(tmp_path, monkeypatch):
@@ -759,6 +848,25 @@ def test_batch_a_verify_rejects_orphaned_phase4_summary(tmp_path, monkeypatch):
         (
             "job_scripts/phase4/run_phase4_batch_a_sampler_andes.sh",
             ("PHASE2_ROOT", "OUTPUT_ROOT", "RUN_DIR"),
+        ),
+        (
+            "job_scripts/phase4/run_phase4_batch_a2_sampler_andes.sh",
+            ("PHASE2_ROOT", "BATCH_A_ROOT", "OUTPUT_ROOT", "RUN_DIR"),
+        ),
+        (
+            "job_scripts/phase4/run_phase4_batch_a2_3point_extension_andes.sh",
+            ("PHASE2_ROOT", "BATCH_A_ROOT", "REPRESENTATIVE_A2_ROOT", "OUTPUT_ROOT", "RUN_DIR"),
+        ),
+        (
+            "job_scripts/phase4/run_phase4_batch_b_representative_andes.sh",
+            (
+                "PHASE2_ROOT",
+                "BATCH_A_ROOT",
+                "REPRESENTATIVE_A2_ROOT",
+                "ALL21_3POINT_EXTENSION_ROOT",
+                "OUTPUT_ROOT",
+                "RUN_DIR",
+            ),
         ),
     ],
 )
