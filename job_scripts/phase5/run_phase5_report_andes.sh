@@ -33,7 +33,12 @@ if [[ -e "${OUTPUT_DIR}" ]] && {
   echo "ERROR: report output is not an empty directory: ${OUTPUT_DIR}" >&2
   exit 3
 fi
-mkdir -p logs "${RUN_DIR}/logs" "$(dirname -- "${OUTPUT_DIR}")"
+mkdir -p logs "$(dirname -- "${OUTPUT_DIR}")"
+if ! mkdir "${RUN_DIR}"; then
+  echo "ERROR: report allocation directory appeared concurrently: ${RUN_DIR}" >&2
+  exit 3
+fi
+mkdir "${RUN_DIR}/logs"
 
 archive_slurm_resources() {
   local destination

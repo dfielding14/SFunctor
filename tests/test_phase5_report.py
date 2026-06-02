@@ -652,3 +652,5 @@ def test_wrapper_has_logs_no_email_and_cpu_only_shape() -> None:
     assert "#SBATCH -e logs/" in text
     assert "--mail" not in text
     assert "#SBATCH --cpus-per-task=1" in text
+    assert 'if ! mkdir "${RUN_DIR}"; then' in text
+    assert text.index('if ! mkdir "${RUN_DIR}"; then') < text.index('mkdir "${RUN_DIR}/logs"')
