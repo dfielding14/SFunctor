@@ -85,7 +85,7 @@ MAGNETIC_COVARIATES = (
 SF_ENVIRONMENT_FIGURE_VARIABLES = (
     *MAGNETIC_COVARIATES,
     "accepted_measurements",
-    "directional_excluded_measurements_sum",
+    "pre_wedge_shell_exclusion_total",
 )
 
 CONDITIONING_FIGURE_FILENAME = (
@@ -303,23 +303,45 @@ def _canonical_shards(
 def _sampling_schedule_sha256(
     row: Mapping[str, Any],
     configuration: Mapping[str, Any],
+    *,
+    include_quantity_axes: bool = True,
 ) -> str:
-    return runner._mapping_sha256(
-        {
-            "group_id": row["group_id"],
-            "shard_id": row["shard_id"],
-            "offset_start": row["offset_start"],
-            "offset_stop": row["offset_stop"],
-            "sample_count": configuration["sample_count_per_displacement"],
-            "pair_batch_size": configuration["pair_batch_size"],
-            "seed": configuration["production_seed"],
-            "block_shape_kji": configuration["block_shape_kji"],
-            "block_assignment": configuration["block_assignment"],
+    payload = {
+        "group_id": row["group_id"],
+        "shard_id": row["shard_id"],
+        "offset_start": row["offset_start"],
+        "offset_stop": row["offset_stop"],
+        "sample_count": configuration["sample_count_per_displacement"],
+        "pair_batch_size": configuration["pair_batch_size"],
+        "seed": configuration["production_seed"],
+        "block_shape_kji": configuration["block_shape_kji"],
+        "block_assignment": configuration["block_assignment"],
+    }
+    if include_quantity_axes:
+        payload.update(
+            {
             "q_names": configuration["q_names"],
             "p_values": configuration["p_values"],
             "density_conventions": configuration["density_conventions"],
-        }
-    )
+            }
+        )
+    return runner._mapping_sha256(payload)
+
+
+def _campaign_density_conventions_binding(
+    configuration: Mapping[str, Any],
+    expected: Sequence[str],
+) -> str | None:
+    """Accept one historical omission only when reductions revalidate the labels."""
+
+    retained = configuration.get("density_conventions")
+    if retained is None:
+        if tuple(expected) == tuple("not applicable" for _ in expected):
+            return "legacy_manifest_omission_revalidated_from_every_reduction"
+        return None
+    if tuple(retained) == tuple(expected):
+        return "explicit_campaign_manifest_and_every_reduction"
+    return None
 
 
 def _validate_result_matrix(
@@ -400,6 +422,16 @@ def _verify_marker_bound_release(
     )
     implementation_sha256 = campaign.get("source_version", {}).get("implementation_sha256")
     configuration = campaign.get("configuration", {})
+    density_conventions_binding = _campaign_density_conventions_binding(
+        configuration, density_conventions
+    )
+    schedule_includes_quantity_axes = configuration.get("density_conventions") is not None
+    schedule_configuration = {
+        **configuration,
+        # Historical all-21 3-point campaigns omitted this top-level manifest
+        # field while retaining it in the shard schedule and every reduction.
+        "density_conventions": density_conventions,
+    }
     expected_stencils = {str(stencil_width): dict(runner.STENCIL_SPECS[stencil_width])}
     if (
         not isinstance(implementation_sha256, str)
@@ -411,7 +443,7 @@ def _verify_marker_bound_release(
         != runner._mapping_sha256(configuration)
         or tuple(configuration.get("q_names", ())) != q_names
         or tuple(configuration.get("p_values", ())) != p_values
-        or tuple(configuration.get("density_conventions", ())) != density_conventions
+        or density_conventions_binding is None
         or tuple(configuration.get("support_modes", ())) != tuple(SUPPORT_MODES)
         or configuration.get("stencils") != expected_stencils
         or set(campaign.get("phase2_sources", {})) != set(cube_ids)
@@ -482,7 +514,11 @@ def _verify_marker_bound_release(
             or shard_marker.get("phase2_source")
             != campaign["phase2_sources"][row["cube_id"]]
             or shard_marker.get("sampling_schedule_sha256")
-            != _sampling_schedule_sha256(row, configuration)
+            != _sampling_schedule_sha256(
+                row,
+                schedule_configuration,
+                include_quantity_axes=schedule_includes_quantity_axes,
+            )
             or any(
                 not isinstance(shard_marker.get(name), int) or shard_marker[name] < 0
                 for name in (
@@ -595,6 +631,12 @@ def _verify_marker_bound_release(
             "verified_shards": len(shard_rows),
             "verified_reductions": len(expected_group_ids),
             "historical_implementation_sha256": implementation_sha256,
+            "density_conventions_binding": density_conventions_binding,
+            "sampling_schedule_binding": (
+                "explicit_quantity_axis_schedule_and_every_reduction"
+                if schedule_includes_quantity_axes
+                else "legacy_base_schedule_revalidated_from_every_shard_and_reduction"
+            ),
         },
     )
 
@@ -1335,8 +1377,8 @@ def _sf_environment_rows(
                                 "actual_shell_center_cells": float(ell[shell_index]),
                                 **catalog,
                                 "supported_rooted_amplitude": supported,
-                                "raw_moment_S_p": raw_moment,
-                                "rooted_amplitude_A_p": (
+                                "raw_moment_S_p_perpendicular": raw_moment,
+                                "rooted_amplitude_A_p_perpendicular": (
                                     raw_moment ** (1.0 / p_value)
                                     if supported and raw_moment is not None
                                     else None
@@ -1344,10 +1386,10 @@ def _sf_environment_rows(
                                 "accepted_measurements": int(
                                     result.counts[index][shell_index]
                                 ),
-                                "directional_excluded_measurements_sum": sum(
+                                "pre_wedge_shell_exclusion_total": sum(
                                     exclusions.values()
                                 ),
-                                "directional_excluded_measurements": exclusions,
+                                "pre_wedge_shell_exclusions": exclusions,
                             }
                         )
     return rows
@@ -1361,7 +1403,7 @@ def _sf_environment_correlations(
     dependence_variables = (
         *MAGNETIC_COVARIATES,
         "accepted_measurements",
-        "directional_excluded_measurements_sum",
+        "pre_wedge_shell_exclusion_total",
     )
     correlations = []
     for p_value in BATCH_B_P_VALUES:
@@ -1375,7 +1417,7 @@ def _sf_environment_correlations(
                         and row["q_name"] == q_name
                         and row["direction"] == direction
                         and row["requested_ell_cells"] == requested_ell
-                        and row["rooted_amplitude_A_p"] is not None
+                        and row["rooted_amplitude_A_p_perpendicular"] is not None
                     ]
                     without_denominator_outliers = [
                         row
@@ -1399,7 +1441,7 @@ def _sf_environment_correlations(
                                 "full_census_spearman_rho": batch_a_report._spearman(
                                     [float(row[variable]) for row in selected],
                                     [
-                                        float(row["rooted_amplitude_A_p"])
+                                        float(row["rooted_amplitude_A_p_perpendicular"])
                                         for row in selected
                                     ],
                                 ),
@@ -1416,14 +1458,15 @@ def _sf_environment_correlations(
                                             for row in without_denominator_outliers
                                         ],
                                         [
-                                            float(row["rooted_amplitude_A_p"])
+                                            float(row["rooted_amplitude_A_p_perpendicular"])
                                             for row in without_denominator_outliers
                                         ],
                                     )
                                 ),
                                 "interpretation": (
                                     "exploratory rank correlation of supported rooted "
-                                    "amplitude A_p=S_p^(1/p); not a fitted scaling claim"
+                                    "perpendicular amplitude "
+                                    "A_p_perp=S_p_perp^(1/p); not a fitted scaling claim"
                                 ),
                             }
                         )
@@ -1612,7 +1655,9 @@ def conditioning_figure(rows: Sequence[Mapping[str, Any]], output_dir: Path) -> 
         axis.grid(alpha=0.22)
     axes[0].set_ylabel("conditioning factor")
     axes[0].legend(fontsize=8)
-    figure.suptitle("Batch A p=2 pair-local versus subvolume-mean magnetic conditioning")
+    figure.suptitle(
+        "Batch A p=2 stencil-local versus subvolume-mean magnetic conditioning"
+    )
     return _save(figure, output_dir, CONDITIONING_FIGURE_FILENAME)
 
 
@@ -1655,7 +1700,7 @@ def equal_sf_aspect_figure(rows: Sequence[Mapping[str, Any]], output_dir: Path) 
                 axis.set_yscale("log")
             else:
                 axis.text(0.5, 0.5, "aspect table withheld", ha="center", va="center")
-            axis.set_xlabel(r"equal-$S_2$ target")
+            axis.set_xlabel(r"equal-$S_{2,\perp}$ target")
             axis.grid(alpha=0.22)
     axes[0, 0].legend(fontsize=8)
     axes[1, 0].legend(fontsize=8)
@@ -1708,7 +1753,7 @@ def order_sensitivity_figure(
             axis.set_title(q_name)
     axes[0, 0].legend(fontsize=7, ncol=2)
     figure.suptitle(
-        "All-21 Batch B order-sensitive policy factors versus Phase 1 magnetic complements"
+        "All-21 Batch B order-sensitive policy factors versus Phase 1 magnetic census"
     )
     return _save(figure, output_dir, ORDER_FIGURE_FILENAME)
 
@@ -1733,11 +1778,11 @@ def sf_environment_figure(
                     if row["q_name"] == q_name
                     and row["p_value"] == p_value
                     and row["requested_ell_cells"] == SF_ENVIRONMENT_FIGURE_SCALE_TARGET
-                    and row["rooted_amplitude_A_p"] is not None
+                    and row["rooted_amplitude_A_p_perpendicular"] is not None
                 ]
                 axis.scatter(
                     [row[covariate] for row in selected],
-                    [row["rooted_amplitude_A_p"] for row in selected],
+                    [row["rooted_amplitude_A_p_perpendicular"] for row in selected],
                     s=16,
                     alpha=0.42,
                     label=f"p={int(p_value)}",
@@ -1749,7 +1794,7 @@ def sf_environment_figure(
                 "deltaB",
                 "B_rms",
                 "accepted_measurements",
-                "directional_excluded_measurements_sum",
+                "pre_wedge_shell_exclusion_total",
             }:
                 axis.set_xscale("log")
             if plotted:
@@ -1757,7 +1802,7 @@ def sf_environment_figure(
             else:
                 axis.text(0.5, 0.5, "no supported rows", ha="center", va="center")
             axis.set_xlabel(covariate)
-            axis.set_ylabel(r"$A_p=S_p^{1/p}$")
+            axis.set_ylabel(r"$A_{p,\perp}=S_{p,\perp}^{1/p}$")
             axis.set_title(q_name)
             axis.grid(alpha=0.22)
     axes[0, 0].legend(fontsize=7, ncol=2)
@@ -2046,8 +2091,10 @@ def main() -> None:
                 "schema_version": 1,
                 "status": "passed",
                 "metric_definition": (
-                    "factor=max(pair-local/subvolume-mean, subvolume-mean/pair-local) "
-                    "for Batch A p=2 all-valid-origin products"
+                    "factor=max(stencil-local/subvolume-mean, "
+                    "subvolume-mean/stencil-local) for Batch A perpendicular-increment "
+                    "p=2 all-valid-origin products; signed pair_local_over_subvolume_mean "
+                    "ratios are retained in every row"
                 ),
                 "science_scale_minimum_cells": SCIENCE_SCALE_MINIMUM,
                 "representative_cube_ids": tuple(batch_a2_review.REPRESENTATIVE_CUBES),
@@ -2079,9 +2126,10 @@ def main() -> None:
                     else "aspect_table_withheld_quality_census_only"
                 ),
                 "target_definition": (
-                    "For each cube and q, use five interior log-spaced equal-SF levels "
-                    "inside the common positive parallel/xi/lambda p=2 pair-local curve-value "
-                    "overlap after support gates within 32..128 cells."
+                    "For each cube and q, use five interior log-spaced equal-S_2_perp "
+                    "levels inside the common positive parallel/xi/lambda p=2 "
+                    "stencil-local curve-value overlap after support gates within "
+                    "32..128 cells."
                 ),
                 "support_gates": {
                     "ell_interval_cells": EQUAL_SF_INVERSION_ELL_INTERVAL,
@@ -2142,7 +2190,11 @@ def main() -> None:
                 "schema_version": 1,
                 "status": "passed",
                 "classification": "exploratory_sf_environment_diagnostic",
-                "amplitude_definition": "A_p = S_p^(1/p)",
+                "amplitude_definition": "A_p_perp = S_p_perp^(1/p)",
+                "measurement_definition": (
+                    "perpendicular increment moment; parallel, xi, and lambda label "
+                    "separation-direction channels, not increment-vector components"
+                ),
                 "raw_moments_retained": True,
                 "support_policy": (
                     "all-valid-origin Batch B curve bins passing accepted-measurement, "
@@ -2154,8 +2206,8 @@ def main() -> None:
                 "figure_dependence_variables": SF_ENVIRONMENT_FIGURE_VARIABLES,
                 "count_dependence_fields": (
                     "accepted_measurements",
-                    "directional_excluded_measurements_sum",
-                    "directional_excluded_measurements",
+                    "pre_wedge_shell_exclusion_total",
+                    "pre_wedge_shell_exclusions",
                 ),
                 "denominator_outlier_sensitivity": (
                     f"publish full census and dBB <= {DENOMINATOR_OUTLIER_DBB_MAXIMUM:g} "

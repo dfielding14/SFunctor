@@ -350,11 +350,11 @@ def test_sf_environment_rows_publish_rooted_amplitude_raw_moment_and_counts() ->
     )
 
     assert len(rows) == 6 * 2 * 3 * 3
-    assert selected["raw_moment_S_p"] == pytest.approx(4.0)
-    assert selected["rooted_amplitude_A_p"] == pytest.approx(2.0)
+    assert selected["raw_moment_S_p_perpendicular"] == pytest.approx(4.0)
+    assert selected["rooted_amplitude_A_p_perpendicular"] == pytest.approx(2.0)
     assert selected["accepted_measurements"] == 64
-    assert selected["directional_excluded_measurements_sum"] == 8
-    assert selected["directional_excluded_measurements"] == {
+    assert selected["pre_wedge_shell_exclusion_total"] == 8
+    assert selected["pre_wedge_shell_exclusions"] == {
         "weak_B_direction": 3,
         "invalid_q": 5,
     }
@@ -369,7 +369,7 @@ def test_sf_environment_correlations_report_denominator_outlier_sensitivity() ->
             "direction": "parallel",
             "requested_ell_cells": 64.0,
             "actual_shell_center_cells": 64.0,
-            "rooted_amplitude_A_p": amplitude,
+            "rooted_amplitude_A_p_perpendicular": amplitude,
             "dBB": dbb,
             "B_mean": 10.0 - index,
             "deltaB": 2.0 + index,
@@ -377,7 +377,7 @@ def test_sf_environment_correlations_report_denominator_outlier_sensitivity() ->
             "B_mean_sq_over_B2_mean": 0.8 - 0.1 * index,
             "deltaB_sq_over_B2_mean": 0.2 + 0.1 * index,
             "accepted_measurements": 100 + index,
-            "directional_excluded_measurements_sum": 10 + index,
+            "pre_wedge_shell_exclusion_total": 10 + index,
         }
         for index, (dbb, amplitude) in enumerate(
             ((1.0, 1.0), (2.0, 2.0), (3.0, 3.0), (12.0, 0.5))
@@ -523,6 +523,57 @@ def test_staged_dependency_binding_rejects_wrong_extension_root(tmp_path: Path) 
             extension_root=extension_root,
             cube_ids=cube_ids,
         )
+
+
+def test_campaign_density_conventions_binding_accepts_explicit_labels() -> None:
+    assert supplement._campaign_density_conventions_binding(
+        {"density_conventions": ("not applicable", "not applicable")},
+        ("not applicable", "not applicable"),
+    ) == "explicit_campaign_manifest_and_every_reduction"
+
+
+def test_campaign_density_conventions_binding_accepts_legacy_not_applicable_omission() -> None:
+    assert supplement._campaign_density_conventions_binding(
+        {},
+        ("not applicable", "not applicable"),
+    ) == "legacy_manifest_omission_revalidated_from_every_reduction"
+
+
+def test_campaign_density_conventions_binding_rejects_ambiguous_or_wrong_labels() -> None:
+    assert supplement._campaign_density_conventions_binding({}, ("pointwise",)) is None
+    assert (
+        supplement._campaign_density_conventions_binding(
+            {"density_conventions": ("pointwise",)},
+            ("not applicable",),
+        )
+        is None
+    )
+
+
+def test_sampling_schedule_hash_can_replay_legacy_base_schema() -> None:
+    row = {
+        "group_id": "cube/stencil_3point/all_valid_origins",
+        "shard_id": "cube/stencil_3point/all_valid_origins/shard_0000",
+        "offset_start": 0,
+        "offset_stop": 10,
+    }
+    configuration = {
+        "sample_count_per_displacement": 2048,
+        "pair_batch_size": 1024,
+        "production_seed": 20260530,
+        "block_shape_kji": (80, 80, 80),
+        "block_assignment": "stencil_midpoint",
+        "q_names": ("B", "u"),
+        "p_values": (2.0,),
+        "density_conventions": ("not applicable", "not applicable"),
+    }
+
+    legacy = supplement._sampling_schedule_sha256(
+        row, configuration, include_quantity_axes=False
+    )
+    explicit = supplement._sampling_schedule_sha256(row, configuration)
+
+    assert legacy != explicit
 
 
 def test_strict_batch_a_to_all21_batch_b_p2_reproduction_passes() -> None:
