@@ -378,7 +378,8 @@ def _validate_top_events(
             or not isinstance(weighted_p6, (int, float))
             or not np.isfinite(weighted_p6)
             or weighted_p6 < 0.0
-            or not np.isclose(p6, float(q_perp) ** 6, rtol=1.0e-12, atol=1.0e-12)
+            # The retained event sidecars preserve float32-powered producer values.
+            or not np.isclose(p6, float(q_perp) ** 6, rtol=1.0e-6, atol=1.0e-12)
         ):
             raise RuntimeError(f"invalid tail-diagnostic top event: {label}/{index}")
         validated.append(dict(event))

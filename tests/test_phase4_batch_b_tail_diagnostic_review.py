@@ -242,3 +242,26 @@ def test_generate_review_publishes_manifest_and_refuses_overwrite(tmp_path: Path
 
     with pytest.raises(RuntimeError, match="refusing to overwrite"):
         review.generate_review(release, output)
+
+
+def test_top_event_validation_accepts_float32_power_roundoff() -> None:
+    q_perp = np.float32(2.0836732387542725)
+    p6 = float(np.power(q_perp, 6.0))
+    payload = {
+        "schema_version": diagnostic.SCHEMA_VERSION,
+        "top_events": [
+            {
+                "component": "direct_exterior",
+                "q_name": "B",
+                "direction": "lambda",
+                "block_id": 71,
+                "origin_kji": [154, 157, 595],
+                "displacement_ijk": [42, -157, -105],
+                "q_perp_magnitude": float(q_perp),
+                "p6_powered_contribution": p6,
+                "weighted_p6_contribution": p6,
+            }
+        ],
+    }
+
+    assert len(review._validate_top_events(payload, block_count=512, label="float32")) == 1
