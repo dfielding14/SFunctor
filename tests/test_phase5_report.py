@@ -293,6 +293,54 @@ def test_matched_smoke_is_not_merged_with_nearest_descendant_lineage() -> None:
     assert l80["unavailable_by_scale_policy"] == ["3point", "5point"]
 
 
+def test_nested_parent_links_are_not_treated_as_catalog_selection_rows() -> None:
+    magnetic_values = {
+        "dBB": 1.0,
+        "B_mean": 2.0,
+        "deltaB": 2.0,
+        "B_rms": 3.0,
+        "B_mean_sq_over_B2_mean": 4.0 / 9.0,
+        "deltaB_sq_over_B2_mean": 4.0 / 9.0,
+    }
+    config = {
+        "selections_by_scale": {
+            "160": [
+                {
+                    "cube_id": "L160_sub00001",
+                    "L_sub": 160,
+                    "catalog_magnetic_values": magnetic_values,
+                }
+            ],
+            "80": [
+                {
+                    "cube_id": "L80_sub00001",
+                    "L_sub": 80,
+                    "catalog_magnetic_values": magnetic_values,
+                    "selected_parent_link": {
+                        "cube_id": "L160_sub00001",
+                        "L_sub": 160,
+                    },
+                }
+            ],
+        }
+    }
+    selections = report._normalize_selections(
+        config,
+        {
+            "L160-baseline": {
+                "L_sub": 160,
+                "selection_set": "lineage",
+                "matrix": "baseline",
+            }
+        },
+        {"L160-baseline": {"L160_sub00001": {}}},
+    )
+
+    assert len(selections) == 1
+    assert selections[0].cube_id == "L160_sub00001"
+    assert selections[0].environment == magnetic_values
+
+
 def test_phase2_source_binding_rehashes_analysis_arrays(tmp_path: Path) -> None:
     phase2_root = tmp_path / "phase2"
     cube_root = phase2_root / "cube-a"

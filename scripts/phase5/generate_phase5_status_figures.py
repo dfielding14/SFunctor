@@ -901,7 +901,10 @@ def _normalize_selections(
         def configured_rows(value: Any) -> list[dict[str, Any]]:
             found: list[dict[str, Any]] = []
             if isinstance(value, Mapping):
-                if isinstance(value.get("cube_id"), str):
+                if (
+                    isinstance(value.get("cube_id"), str)
+                    and isinstance(value.get("catalog_magnetic_values"), Mapping)
+                ):
                     found.append(dict(value))
                 for item in value.values():
                     found.extend(configured_rows(item))
