@@ -1904,6 +1904,7 @@ def sf_environment_figure(
         for column, covariate in enumerate(SF_ENVIRONMENT_FIGURE_VARIABLES):
             axis = axes[row_index, column]
             plotted = False
+            plotted_positive_x = False
             for p_value in BATCH_B_P_VALUES:
                 selected = [
                     row
@@ -1913,14 +1914,21 @@ def sf_environment_figure(
                     and row["requested_ell_cells"] == SF_ENVIRONMENT_FIGURE_SCALE_TARGET
                     and row["rooted_amplitude_A_p_perpendicular"] is not None
                 ]
+                x_values = [row[covariate] for row in selected]
                 axis.scatter(
-                    [row[covariate] for row in selected],
+                    x_values,
                     [row["rooted_amplitude_A_p_perpendicular"] for row in selected],
                     s=16,
                     alpha=0.42,
                     label=f"p={int(p_value)}",
                 )
                 plotted |= bool(selected)
+                plotted_positive_x |= any(
+                    value is not None
+                    and np.isfinite(value)
+                    and float(value) > 0.0
+                    for value in x_values
+                )
             if covariate in {
                 "dBB",
                 "B_mean",
@@ -1928,8 +1936,17 @@ def sf_environment_figure(
                 "B_rms",
                 "accepted_measurements",
                 "pre_wedge_shell_exclusion_total",
-            }:
+            } and plotted_positive_x:
                 axis.set_xscale("log")
+            if plotted and not plotted_positive_x:
+                axis.text(
+                    0.5,
+                    0.92,
+                    "all retained values are zero",
+                    ha="center",
+                    va="top",
+                    transform=axis.transAxes,
+                )
             if plotted:
                 axis.set_yscale("log")
             else:

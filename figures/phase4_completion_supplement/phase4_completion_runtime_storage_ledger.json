@@ -1,0 +1,61 @@
+{
+  "compute_ledger_summary_snapshot": {
+    "metrics_node_hours": {
+      "consumed_allocated_runtime": 22.873336,
+      "pending_maximum_additional_exposure": 0.0,
+      "projected_remaining_after_pending_maximum": 4977.126664,
+      "remaining_budget": 4977.126664,
+      "workflow_budget": 5000.0
+    },
+    "pending_exposure_gate": "passed_zero_pending_maximum_additional_exposure",
+    "snapshot_relative_path": "phase4_completion_compute_ledger_summary_snapshot.md",
+    "snapshot_sha256": "98277eb3da433f5966d1e366d2e30ad7a239a51c9a37430267787a70f22af468",
+    "source_path": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase4/ledger_snapshots/compute_budget_summary_before_completion_supplement_hardened_20260602T022707Z.md",
+    "source_sha256": "98277eb3da433f5966d1e366d2e30ad7a239a51c9a37430267787a70f22af468",
+    "updated": "2026-06-02T02:25:35Z"
+  },
+  "measurement_note": "Retained estimator elapsed-second sums, per-group post-processing wall times, and marker-recorded staging bytes remain distinct from scheduler node-hours in the copied ledger snapshot.",
+  "rows": [
+    {
+      "bootstrap_elapsed_seconds_sum": 92.22480794927105,
+      "estimator_elapsed_seconds_sum": 3519.4074404057174,
+      "group_count": 42,
+      "jackknife_elapsed_seconds_sum": 1.2990939621813595,
+      "published_reduction_staging_logical_bytes": 599874198,
+      "published_shard_staging_logical_bytes": 634071794,
+      "reduction_elapsed_seconds_sum": 2.526313178241253,
+      "release_label": "Batch A: 2-point p=2",
+      "root": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase4/batch_a_2point_primary_20260531T154117Z",
+      "settled_release_bytes_before_summary_marker": 1234741220,
+      "shard_count": 168
+    },
+    {
+      "bootstrap_elapsed_seconds_sum": 91.17227132892003,
+      "estimator_elapsed_seconds_sum": 3554.1722963266075,
+      "group_count": 42,
+      "jackknife_elapsed_seconds_sum": 1.4256608428549953,
+      "published_reduction_staging_logical_bytes": 588008599,
+      "published_shard_staging_logical_bytes": 614011821,
+      "reduction_elapsed_seconds_sum": 2.482618181791622,
+      "release_label": "all21: labeled 3-point p=2",
+      "root": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase4/batch_a2_3point_all21_primary_20260601T153832Z",
+      "settled_release_bytes_before_summary_marker": 1203141489,
+      "shard_count": 168
+    },
+    {
+      "bootstrap_elapsed_seconds_sum": 526.8550932264188,
+      "estimator_elapsed_seconds_sum": 4739.361247574503,
+      "group_count": 42,
+      "jackknife_elapsed_seconds_sum": 8.032726201054174,
+      "published_reduction_staging_logical_bytes": 3597655895,
+      "published_shard_staging_logical_bytes": 3770674403,
+      "reduction_elapsed_seconds_sum": 11.504162597062532,
+      "release_label": "all21 Batch B: 2-point p=1..6",
+      "root": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase4/batch_b_all21_extension_primary_20260602T005633Z",
+      "settled_release_bytes_before_summary_marker": 7370865093,
+      "shard_count": 168
+    }
+  ],
+  "schema_version": 1,
+  "status": "passed"
+}

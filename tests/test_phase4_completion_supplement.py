@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+import warnings
 
 import numpy as np
 import pytest
@@ -445,7 +446,12 @@ def test_refined_environment_and_order_figures_render_full_variable_inventory(
     ]
     order_rows = supplement._order_sensitivity_rows(retained, (cube_id,), catalog_rows)
 
-    assert supplement.sf_environment_figure(environment_rows, tmp_path).is_file()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert supplement.sf_environment_figure(environment_rows, tmp_path).is_file()
+    assert not any(
+        "Data has no positive values" in str(item.message) for item in caught
+    )
     assert supplement.order_sensitivity_figure(order_rows, tmp_path).is_file()
 
 
