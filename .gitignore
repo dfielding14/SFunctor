@@ -57,6 +57,9 @@ test_*.py
 !tests/test_phase3a_analysis.py
 !tests/test_phase3a_runner.py
 !tests/test_phase4_batch_b_review.py
+!tests/test_phase5_extraction.py
+!tests/test_phase5_sampler.py
+!tests/test_phase5_report.py
 *_diagnostic.py
 !scripts/phase4/run_phase4_batch_b_tail_diagnostic.py
 *_REPORT*.md
