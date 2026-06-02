@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the bounded Phase 4 Batch B matched-support tail diagnostic."""
+"""Run the bounded Phase 4 Batch B matched-origin tail diagnostic."""
 from __future__ import annotations
 
 import argparse
@@ -35,20 +35,41 @@ from sfunctor.core.finite_domain import (
 from sfunctor.core.phase3a import dense_displacement_manifest, prepare_cube_for_parallel
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 CUBE_IDS = ("L640_sub02822", "L640_sub03026", "L640_sub02602", "L640_sub00738")
 Q_NAMES = ("B", "u")
 DIRECTIONS = ("parallel", "xi", "lambda")
 P_VALUES = (2.0, 4.0, 6.0)
-SAMPLE_COUNTS = (2048, 8192)
-SEEDS = (20260530, 20260531, 20260532)
+SCENARIOS = (
+    (2048, 20260530),
+    (8192, 20260530),
+    (32768, 20260530),
+    (8192, 20260531),
+    (8192, 20260532),
+)
 SCIENCE_SCALE_MINIMUM = 32.0
-SELECTED_OFFSET_MAXIMUM = 128
 BLOCK_SHAPE_KJI = (80, 80, 80)
 PAIR_BATCH_SIZE = 1024
+TOP_EVENT_COUNT = 32
 ELL_MAX = 320
 BIN_COUNT = 64
 DIRECTIONS_PER_BIN = 24
+RAW_COMPONENTS = (
+    "direct_interior",
+    "direct_exterior",
+    "shell_interior",
+    "exterior_overlay",
+)
+DERIVED_COMPONENTS = ("direct_intrinsic", "stratified_recomposition_overlay")
+COMPONENTS = (*RAW_COMPONENTS, *DERIVED_COMPONENTS)
+ACCUMULATOR_NAMES = (
+    "counts",
+    "sums",
+    "sums_sq",
+    "block_counts",
+    "block_sums",
+    "block_sums_sq",
+)
 SUMMARY_FILENAME = "phase4_batch_b_tail_diagnostic_summary.json"
 MARKER_FILENAME = "PHASE4_BATCH_B_TAIL_DIAGNOSTIC_COMPLETE.json"
 REPRESENTATIVE_SUMMARY_FILENAME = "phase4_batch_b_representative_summary.json"
@@ -69,8 +90,12 @@ def _json_builtin(value: Any) -> Any:
     return value
 
 
-def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
+def _atomic_write_json(
+    path: Path, payload: Mapping[str, Any], *, refuse_existing: bool = False
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if refuse_existing and path.exists():
+        raise RuntimeError(f"refusing to overwrite retained diagnostic artifact: {path}")
     with tempfile.NamedTemporaryFile(
         mode="w", dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False
     ) as handle:
@@ -79,8 +104,10 @@ def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
     temporary.replace(path)
 
 
-def _atomic_write_npz(path: Path, **payload: Any) -> None:
+def _atomic_write_npz(path: Path, *, refuse_existing: bool = False, **payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if refuse_existing and path.exists():
+        raise RuntimeError(f"refusing to overwrite retained diagnostic artifact: {path}")
     with tempfile.NamedTemporaryFile(
         mode="wb", dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False
     ) as handle:
@@ -93,6 +120,7 @@ def _source_version() -> dict[str, Any]:
     root = Path(__file__).resolve().parents[2]
     paths = (
         Path(__file__).resolve(),
+        root / "sfunctor" / "core" / "directional.py",
         root / "sfunctor" / "core" / "finite_domain.py",
         root / "sfunctor" / "core" / "phase3a.py",
         root / "scripts" / "phase3" / "run_phase3_sampler.py",
@@ -157,11 +185,14 @@ def _inside_bounds(
     bounds: tuple[tuple[int, int], tuple[int, int], tuple[int, int]],
 ) -> np.ndarray:
     return np.logical_and.reduce(
-        [
-            (values >= start) & (values < stop)
-            for values, (start, stop) in zip(origins, bounds)
-        ]
+        [(values >= start) & (values < stop) for values, (start, stop) in zip(origins, bounds)]
     )
+
+
+def _subset_origins(
+    origins: tuple[np.ndarray, np.ndarray, np.ndarray], mask: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    return tuple(values[mask] for values in origins)  # type: ignore[return-value]
 
 
 def _sample_exterior_origins(
@@ -191,20 +222,31 @@ def _sample_exterior_origins(
     return _linear_to_origins(intrinsic_bounds, np.fromiter(sorted(chosen), dtype=np.int64))
 
 
+def _empty_measurement() -> dict[str, Any]:
+    shape = (len(Q_NAMES), len(DIRECTIONS), len(P_VALUES))
+    return {
+        "counts": np.zeros(shape),
+        "sums": np.zeros(shape),
+        "sums_sq": np.zeros(shape),
+        "block_counts": np.zeros((512, *shape)),
+        "block_sums": np.zeros((512, *shape)),
+        "block_sums_sq": np.zeros((512, *shape)),
+        "top_events": [],
+    }
+
+
 def _measurement(
     B: np.ndarray,
     q_fields: Mapping[str, QField],
     origins: tuple[np.ndarray, np.ndarray, np.ndarray],
     displacement: Sequence[int],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return accepted counts, powered sums, and spatial-block powered sums."""
+) -> dict[str, Any]:
+    """Return additive accumulators and bounded p=6 event candidates."""
 
+    measured = _empty_measurement()
     count = origins[0].size
-    sums = np.zeros((len(Q_NAMES), len(DIRECTIONS), len(P_VALUES)))
-    counts = np.zeros_like(sums)
-    block_sums = np.zeros((512, *sums.shape))
     if not count:
-        return counts, sums, block_sums
+        return measured
     di, dj, dk = (int(value) for value in displacement)
     r_vector = cube_offset_to_vector(displacement)
     for begin in range(0, count, PAIR_BATCH_SIZE):
@@ -212,7 +254,11 @@ def _measurement(
         k0, j0, i0 = (values[begin:stop] for values in origins)
         k1, j1, i1 = k0 + dk, j0 + dj, i0 + di
         block_ids = _origin_block_ids(
-            (k0, j0, i0), tuple(int(value) for value in B.shape[1:]), BLOCK_SHAPE_KJI, displacement, 2
+            (k0, j0, i0),
+            tuple(int(value) for value in B.shape[1:]),
+            BLOCK_SHAPE_KJI,
+            displacement,
+            2,
         )
         assert block_ids is not None
         B0 = B[:, k0, j0, i0].T
@@ -227,7 +273,7 @@ def _measurement(
         theta = folded_angle(r_rows, e_parallel)
         r_perp = r_rows - np.einsum("ij,ij->i", r_rows, e_parallel)[:, None] * e_parallel
         r_perp_mag = np.linalg.norm(r_perp, axis=1)
-        for q_index, q_field in enumerate(q_fields.values()):
+        for q_index, (q_name, q_field) in enumerate(q_fields.items()):
             q0 = q_field.values[:, k0, j0, i0].T
             q1 = q_field.values[:, k1, j1, i1].T
             valid = (
@@ -244,67 +290,97 @@ def _measurement(
             valid_r_perp = valid_q_perp & np.isfinite(r_perp_mag) & (r_perp_mag > 1.0e-12)
             e_xi = np.full_like(delta_q_perp, np.nan)
             e_xi[valid_r_perp] = delta_q_perp[valid_r_perp] / q_perp_mag[valid_r_perp, None]
-            phi = folded_angle(r_perp, e_xi)
+            phi = np.full(theta.shape, np.nan)
+            phi[valid_r_perp] = folded_angle(r_perp[valid_r_perp], e_xi[valid_r_perp])
             masks = (
                 valid & (theta <= np.deg2rad(15.0)),
                 valid_r_perp & (theta >= np.deg2rad(75.0)) & (phi <= np.deg2rad(15.0)),
                 valid_r_perp & (theta >= np.deg2rad(75.0)) & (phi >= np.deg2rad(75.0)),
             )
-            for direction_index, mask in enumerate(masks):
-                selected_blocks = block_ids[mask]
-                values = q_perp_mag[mask]
+            for direction_index, (direction, mask) in enumerate(zip(DIRECTIONS, masks)):
+                selected = np.flatnonzero(mask)
+                selected_blocks = block_ids[selected]
+                values = q_perp_mag[selected]
                 for p_index, p_value in enumerate(P_VALUES):
                     powered = np.power(values, p_value)
-                    counts[q_index, direction_index, p_index] += powered.size
-                    sums[q_index, direction_index, p_index] += powered.sum()
-                    block_sums[:, q_index, direction_index, p_index] += np.bincount(
+                    powered_sq = np.square(powered)
+                    measured["counts"][q_index, direction_index, p_index] += powered.size
+                    measured["sums"][q_index, direction_index, p_index] += powered.sum()
+                    measured["sums_sq"][q_index, direction_index, p_index] += powered_sq.sum()
+                    measured["block_counts"][:, q_index, direction_index, p_index] += np.bincount(
+                        selected_blocks, minlength=512
+                    )
+                    measured["block_sums"][:, q_index, direction_index, p_index] += np.bincount(
                         selected_blocks, weights=powered, minlength=512
                     )
-    return counts, sums, block_sums
+                    measured["block_sums_sq"][:, q_index, direction_index, p_index] += np.bincount(
+                        selected_blocks, weights=powered_sq, minlength=512
+                    )
+                if selected.size:
+                    p6 = np.power(values, 6.0)
+                    keep = min(TOP_EVENT_COUNT, p6.size)
+                    ranked = np.argpartition(p6, -keep)[-keep:]
+                    for index in ranked:
+                        origin_index = selected[index]
+                        measured["top_events"].append(
+                            {
+                                "q_name": q_name,
+                                "direction": direction,
+                                "block_id": int(block_ids[origin_index]),
+                                "origin_kji": (int(k0[origin_index]), int(j0[origin_index]), int(i0[origin_index])),
+                                "displacement_ijk": tuple(int(value) for value in displacement),
+                                "q_perp_magnitude": float(values[index]),
+                                "p6_powered_contribution": float(p6[index]),
+                                "theta_degrees": float(np.rad2deg(theta[origin_index])),
+                                "phi_degrees": float(np.rad2deg(phi[origin_index])) if np.isfinite(phi[origin_index]) else None,
+                            }
+                        )
+    return measured
 
 
-def _selected_offsets() -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, Any]]:
-    offsets, edges, manifest = dense_displacement_manifest(
-        stencil_width=2,
-        ell_max=ELL_MAX,
-        bin_count=BIN_COUNT,
-        directions_per_bin=DIRECTIONS_PER_BIN,
-    )
-    ell = np.linalg.norm(offsets.astype(float), axis=1)
-    science = offsets[ell >= SCIENCE_SCALE_MINIMUM]
-    selected = inherited._stratified_offset_subset(science, edges, maximum=SELECTED_OFFSET_MAXIMUM)
-    return offsets, edges, selected, manifest
+def _empty_accumulators(edges: np.ndarray) -> dict[str, dict[str, np.ndarray]]:
+    shape = (len(Q_NAMES), len(DIRECTIONS), len(P_VALUES), len(edges) - 1)
+    output = {}
+    for component in COMPONENTS:
+        output[component] = {
+            "counts": np.zeros(shape),
+            "sums": np.zeros(shape),
+            "sums_sq": np.zeros(shape),
+            "block_counts": np.zeros((512, *shape)),
+            "block_sums": np.zeros((512, *shape)),
+            "block_sums_sq": np.zeros((512, *shape)),
+        }
+    return output
 
 
-def _shell_bounds(
-    cube_shape: tuple[int, int, int], offsets: np.ndarray, edges: np.ndarray
-) -> tuple[tuple[tuple[int, int], tuple[int, int], tuple[int, int]] | None, ...]:
-    ell = np.linalg.norm(offsets.astype(float), axis=1)
-    bins = np.searchsorted(edges, ell, side="right") - 1
-    output = []
-    for index in range(len(edges) - 1):
-        members = offsets[bins == index]
-        output.append(nested_core_bounds_kji(cube_shape, members, 2) if len(members) else None)
-    return tuple(output)
-
-
-def _weighted_add(
-    destination_counts: np.ndarray,
-    destination_sums: np.ndarray,
-    destination_blocks: np.ndarray,
-    measured: tuple[np.ndarray, np.ndarray, np.ndarray],
-    *,
-    population: int,
-    sampled: int,
+def _accumulate(
+    destination: dict[str, np.ndarray],
+    measured: Mapping[str, Any],
     ell_index: int,
+    *,
+    weight: float = 1.0,
 ) -> None:
-    if sampled <= 0 or population <= 0:
-        return
-    counts, sums, blocks = measured
-    weight = population / sampled
-    destination_counts[..., ell_index] += weight * counts
-    destination_sums[..., ell_index] += weight * sums
-    destination_blocks[..., ell_index] += weight * blocks
+    for name in ("counts", "sums", "block_counts", "block_sums"):
+        destination[name][..., ell_index] += weight * measured[name]
+    for name in ("sums_sq", "block_sums_sq"):
+        destination[name][..., ell_index] += weight * weight * measured[name]
+
+
+def _merge_top_events(
+    store: dict[tuple[str, str, str], list[dict[str, Any]]],
+    component: str,
+    measured: Mapping[str, Any],
+    *,
+    weight: float = 1.0,
+) -> None:
+    for row in measured["top_events"]:
+        event = dict(row)
+        event["component"] = component
+        event["weighted_p6_contribution"] = weight * event["p6_powered_contribution"]
+        key = (component, event["q_name"], event["direction"])
+        retained = [*store.get(key, ()), event]
+        retained.sort(key=lambda item: item["weighted_p6_contribution"], reverse=True)
+        store[key] = retained[:TOP_EVENT_COUNT]
 
 
 def _concentration(block_sums: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -322,6 +398,38 @@ def _concentration(block_sums: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.n
     return fraction(1), fraction(5), fraction(10)
 
 
+def _selected_offsets() -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, Any]]:
+    offsets, edges, manifest = dense_displacement_manifest(
+        stencil_width=2,
+        ell_max=ELL_MAX,
+        bin_count=BIN_COUNT,
+        directions_per_bin=DIRECTIONS_PER_BIN,
+    )
+    ell = np.linalg.norm(offsets.astype(float), axis=1)
+    indices = np.searchsorted(edges, ell, side="right") - 1
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    selected = offsets[(indices >= 0) & (indices < len(centers)) & (centers[indices] >= SCIENCE_SCALE_MINIMUM)]
+    return offsets, edges, selected, manifest
+
+
+def _shell_bounds(
+    cube_shape: tuple[int, int, int], offsets: np.ndarray, edges: np.ndarray
+) -> tuple[tuple[tuple[int, int], tuple[int, int], tuple[int, int]] | None, ...]:
+    ell = np.linalg.norm(offsets.astype(float), axis=1)
+    bins = np.searchsorted(edges, ell, side="right") - 1
+    output = []
+    for index in range(len(edges) - 1):
+        members = offsets[bins == index]
+        output.append(nested_core_bounds_kji(cube_shape, members, 2) if len(members) else None)
+    return tuple(output)
+
+
+def _stratum_weight(target_count: int, stratum_population: int, intrinsic_population: int, sampled: int) -> float:
+    if target_count <= 0 or stratum_population <= 0 or intrinsic_population <= 0 or sampled <= 0:
+        return 0.0
+    return target_count * stratum_population / (intrinsic_population * sampled)
+
+
 def _run_scenario(
     B: np.ndarray,
     q_fields: Mapping[str, QField],
@@ -331,13 +439,10 @@ def _run_scenario(
     *,
     sample_count: int,
     seed: int,
-) -> dict[str, np.ndarray]:
-    shape = (len(Q_NAMES), len(DIRECTIONS), len(P_VALUES), len(edges) - 1)
-    components = ("interior", "exterior", "recomposed", "direct_intrinsic")
-    counts = {name: np.zeros(shape) for name in components}
-    sums = {name: np.zeros(shape) for name in components}
-    blocks = {name: np.zeros((512, *shape)) for name in components}
-    sampled = {name: 0 for name in components}
+) -> tuple[dict[str, np.ndarray], list[dict[str, Any]]]:
+    accumulators = _empty_accumulators(edges)
+    event_store: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+    sampled = {name: 0 for name in RAW_COMPONENTS}
     cube_shape = tuple(int(value) for value in B.shape[1:])
     shell_bounds = _shell_bounds(cube_shape, offsets, edges)
     for displacement in selected:
@@ -347,55 +452,91 @@ def _run_scenario(
         if interior_bounds is None:
             continue
         intrinsic_bounds = valid_origin_bounds_kji(cube_shape, displacement, 2)
-        interior_origins = _origin_arrays(interior_bounds, sample_count, _shell_seed(seed, ell_index))
-        exterior_origins = _sample_exterior_origins(
+        direct_origins = _origin_arrays(intrinsic_bounds, sample_count, _offset_seed(seed, displacement))
+        inside = _inside_bounds(direct_origins, interior_bounds)
+        direct_interior = _subset_origins(direct_origins, inside)
+        direct_exterior = _subset_origins(direct_origins, ~inside)
+        shell_interior = _origin_arrays(interior_bounds, sample_count, _shell_seed(seed, ell_index))
+        exterior_overlay = _sample_exterior_origins(
             intrinsic_bounds,
             interior_bounds,
             sample_count,
             _offset_seed(seed + 1000003, displacement),
         )
-        direct_origins = _origin_arrays(intrinsic_bounds, sample_count, _offset_seed(seed, displacement))
-        interior_population = _bounds_size(interior_bounds)
-        intrinsic_population = _bounds_size(intrinsic_bounds)
-        exterior_population = intrinsic_population - interior_population
-        measurements = {
-            "interior": (_measurement(B, q_fields, interior_origins, displacement), interior_population, len(interior_origins[0])),
-            "exterior": (_measurement(B, q_fields, exterior_origins, displacement), exterior_population, len(exterior_origins[0])),
-            "direct_intrinsic": (_measurement(B, q_fields, direct_origins, displacement), intrinsic_population, len(direct_origins[0])),
+        origins = {
+            "direct_interior": direct_interior,
+            "direct_exterior": direct_exterior,
+            "shell_interior": shell_interior,
+            "exterior_overlay": exterior_overlay,
         }
-        for name, (measurement, population, origin_count) in measurements.items():
-            _weighted_add(
-                counts[name], sums[name], blocks[name], measurement,
-                population=population, sampled=origin_count, ell_index=ell_index,
-            )
-            sampled[name] += origin_count
-        counts["recomposed"][..., ell_index] = counts["interior"][..., ell_index] + counts["exterior"][..., ell_index]
-        sums["recomposed"][..., ell_index] = sums["interior"][..., ell_index] + sums["exterior"][..., ell_index]
-        blocks["recomposed"][..., ell_index] = blocks["interior"][..., ell_index] + blocks["exterior"][..., ell_index]
+        measurements = {
+            name: _measurement(B, q_fields, component_origins, displacement)
+            for name, component_origins in origins.items()
+        }
+        for name, measurement in measurements.items():
+            _accumulate(accumulators[name], measurement, ell_index)
+            _merge_top_events(event_store, name, measurement)
+            sampled[name] += len(origins[name][0])
+        intrinsic_population = _bounds_size(intrinsic_bounds)
+        interior_population = _bounds_size(interior_bounds)
+        exterior_population = intrinsic_population - interior_population
+        interior_weight = _stratum_weight(
+            len(direct_origins[0]), interior_population, intrinsic_population, len(shell_interior[0])
+        )
+        exterior_weight = _stratum_weight(
+            len(direct_origins[0]), exterior_population, intrinsic_population, len(exterior_overlay[0])
+        )
+        _accumulate(
+            accumulators["stratified_recomposition_overlay"],
+            measurements["shell_interior"],
+            ell_index,
+            weight=interior_weight,
+        )
+        _accumulate(
+            accumulators["stratified_recomposition_overlay"],
+            measurements["exterior_overlay"],
+            ell_index,
+            weight=exterior_weight,
+        )
+        _merge_top_events(event_store, "stratified_shell_interior", measurements["shell_interior"], weight=interior_weight)
+        _merge_top_events(event_store, "stratified_exterior_overlay", measurements["exterior_overlay"], weight=exterior_weight)
+    for name in ACCUMULATOR_NAMES:
+        accumulators["direct_intrinsic"][name] = (
+            accumulators["direct_interior"][name] + accumulators["direct_exterior"][name]
+        )
     payload: dict[str, np.ndarray] = {
         "ell_bin_edges": edges,
         "selected_displacements_ijk": selected,
         "sample_count": np.asarray(sample_count),
         "seed": np.asarray(seed),
     }
-    for name in components:
-        payload[f"{name}_estimated_accepted_counts"] = counts[name]
-        payload[f"{name}_estimated_sums"] = sums[name]
+    for name in COMPONENTS:
+        for accumulator_name in ACCUMULATOR_NAMES:
+            payload[f"{name}_{accumulator_name}"] = accumulators[name][accumulator_name]
         payload[f"{name}_moments"] = np.divide(
-            sums[name], counts[name], out=np.full_like(sums[name], np.nan), where=counts[name] > 0.0
+            accumulators[name]["sums"],
+            accumulators[name]["counts"],
+            out=np.full_like(accumulators[name]["sums"], np.nan),
+            where=accumulators[name]["counts"] > 0.0,
         )
-        payload[f"{name}_sampled_origins"] = np.asarray(sampled[name])
-        one, five, ten = _concentration(blocks[name])
+        one, five, ten = _concentration(accumulators[name]["block_sums"])
         payload[f"{name}_largest_block_fraction"] = one
         payload[f"{name}_largest_5_blocks_fraction"] = five
         payload[f"{name}_largest_10_blocks_fraction"] = ten
-    payload["recomposed_over_direct_ratio"] = np.divide(
-        payload["recomposed_moments"],
+    for name in RAW_COMPONENTS:
+        payload[f"{name}_sampled_origins"] = np.asarray(sampled[name])
+    payload["stratified_recomposition_over_direct_ratio"] = np.divide(
+        payload["stratified_recomposition_overlay_moments"],
         payload["direct_intrinsic_moments"],
-        out=np.full_like(payload["recomposed_moments"], np.nan),
+        out=np.full_like(payload["direct_intrinsic_moments"], np.nan),
         where=np.isfinite(payload["direct_intrinsic_moments"]) & (payload["direct_intrinsic_moments"] > 0.0),
     )
-    return payload
+    top_events = [
+        event
+        for key in sorted(event_store)
+        for event in event_store[key]
+    ]
+    return payload, top_events
 
 
 def work(phase2_root: Path, representative_release_root: Path, output_root: Path) -> dict[str, Any]:
@@ -404,28 +545,44 @@ def work(phase2_root: Path, representative_release_root: Path, output_root: Path
     procid = int(os.environ.get("SLURM_PROCID", "0"))
     ntasks = int(os.environ.get("SLURM_NTASKS", "1"))
     offsets, edges, selected, manifest = _selected_offsets()
+    assignments = [
+        (cube_id, sample_count, seed)
+        for cube_id in CUBE_IDS
+        for sample_count, seed in SCENARIOS
+    ][procid::ntasks]
     rows = []
-    for cube_id in CUBE_IDS[procid::ntasks]:
+    for cube_id in CUBE_IDS:
+        cube_assignments = [row for row in assignments if row[0] == cube_id]
+        if not cube_assignments:
+            continue
         cube = prepare_cube_for_parallel(phase3._load_cube(phase2_root, cube_id))
         B, q_fields, _ = build_cube_q_variants(cube, q_names=Q_NAMES)
-        for sample_count in SAMPLE_COUNTS:
-            for seed in SEEDS:
-                started = time.perf_counter()
-                payload = _run_scenario(
-                    B, q_fields, offsets, edges, selected, sample_count=sample_count, seed=seed
-                )
-                artifact = output_root / "scenarios" / f"{cube_id}_samples_{sample_count}_seed_{seed}.npz"
-                _atomic_write_npz(artifact, **payload)
-                rows.append(
-                    {
-                        "cube_id": cube_id,
-                        "sample_count": sample_count,
-                        "seed": seed,
-                        "artifact_relative_path": str(artifact.relative_to(output_root)),
-                        "artifact_sha256": file_sha256(artifact),
-                        "elapsed_seconds": time.perf_counter() - started,
-                    }
-                )
+        for _, sample_count, seed in cube_assignments:
+            started = time.perf_counter()
+            payload, top_events = _run_scenario(
+                B, q_fields, offsets, edges, selected, sample_count=sample_count, seed=seed
+            )
+            stem = f"{cube_id}_samples_{sample_count}_seed_{seed}"
+            artifact = output_root / "scenarios" / f"{stem}.npz"
+            events_path = output_root / "scenarios" / f"{stem}.top_events.json"
+            _atomic_write_npz(artifact, refuse_existing=True, **payload)
+            _atomic_write_json(
+                events_path,
+                {"schema_version": SCHEMA_VERSION, "top_events": top_events},
+                refuse_existing=True,
+            )
+            rows.append(
+                {
+                    "cube_id": cube_id,
+                    "sample_count": sample_count,
+                    "seed": seed,
+                    "artifact_relative_path": str(artifact.relative_to(output_root)),
+                    "artifact_sha256": file_sha256(artifact),
+                    "top_events_relative_path": str(events_path.relative_to(output_root)),
+                    "top_events_sha256": file_sha256(events_path),
+                    "elapsed_seconds": time.perf_counter() - started,
+                }
+            )
     record = output_root / "work_records" / f"task_{procid:04d}.json"
     _atomic_write_json(
         record,
@@ -439,6 +596,7 @@ def work(phase2_root: Path, representative_release_root: Path, output_root: Path
             "manifest_sha256": manifest["manifest_sha256"],
             "selected_offsets_sha256": hashlib.sha256(selected.tobytes()).hexdigest(),
         },
+        refuse_existing=True,
     )
     return {"procid": procid, "published_scenarios": len(rows), "record": str(record)}
 
@@ -459,26 +617,32 @@ def summarize(phase2_root: Path, representative_release_root: Path, output_root:
         ):
             raise RuntimeError(f"invalid tail-diagnostic work record: {record}")
         rows.extend(payload["rows"])
-    expected = {(cube_id, samples, seed) for cube_id in CUBE_IDS for samples in SAMPLE_COUNTS for seed in SEEDS}
+    expected = {
+        (cube_id, sample_count, seed)
+        for cube_id in CUBE_IDS
+        for sample_count, seed in SCENARIOS
+    }
     observed = {(row["cube_id"], row["sample_count"], row["seed"]) for row in rows}
     if observed != expected or len(rows) != len(expected):
         raise RuntimeError("tail-diagnostic scenario inventory is incomplete or duplicated")
     for row in rows:
-        path = output_root / row["artifact_relative_path"]
-        if row["artifact_sha256"] != file_sha256(path):
-            raise RuntimeError(f"tail-diagnostic scenario changed after publication: {path}")
+        for relative_key, sha_key in (
+            ("artifact_relative_path", "artifact_sha256"),
+            ("top_events_relative_path", "top_events_sha256"),
+        ):
+            path = output_root / row[relative_key]
+            if row[sha_key] != file_sha256(path):
+                raise RuntimeError(f"tail-diagnostic scenario changed after publication: {path}")
     summary = {
         "schema_version": SCHEMA_VERSION,
         "status": "complete",
-        "phase": "phase4_batch_b_bounded_matched_support_tail_diagnostic",
+        "phase": "phase4_batch_b_bounded_matched_origin_tail_diagnostic",
         "cube_ids": CUBE_IDS,
         "q_names": Q_NAMES,
         "directions": DIRECTIONS,
         "p_values": P_VALUES,
-        "sample_counts": SAMPLE_COUNTS,
-        "seeds": SEEDS,
+        "scenarios": [{"sample_count": count, "seed": seed} for count, seed in SCENARIOS],
         "science_scale_minimum_cells": SCIENCE_SCALE_MINIMUM,
-        "selected_offset_maximum": SELECTED_OFFSET_MAXIMUM,
         "full_displacement_count": len(offsets),
         "selected_displacement_count": len(selected),
         "displacement_manifest_sha256": manifest["manifest_sha256"],
@@ -487,22 +651,25 @@ def summarize(phase2_root: Path, representative_release_root: Path, output_root:
         "source_version": _source_version(),
         "input_identity": input_identity,
         "interpretation": {
-            "interior": "shared shell-local interior sampled with the production shell seed",
-            "exterior": "intrinsic-valid origins outside the shared shell-local interior",
-            "recomposed": "population-weighted interior plus exterior estimate",
-            "direct_intrinsic": "independent direct intrinsic-valid estimate sampled with the production offset seed",
+            "direct_intrinsic": "production-equivalent intrinsic-origin schedule partitioned exactly into direct interior plus direct exterior",
+            "shell_interior": "independent shell-local production schedule for schedule-sensitivity comparison",
+            "exterior_overlay": "independent exterior-only schedule retained separately for higher-precision review",
+            "stratified_recomposition_overlay": "equal-displacement-weighted shell-interior plus exterior-overlay estimate; diagnostic overlay, not a replacement for the direct production estimator",
+            "top_events": "bounded p=6 rare-increment records retained for inspection",
         },
     }
     summary_path = output_root / SUMMARY_FILENAME
-    _atomic_write_json(summary_path, summary)
+    marker_path = output_root / MARKER_FILENAME
+    _atomic_write_json(summary_path, summary, refuse_existing=True)
     _atomic_write_json(
-        output_root / MARKER_FILENAME,
+        marker_path,
         {
             "schema_version": SCHEMA_VERSION,
             "status": "complete",
             "summary_sha256": file_sha256(summary_path),
             "implementation_sha256": summary["source_version"]["implementation_sha256"],
         },
+        refuse_existing=True,
     )
     return verify(phase2_root, representative_release_root, output_root)
 
@@ -518,13 +685,17 @@ def verify(phase2_root: Path, representative_release_root: Path, output_root: Pa
         or marker.get("implementation_sha256") != _source_version()["implementation_sha256"]
         or summary.get("source_version") != _source_version()
         or summary.get("input_identity") != _input_identity(phase2_root, representative_release_root)
-        or summary.get("phase") != "phase4_batch_b_bounded_matched_support_tail_diagnostic"
+        or summary.get("phase") != "phase4_batch_b_bounded_matched_origin_tail_diagnostic"
     ):
         raise RuntimeError("invalid or stale Phase 4 Batch B tail diagnostic")
     for row in summary["scenario_rows"]:
-        path = output_root / row["artifact_relative_path"]
-        if row["artifact_sha256"] != file_sha256(path):
-            raise RuntimeError(f"tail-diagnostic artifact changed after publication: {path}")
+        for relative_key, sha_key in (
+            ("artifact_relative_path", "artifact_sha256"),
+            ("top_events_relative_path", "top_events_sha256"),
+        ):
+            path = output_root / row[relative_key]
+            if row[sha_key] != file_sha256(path):
+                raise RuntimeError(f"tail-diagnostic artifact changed after publication: {path}")
     return {"status": "passed", "scenario_count": len(summary["scenario_rows"])}
 
 
