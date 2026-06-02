@@ -1,0 +1,5635 @@
+{
+  "density_conventions": [
+    "not applicable",
+    "not applicable"
+  ],
+  "lsub1280_authorized": false,
+  "matched_smoke_L320_selections": [
+    {
+      "L_sub": 320,
+      "bounds_ijk_half_open": [
+        6720,
+        7040,
+        1280,
+        1600,
+        6400,
+        6720
+      ],
+      "catalog_controls": {
+        "B_rms": 0.4927534759044647,
+        "deltaB": 0.13314560055732727,
+        "dens_mean": 1.0344300270080566,
+        "mom1_sigma": 0.07769846171140671,
+        "mom2_sigma": 0.09617481380701065,
+        "mom3_sigma": 0.043390411883592606,
+        "rho_sigma_over_mean": 0.05253916233778
+      },
+      "catalog_magnetic_flags": {
+        "B_mean_fraction_flags": 0,
+        "dBB_flags": 0,
+        "deltaB_flags": 0,
+        "deltaB_fraction_flags": 0
+      },
+      "catalog_magnetic_values": {
+        "B_mean": 0.4744241237640381,
+        "B_mean_sq_over_B2_mean": 0.9269880056381226,
+        "B_rms": 0.4927534759044647,
+        "dBB": 0.28064677119255066,
+        "deltaB": 0.13314560055732727,
+        "deltaB_sq_over_B2_mean": 0.07301199436187744
+      },
+      "catalog_parent_link": {
+        "L_sub": 640,
+        "subvolume_id": 2602
+      },
+      "catalog_validity_flags": 0,
+      "cube_id": "L320_sub20629",
+      "magnetic_selection_valid": true,
+      "nearest_dBB_selection": null,
+      "observational_control_set": {
+        "interpretation": "separately labeled observational control set",
+        "label": "matched_smoke",
+        "matched_pair_id": 1,
+        "matched_role": "low",
+        "stated_L640_parent_cube_id": "L640_sub02602"
+      },
+      "overlaps_nearest_dBB_lineage": false,
+      "physical_bounds_x1_x2_x3": [
+        [
+          0.15625,
+          0.1875
+        ],
+        [
+          -0.375,
+          -0.34375
+        ],
+        [
+          0.125,
+          0.15625
+        ]
+      ],
+      "required_rank_count": 2,
+      "required_rank_ids": [
+        50056,
+        50057
+      ],
+      "roles": [
+        "phase1_parent_role:matched:3:low",
+        "phase5_fixed_L320_matched_smoke_observational_child",
+        "phase5_observational_control_set:matched_smoke",
+        "phase5_matched_pair:1:low"
+      ],
+      "root_L640_cube_id": "L640_sub02602",
+      "root_phase1_role": "matched:3:low",
+      "selected_parent_link": {
+        "L_sub": 640,
+        "cube_id": "L640_sub02602",
+        "subvolume_id": 2602
+      },
+      "selection_method": "fixed_L320_matched_smoke_observational_control",
+      "shape_kji": [
+        320,
+        320,
+        320
+      ],
+      "smoke_anchor": false,
+      "smoke_anchor_role": null,
+      "subvolume_id": 20629
+    },
+    {
+      "L_sub": 320,
+      "bounds_ijk_half_open": [
+        6080,
+        6400,
+        9600,
+        9920,
+        5120,
+        5440
+      ],
+      "catalog_controls": {
+        "B_rms": 0.4280106723308563,
+        "deltaB": 0.31309086084365845,
+        "dens_mean": 1.03854238986969,
+        "mom1_sigma": 0.07215005904436111,
+        "mom2_sigma": 0.09893389791250229,
+        "mom3_sigma": 0.07702904939651489,
+        "rho_sigma_over_mean": 0.04957844316959381
+      },
+      "catalog_magnetic_flags": {
+        "B_mean_fraction_flags": 0,
+        "dBB_flags": 0,
+        "deltaB_flags": 0,
+        "deltaB_fraction_flags": 0
+      },
+      "catalog_magnetic_values": {
+        "B_mean": 0.2918342649936676,
+        "B_mean_sq_over_B2_mean": 0.46490412950515747,
+        "B_rms": 0.4280106723308563,
+        "dBB": 1.0728378295898438,
+        "deltaB": 0.31309086084365845,
+        "deltaB_sq_over_B2_mean": 0.5350958704948425
+      },
+      "catalog_parent_link": {
+        "L_sub": 640,
+        "subvolume_id": 2297
+      },
+      "catalog_validity_flags": 0,
+      "cube_id": "L320_sub17363",
+      "magnetic_selection_valid": true,
+      "nearest_dBB_selection": null,
+      "observational_control_set": {
+        "interpretation": "separately labeled observational control set",
+        "label": "matched_smoke",
+        "matched_pair_id": 1,
+        "matched_role": "high",
+        "stated_L640_parent_cube_id": "L640_sub02297"
+      },
+      "overlaps_nearest_dBB_lineage": true,
+      "physical_bounds_x1_x2_x3": [
+        [
+          0.09375,
+          0.125
+        ],
+        [
+          0.4375,
+          0.46875
+        ],
+        [
+          0.0,
+          0.03125
+        ]
+      ],
+      "required_rank_count": 2,
+      "required_rank_ids": [
+        58584,
+        58585
+      ],
+      "roles": [
+        "phase1_parent_role:matched:1:high",
+        "phase5_fixed_L320_matched_smoke_observational_child",
+        "phase5_observational_control_set:matched_smoke",
+        "phase5_matched_pair:1:high"
+      ],
+      "root_L640_cube_id": "L640_sub02297",
+      "root_phase1_role": "matched:1:high",
+      "selected_parent_link": {
+        "L_sub": 640,
+        "cube_id": "L640_sub02297",
+        "subvolume_id": 2297
+      },
+      "selection_method": "fixed_L320_matched_smoke_observational_control",
+      "shape_kji": [
+        320,
+        320,
+        320
+      ],
+      "smoke_anchor": false,
+      "smoke_anchor_role": null,
+      "subvolume_id": 17363
+    },
+    {
+      "L_sub": 320,
+      "bounds_ijk_half_open": [
+        7680,
+        8000,
+        8640,
+        8960,
+        1600,
+        1920
+      ],
+      "catalog_controls": {
+        "B_rms": 0.5720019340515137,
+        "deltaB": 0.16196994483470917,
+        "dens_mean": 1.0325398445129395,
+        "mom1_sigma": 0.1780049055814743,
+        "mom2_sigma": 0.0726471021771431,
+        "mom3_sigma": 0.1978306770324707,
+        "rho_sigma_over_mean": 0.05650720000267029
+      },
+      "catalog_magnetic_flags": {
+        "B_mean_fraction_flags": 0,
+        "dBB_flags": 0,
+        "deltaB_flags": 0,
+        "deltaB_fraction_flags": 0
+      },
+      "catalog_magnetic_values": {
+        "B_mean": 0.5485908389091492,
+        "B_mean_sq_over_B2_mean": 0.9198185205459595,
+        "B_rms": 0.5720019340515137,
+        "dBB": 0.29524725675582886,
+        "deltaB": 0.16196994483470917,
+        "deltaB_sq_over_B2_mean": 0.08018144965171814
+      },
+      "catalog_parent_link": {
+        "L_sub": 640,
+        "subvolume_id": 732
+      },
+      "catalog_validity_flags": 0,
+      "cube_id": "L320_sub06008",
+      "magnetic_selection_valid": true,
+      "nearest_dBB_selection": null,
+      "observational_control_set": {
+        "interpretation": "separately labeled observational control set",
+        "label": "matched_smoke",
+        "matched_pair_id": 2,
+        "matched_role": "low",
+        "stated_L640_parent_cube_id": "L640_sub00732"
+      },
+      "overlaps_nearest_dBB_lineage": false,
+      "physical_bounds_x1_x2_x3": [
+        [
+          0.25,
+          0.28125
+        ],
+        [
+          0.34375,
+          0.375
+        ],
+        [
+          -0.34375,
+          -0.3125
+        ]
+      ],
+      "required_rank_count": 2,
+      "required_rank_ids": [
+        46358,
+        46359
+      ],
+      "roles": [
+        "phase1_parent_role:matched:2:low",
+        "phase5_fixed_L320_matched_smoke_observational_child",
+        "phase5_observational_control_set:matched_smoke",
+        "phase5_matched_pair:2:low"
+      ],
+      "root_L640_cube_id": "L640_sub00732",
+      "root_phase1_role": "matched:2:low",
+      "selected_parent_link": {
+        "L_sub": 640,
+        "cube_id": "L640_sub00732",
+        "subvolume_id": 732
+      },
+      "selection_method": "fixed_L320_matched_smoke_observational_control",
+      "shape_kji": [
+        320,
+        320,
+        320
+      ],
+      "smoke_anchor": false,
+      "smoke_anchor_role": null,
+      "subvolume_id": 6008
+    },
+    {
+      "L_sub": 320,
+      "bounds_ijk_half_open": [
+        0,
+        320,
+        1280,
+        1600,
+        320,
+        640
+      ],
+      "catalog_controls": {
+        "B_rms": 0.38683030009269714,
+        "deltaB": 0.28772908449172974,
+        "dens_mean": 1.0464693307876587,
+        "mom1_sigma": 0.15667958557605743,
+        "mom2_sigma": 0.12309612333774567,
+        "mom3_sigma": 0.1935187131166458,
+        "rho_sigma_over_mean": 0.054192982614040375
+      },
+      "catalog_magnetic_flags": {
+        "B_mean_fraction_flags": 0,
+        "dBB_flags": 0,
+        "deltaB_flags": 0,
+        "deltaB_fraction_flags": 0
+      },
+      "catalog_magnetic_values": {
+        "B_mean": 0.2585529685020447,
+        "B_mean_sq_over_B2_mean": 0.4467434287071228,
+        "B_rms": 0.38683030009269714,
+        "dBB": 1.1128437519073486,
+        "deltaB": 0.28772908449172974,
+        "deltaB_sq_over_B2_mean": 0.5532565712928772
+      },
+      "catalog_parent_link": {
+        "L_sub": 640,
+        "subvolume_id": 32
+      },
+      "catalog_validity_flags": 0,
+      "cube_id": "L320_sub01152",
+      "magnetic_selection_valid": true,
+      "nearest_dBB_selection": null,
+      "observational_control_set": {
+        "interpretation": "separately labeled observational control set",
+        "label": "matched_smoke",
+        "matched_pair_id": 2,
+        "matched_role": "high",
+        "stated_L640_parent_cube_id": "L640_sub00032"
+      },
+      "overlaps_nearest_dBB_lineage": false,
+      "physical_bounds_x1_x2_x3": [
+        [
+          -0.5,
+          -0.46875
+        ],
+        [
+          -0.375,
+          -0.34375
+        ],
+        [
+          -0.46875,
+          -0.4375
+        ]
+      ],
+      "required_rank_count": 2,
+      "required_rank_ids": [
+        132,
+        133
+      ],
+      "roles": [
+        "phase1_parent_role:representative:high_dBB",
+        "phase5_fixed_L320_matched_smoke_observational_child",
+        "phase5_observational_control_set:matched_smoke",
+        "phase5_matched_pair:2:high"
+      ],
+      "root_L640_cube_id": "L640_sub00032",
+      "root_phase1_role": "representative:high_dBB",
+      "selected_parent_link": {
+        "L_sub": 640,
+        "cube_id": "L640_sub00032",
+        "subvolume_id": 32
+      },
+      "selection_method": "fixed_L320_matched_smoke_observational_control",
+      "shape_kji": [
+        320,
+        320,
+        320
+      ],
+      "smoke_anchor": false,
+      "smoke_anchor_role": null,
+      "subvolume_id": 1152
+    },
+    {
+      "L_sub": 320,
+      "bounds_ijk_half_open": [
+        1600,
+        1920,
+        8640,
+        8960,
+        7360,
+        7680
+      ],
+      "catalog_controls": {
+        "B_rms": 0.5973615050315857,
+        "deltaB": 0.1712842881679535,
+        "dens_mean": 1.0409257411956787,
+        "mom1_sigma": 0.07860369235277176,
+        "mom2_sigma": 0.07482478022575378,
+        "mom3_sigma": 0.18718044459819794,
+        "rho_sigma_over_mean": 0.07038670778274536
+      },
+      "catalog_magnetic_flags": {
+        "B_mean_fraction_flags": 0,
+        "dBB_flags": 0,
+        "deltaB_flags": 0,
+        "deltaB_fraction_flags": 0
+      },
+      "catalog_magnetic_values": {
+        "B_mean": 0.5722783207893372,
+        "B_mean_sq_over_B2_mean": 0.9177832007408142,
+        "B_rms": 0.5973615050315857,
+        "dBB": 0.29930242896080017,
+        "deltaB": 0.1712842881679535,
+        "deltaB_sq_over_B2_mean": 0.08221679925918579
+      },
+      "catalog_parent_link": {
+        "L_sub": 640,
+        "subvolume_id": 3026
+      },
+      "catalog_validity_flags": 0,
+      "cube_id": "L320_sub24421",
+      "magnetic_selection_valid": true,
+      "nearest_dBB_selection": null,
+      "observational_control_set": {
+        "interpretation": "separately labeled observational control set",
+        "label": "matched_smoke",
+        "matched_pair_id": 3,
+        "matched_role": "low",
+        "stated_L640_parent_cube_id": "L640_sub03026"
+      },
+      "overlaps_nearest_dBB_lineage": false,
+      "physical_bounds_x1_x2_x3": [
+        [
+          -0.34375,
+          -0.3125
+        ],
+        [
+          0.34375,
+          0.375
+        ],
+        [
+          0.21875,
+          0.25
+        ]
+      ],
+      "required_rank_count": 2,
+      "required_rank_ids": [
+        26430,
+        26431
+      ],
+      "roles": [
+        "phase1_parent_role:representative:low_dBB",
+        "phase5_fixed_L320_matched_smoke_observational_child",
+        "phase5_observational_control_set:matched_smoke",
+        "phase5_matched_pair:3:low"
+      ],
+      "root_L640_cube_id": "L640_sub03026",
+      "root_phase1_role": "representative:low_dBB",
+      "selected_parent_link": {
+        "L_sub": 640,
+        "cube_id": "L640_sub03026",
+        "subvolume_id": 3026
+      },
+      "selection_method": "fixed_L320_matched_smoke_observational_control",
+      "shape_kji": [
+        320,
+        320,
+        320
+      ],
+      "smoke_anchor": false,
+      "smoke_anchor_role": null,
+      "subvolume_id": 24421
+    },
+    {
+      "L_sub": 320,
+      "bounds_ijk_half_open": [
+        0,
+        320,
+        8640,
+        8960,
+        4800,
+        5120
+      ],
+      "catalog_controls": {
+        "B_rms": 0.3064585328102112,
+        "deltaB": 0.21528303623199463,
+        "dens_mean": 1.02564537525177,
+        "mom1_sigma": 0.11838383972644806,
+        "mom2_sigma": 0.0842001736164093,
+        "mom3_sigma": 0.13730938732624054,
+        "rho_sigma_over_mean": 0.043662168085575104
+      },
+      "catalog_magnetic_flags": {
+        "B_mean_fraction_flags": 0,
+        "dBB_flags": 0,
+        "deltaB_flags": 0,
+        "deltaB_fraction_flags": 0
+      },
+      "catalog_magnetic_values": {
+        "B_mean": 0.21810558438301086,
+        "B_mean_sq_over_B2_mean": 0.506512463092804,
+        "B_rms": 0.3064585328102112,
+        "dBB": 0.9870587587356567,
+        "deltaB": 0.21528303623199463,
+        "deltaB_sq_over_B2_mean": 0.49348753690719604
+      },
+      "catalog_parent_link": {
+        "L_sub": 640,
+        "subvolume_id": 2000
+      },
+      "catalog_validity_flags": 0,
+      "cube_id": "L320_sub16224",
+      "magnetic_selection_valid": true,
+      "nearest_dBB_selection": null,
+      "observational_control_set": {
+        "interpretation": "separately labeled observational control set",
+        "label": "matched_smoke",
+        "matched_pair_id": 3,
+        "matched_role": "high",
+        "stated_L640_parent_cube_id": "L640_sub02000"
+      },
+      "overlaps_nearest_dBB_lineage": false,
+      "physical_bounds_x1_x2_x3": [
+        [
+          -0.5,
+          -0.46875
+        ],
+        [
+          0.34375,
+          0.375
+        ],
+        [
+          -0.03125,
+          0.0
+        ]
+      ],
+      "required_rank_count": 2,
+      "required_rank_ids": [
+        11574,
+        11575
+      ],
+      "roles": [
+        "phase1_parent_role:matched:2:high",
+        "phase5_fixed_L320_matched_smoke_observational_child",
+        "phase5_observational_control_set:matched_smoke",
+        "phase5_matched_pair:3:high"
+      ],
+      "root_L640_cube_id": "L640_sub02000",
+      "root_phase1_role": "matched:2:high",
+      "selected_parent_link": {
+        "L_sub": 640,
+        "cube_id": "L640_sub02000",
+        "subvolume_id": 2000
+      },
+      "selection_method": "fixed_L320_matched_smoke_observational_control",
+      "shape_kji": [
+        320,
+        320,
+        320
+      ],
+      "smoke_anchor": false,
+      "smoke_anchor_role": null,
+      "subvolume_id": 16224
+    }
+  ],
+  "matched_smoke_nearest_dBB_lineage_overlap_cube_ids": [
+    "L320_sub17363"
+  ],
+  "phase": "phase5_cross_scale_extraction_campaign",
+  "phase4_prerequisite_proof": {
+    "exact_p2_reproduction_gate": {
+      "excluded_metadata": "timing_and_staging_only",
+      "p_value": 2.0,
+      "status": "passed",
+      "verification_mode": "exact_arrays_equal_nan",
+      "verified_group_count": 42
+    },
+    "required_result": "42/42 exact p=2 reproduction groups passed",
+    "retained_repo_artifacts": {
+      "figure_manifest.json": {
+        "repo_relative_path": "figures/phase4_completion_supplement_v2/figure_manifest.json",
+        "sha256": "b2093e759dc6ab3b19069a07676e4abd39e605b69e74d392e7f882704a52ce32"
+      },
+      "phase4_completion_supplement_summary.json": {
+        "repo_relative_path": "figures/phase4_completion_supplement_v2/phase4_completion_supplement_summary.json",
+        "sha256": "80a8ed7d0eb0c27d0e0871b7acb550ba1c5941044688bf320f28152083609c38"
+      }
+    },
+    "status": "passed"
+  },
+  "q_names": [
+    "B",
+    "u"
+  ],
+  "schema_version": 1,
+  "selection_counts_by_scale": {
+    "160": 6,
+    "320": 21,
+    "640": 21,
+    "80": 6
+  },
+  "selection_policy": {
+    "L1280_policy": "not configured; separate explicit approval required before extraction",
+    "L160_L80_policy": "nearest-dBB magnetic-valid recursion for six smoke lineages only",
+    "L320_matched_smoke_policy": "six exact magnetic-valid nested catalog children retained as a separately labeled observational control set; IDs may overlap nearest-dBB lineages but membership remains separately labeled",
+    "L320_policy": "one nearest-dBB magnetic-valid child for every L640 parent",
+    "L640_parent_policy": "exact trusted Phase 1 frozen 21-row pilot",
+    "child_policy": "recursively choose one magnetic-valid child minimizing (absolute child-parent dBB difference, child subvolume ID)",
+    "configured_scales": [
+      640,
+      320,
+      160,
+      80
+    ],
+    "magnetic_validity_policy": {
+      "catalog_validity_flags_recorded_but_not_used": "aggregate flags include unrelated standardized-moment availability",
+      "finite_fields": [
+        "dBB",
+        "B_mean",
+        "deltaB",
+        "B_rms",
+        "B_mean_sq_over_B2_mean",
+        "deltaB_sq_over_B2_mean"
+      ],
+      "require_nonperiodic_catalog_row": true,
+      "zero_flag_fields": [
+        "deltaB_flags",
+        "dBB_flags",
+        "B_mean_fraction_flags",
+        "deltaB_fraction_flags"
+      ]
+    },
+    "prohibited_extraction_scales": [
+      1280
+    ],
+    "selection_set_overlap_policy": "cube IDs must be distinct within each named set; reuse across separately labeled named sets is permitted and recorded"
+  },
+  "selection_set_counts": {
+    "all": {
+      "160": 6,
+      "320": 21,
+      "640": 21,
+      "80": 6
+    },
+    "matched_smoke": {
+      "320": 6
+    },
+    "smoke": {
+      "160": 6,
+      "320": 6,
+      "640": 6,
+      "80": 6
+    }
+  },
+  "selections_by_scale": {
+    "160": [
+      {
+        "L_sub": 160,
+        "bounds_ijk_half_open": [
+          1280,
+          1440,
+          4960,
+          5120,
+          1120,
+          1280
+        ],
+        "catalog_controls": {
+          "B_rms": 0.7645314931869507,
+          "deltaB": 0.222128227353096,
+          "dens_mean": 1.08786940574646,
+          "mom1_sigma": 0.08090858906507492,
+          "mom2_sigma": 0.06002788618206978,
+          "mom3_sigma": 0.06696236878633499,
+          "rho_sigma_over_mean": 0.08843158185482025
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.7315514087677002,
+          "B_mean_sq_over_B2_mean": 0.9155855774879456,
+          "B_rms": 0.7645314931869507,
+          "dBB": 0.3036399483680725,
+          "deltaB": 0.222128227353096,
+          "deltaB_sq_over_B2_mean": 0.08441444486379623
+        },
+        "catalog_parent_link": {
+          "L_sub": 320,
+          "subvolume_id": 3556
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L160_sub30664",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.010919749736785889,
+          "reference_parent_cube_id": "L320_sub03556",
+          "reference_parent_dBB": 0.3145596981048584,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.375,
+            -0.359375
+          ],
+          [
+            -0.015625,
+            0.0
+          ],
+          [
+            -0.390625,
+            -0.375
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          1718
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:low_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00370",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": {
+          "L_sub": 320,
+          "cube_id": "L320_sub03556",
+          "subvolume_id": 3556
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          160,
+          160,
+          160
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "low_dBB",
+        "subvolume_id": 30664
+      },
+      {
+        "L_sub": 160,
+        "bounds_ijk_half_open": [
+          3840,
+          4000,
+          4160,
+          4320,
+          9760,
+          9920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.8649612665176392,
+          "deltaB": 0.4367518723011017,
+          "dens_mean": 1.209586501121521,
+          "mom1_sigma": 0.20434774458408356,
+          "mom2_sigma": 0.12611925601959229,
+          "mom3_sigma": 0.16508415341377258,
+          "rho_sigma_over_mean": 0.15971113741397858
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.7465961575508118,
+          "B_mean_sq_over_B2_mean": 0.7450375556945801,
+          "B_rms": 0.8649612665176392,
+          "dBB": 0.5849907994270325,
+          "deltaB": 0.4367518723011017,
+          "deltaB_sq_over_B2_mean": 0.2549624443054199
+        },
+        "catalog_parent_link": {
+          "L_sub": 320,
+          "subvolume_id": 31148
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L160_sub251544",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.056150853633880615,
+          "reference_parent_cube_id": "L320_sub31148",
+          "reference_parent_dBB": 0.6411416530609131,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.109375
+          ],
+          [
+            -0.09375,
+            -0.078125
+          ],
+          [
+            0.453125,
+            0.46875
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          24482
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:median_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub03942",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": {
+          "L_sub": 320,
+          "cube_id": "L320_sub31148",
+          "subvolume_id": 31148
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          160,
+          160,
+          160
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "median_dBB",
+        "subvolume_id": 251544
+      },
+      {
+        "L_sub": 160,
+        "bounds_ijk_half_open": [
+          2080,
+          2240,
+          2560,
+          2720,
+          1760,
+          1920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.528912365436554,
+          "deltaB": 0.38229283690452576,
+          "dens_mean": 1.210317850112915,
+          "mom1_sigma": 0.10116918385028839,
+          "mom2_sigma": 0.16413924098014832,
+          "mom3_sigma": 0.20852820575237274,
+          "rho_sigma_over_mean": 0.09263499826192856
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.36551395058631897,
+          "B_mean_sq_over_B2_mean": 0.47757378220558167,
+          "B_rms": 0.528912365436554,
+          "dBB": 1.0459049940109253,
+          "deltaB": 0.38229283690452576,
+          "deltaB_sq_over_B2_mean": 0.522426187992096
+        },
+        "catalog_parent_link": {
+          "L_sub": 320,
+          "subvolume_id": 5382
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L160_sub46093",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.13216519355773926,
+          "reference_parent_cube_id": "L320_sub05382",
+          "reference_parent_dBB": 1.1780701875686646,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.296875,
+            -0.28125
+          ],
+          [
+            -0.25,
+            -0.234375
+          ],
+          [
+            -0.328125,
+            -0.3125
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          1861
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:high_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00579",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": {
+          "L_sub": 320,
+          "cube_id": "L320_sub05382",
+          "subvolume_id": 5382
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          160,
+          160,
+          160
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "high_dBB",
+        "subvolume_id": 46093
+      },
+      {
+        "L_sub": 160,
+        "bounds_ijk_half_open": [
+          1600,
+          1760,
+          9280,
+          9440,
+          1440,
+          1600
+        ],
+        "catalog_controls": {
+          "B_rms": 0.8049004673957825,
+          "deltaB": 0.7986840605735779,
+          "dens_mean": 1.050658106803894,
+          "mom1_sigma": 0.23021137714385986,
+          "mom2_sigma": 0.13782820105552673,
+          "mom3_sigma": 0.31552374362945557,
+          "rho_sigma_over_mean": 0.15168771147727966
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.09984280914068222,
+          "B_mean_sq_over_B2_mean": 0.015386832877993584,
+          "B_rms": 0.8049004673957825,
+          "dBB": 7.999414443969727,
+          "deltaB": 0.7986840605735779,
+          "deltaB_sq_over_B2_mean": 0.9846131801605225
+        },
+        "catalog_parent_link": {
+          "L_sub": 320,
+          "subvolume_id": 5029
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L160_sub40586",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 1.3613529205322266,
+          "reference_parent_cube_id": "L320_sub05029",
+          "reference_parent_dBB": 6.6380615234375,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.34375,
+            -0.328125
+          ],
+          [
+            0.40625,
+            0.421875
+          ],
+          [
+            -0.359375,
+            -0.34375
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          10122
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:small_B_mean",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:small_B_mean_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub00738",
+        "root_phase1_role": "outlier:small_B_mean",
+        "selected_parent_link": {
+          "L_sub": 320,
+          "cube_id": "L320_sub05029",
+          "subvolume_id": 5029
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          160,
+          160,
+          160
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "small_B_mean_outlier",
+        "subvolume_id": 40586
+      },
+      {
+        "L_sub": 160,
+        "bounds_ijk_half_open": [
+          4480,
+          4640,
+          2080,
+          2240,
+          4000,
+          4160
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5718703269958496,
+          "deltaB": 0.4892733693122864,
+          "dens_mean": 1.4019380807876587,
+          "mom1_sigma": 0.3570985794067383,
+          "mom2_sigma": 0.4134870171546936,
+          "mom3_sigma": 0.16974784433841705,
+          "rho_sigma_over_mean": 0.087832972407341
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.2960526943206787,
+          "B_mean_sq_over_B2_mean": 0.26800504326820374,
+          "B_rms": 0.5718703269958496,
+          "dBB": 1.6526564359664917,
+          "deltaB": 0.4892733693122864,
+          "deltaB_sq_over_B2_mean": 0.7319949865341187
+        },
+        "catalog_parent_link": {
+          "L_sub": 320,
+          "subvolume_id": 12494
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L160_sub103260",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.8263276815414429,
+          "reference_parent_cube_id": "L320_sub12494",
+          "reference_parent_dBB": 2.4789841175079346,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.0625,
+            -0.046875
+          ],
+          [
+            -0.296875,
+            -0.28125
+          ],
+          [
+            -0.109375,
+            -0.09375
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          7120
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_deltaB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:large_deltaB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01591",
+        "root_phase1_role": "outlier:large_deltaB",
+        "selected_parent_link": {
+          "L_sub": 320,
+          "cube_id": "L320_sub12494",
+          "subvolume_id": 12494
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          160,
+          160,
+          160
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_deltaB_outlier",
+        "subvolume_id": 103260
+      },
+      {
+        "L_sub": 160,
+        "bounds_ijk_half_open": [
+          1920,
+          2080,
+          4640,
+          4800,
+          4160,
+          4320
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4934482276439667,
+          "deltaB": 0.4926442801952362,
+          "dens_mean": 1.0205124616622925,
+          "mom1_sigma": 0.16523776948451996,
+          "mom2_sigma": 0.11425916105508804,
+          "mom3_sigma": 0.18850451707839966,
+          "rho_sigma_over_mean": 0.09414685517549515
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.02815636619925499,
+          "B_mean_sq_over_B2_mean": 0.00325589207932353,
+          "B_rms": 0.4934482276439667,
+          "dBB": 17.496726989746094,
+          "deltaB": 0.4926442801952362,
+          "deltaB_sq_over_B2_mean": 0.9967440962791443
+        },
+        "catalog_parent_link": {
+          "L_sub": 320,
+          "subvolume_id": 13766
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L160_sub108364",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 12.189981460571289,
+          "reference_parent_cube_id": "L320_sub13766",
+          "reference_parent_dBB": 29.686708450317383,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.3125,
+            -0.296875
+          ],
+          [
+            -0.046875,
+            -0.03125
+          ],
+          [
+            -0.09375,
+            -0.078125
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          4052
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:large_dBB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01651",
+        "root_phase1_role": "outlier:large_dBB",
+        "selected_parent_link": {
+          "L_sub": 320,
+          "cube_id": "L320_sub13766",
+          "subvolume_id": 13766
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          160,
+          160,
+          160
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_dBB_outlier",
+        "subvolume_id": 108364
+      }
+    ],
+    "320": [
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          1280,
+          1600,
+          4800,
+          5120,
+          960,
+          1280
+        ],
+        "catalog_controls": {
+          "B_rms": 0.7906666398048401,
+          "deltaB": 0.23725095391273499,
+          "dens_mean": 1.0790568590164185,
+          "mom1_sigma": 0.11107595264911652,
+          "mom2_sigma": 0.05810115113854408,
+          "mom3_sigma": 0.16598831117153168,
+          "rho_sigma_over_mean": 0.09634492546319962
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.754231870174408,
+          "B_mean_sq_over_B2_mean": 0.9099613428115845,
+          "B_rms": 0.7906666398048401,
+          "dBB": 0.3145596981048584,
+          "deltaB": 0.23725095391273499,
+          "deltaB_sq_over_B2_mean": 0.09003867954015732
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 370
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub03556",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.05729871988296509,
+          "reference_parent_cube_id": "L640_sub00370",
+          "reference_parent_dBB": 0.3718584179878235,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.375,
+            -0.34375
+          ],
+          [
+            -0.03125,
+            0.0
+          ],
+          [
+            -0.40625,
+            -0.375
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          1718,
+          1719
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:low_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00370",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub00370",
+          "subvolume_id": 370
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "low_dBB",
+        "subvolume_id": 3556
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          3840,
+          4160,
+          320,
+          640,
+          7040,
+          7360
+        ],
+        "catalog_controls": {
+          "B_rms": 0.9284386038780212,
+          "deltaB": 0.30917009711265564,
+          "dens_mean": 1.0702276229858398,
+          "mom1_sigma": 0.08574358373880386,
+          "mom2_sigma": 0.16754961013793945,
+          "mom3_sigma": 0.1494908332824707,
+          "rho_sigma_over_mean": 0.10400447249412537
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.8754496574401855,
+          "B_mean_sq_over_B2_mean": 0.8891109824180603,
+          "B_rms": 0.9284386038780212,
+          "dBB": 0.3531557619571686,
+          "deltaB": 0.30917009711265564,
+          "deltaB_sq_over_B2_mean": 0.1108890250325203
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 2822
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub22572",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.01893824338912964,
+          "reference_parent_cube_id": "L640_sub02822",
+          "reference_parent_dBB": 0.3720940053462982,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.09375
+          ],
+          [
+            -0.46875,
+            -0.4375
+          ],
+          [
+            0.1875,
+            0.21875
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          21282,
+          21283
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub02822",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub02822",
+          "subvolume_id": 2822
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 22572
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          1280,
+          1600,
+          8640,
+          8960,
+          7360,
+          7680
+        ],
+        "catalog_controls": {
+          "B_rms": 0.6920029520988464,
+          "deltaB": 0.22827111184597015,
+          "dens_mean": 0.9938522577285767,
+          "mom1_sigma": 0.054987840354442596,
+          "mom2_sigma": 0.0739210844039917,
+          "mom3_sigma": 0.15298433601856232,
+          "rho_sigma_over_mean": 0.11563283205032349
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.6532690525054932,
+          "B_mean_sq_over_B2_mean": 0.8911857008934021,
+          "B_rms": 0.6920029520988464,
+          "dBB": 0.3494289517402649,
+          "deltaB": 0.22827111184597015,
+          "deltaB_sq_over_B2_mean": 0.1088143065571785
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 3026
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub24420",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.022680819034576416,
+          "reference_parent_cube_id": "L640_sub03026",
+          "reference_parent_dBB": 0.3721097707748413,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.375,
+            -0.34375
+          ],
+          [
+            0.34375,
+            0.375
+          ],
+          [
+            0.21875,
+            0.25
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          26422,
+          26423
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub03026",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub03026",
+          "subvolume_id": 3026
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 24420
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          4800,
+          5120,
+          2240,
+          2560,
+          6400,
+          6720
+        ],
+        "catalog_controls": {
+          "B_rms": 0.9791759848594666,
+          "deltaB": 0.31060799956321716,
+          "dens_mean": 0.9837767481803894,
+          "mom1_sigma": 0.18016429245471954,
+          "mom2_sigma": 0.08454158157110214,
+          "mom3_sigma": 0.21982717514038086,
+          "rho_sigma_over_mean": 0.12989239394664764
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.9286054968833923,
+          "B_mean_sq_over_B2_mean": 0.8993754982948303,
+          "B_rms": 0.9791759848594666,
+          "dBB": 0.3344886600971222,
+          "deltaB": 0.31060799956321716,
+          "deltaB_sq_over_B2_mean": 0.10062451660633087
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 2615
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub20719",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.037056535482406616,
+          "reference_parent_cube_id": "L640_sub02615",
+          "reference_parent_dBB": 0.3715451955795288,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.03125,
+            0.0
+          ],
+          [
+            -0.28125,
+            -0.25
+          ],
+          [
+            0.125,
+            0.15625
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          21466,
+          21467
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub02615",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub02615",
+          "subvolume_id": 2615
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 20719
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          3840,
+          4160,
+          4160,
+          4480,
+          9600,
+          9920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.9893820285797119,
+          "deltaB": 0.5340044498443604,
+          "dens_mean": 1.0412107706069946,
+          "mom1_sigma": 0.2190241515636444,
+          "mom2_sigma": 0.13749775290489197,
+          "mom3_sigma": 0.17923188209533691,
+          "rho_sigma_over_mean": 0.2328898310661316
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.8328961730003357,
+          "B_mean_sq_over_B2_mean": 0.7086858153343201,
+          "B_rms": 0.9893820285797119,
+          "dBB": 0.6411416530609131,
+          "deltaB": 0.5340044498443604,
+          "deltaB_sq_over_B2_mean": 0.2913142144680023
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 3942
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub31148",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.05476963520050049,
+          "reference_parent_cube_id": "L640_sub03942",
+          "reference_parent_dBB": 0.6959112882614136,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.09375
+          ],
+          [
+            -0.09375,
+            -0.0625
+          ],
+          [
+            0.4375,
+            0.46875
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          24482,
+          24483
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:median_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub03942",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub03942",
+          "subvolume_id": 3942
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "median_dBB",
+        "subvolume_id": 31148
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          8320,
+          8640,
+          7360,
+          7680,
+          2240,
+          2560
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4683241844177246,
+          "deltaB": 0.27308934926986694,
+          "dens_mean": 1.2222093343734741,
+          "mom1_sigma": 0.23047442734241486,
+          "mom2_sigma": 0.14473463594913483,
+          "mom3_sigma": 0.1636774241924286,
+          "rho_sigma_over_mean": 0.08272673189640045
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.3804599344730377,
+          "B_mean_sq_over_B2_mean": 0.6599707007408142,
+          "B_rms": 0.4683241844177246,
+          "dBB": 0.7177874445915222,
+          "deltaB": 0.27308934926986694,
+          "deltaB_sq_over_B2_mean": 0.3400293290615082
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 957
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub07930",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.021707534790039062,
+          "reference_parent_cube_id": "L640_sub00957",
+          "reference_parent_dBB": 0.6960799098014832,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.3125,
+            0.34375
+          ],
+          [
+            0.21875,
+            0.25
+          ],
+          [
+            -0.28125,
+            -0.25
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          45558,
+          45559
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub00957",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub00957",
+          "subvolume_id": 957
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 7930
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          8000,
+          8320,
+          640,
+          960,
+          8640,
+          8960
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4673851430416107,
+          "deltaB": 0.26598435640335083,
+          "dens_mean": 1.1516642570495605,
+          "mom1_sigma": 0.14451150596141815,
+          "mom2_sigma": 0.10079328715801239,
+          "mom3_sigma": 0.1499151736497879,
+          "rho_sigma_over_mean": 0.05824466422200203
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.38431912660598755,
+          "B_mean_sq_over_B2_mean": 0.6761361956596375,
+          "B_rms": 0.4673851430416107,
+          "dBB": 0.6920924186706543,
+          "deltaB": 0.26598435640335083,
+          "deltaB_sq_over_B2_mean": 0.32386377453804016
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 3356
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub27737",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.004651308059692383,
+          "reference_parent_cube_id": "L640_sub03356",
+          "reference_parent_dBB": 0.6967437267303467,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.28125,
+            0.3125
+          ],
+          [
+            -0.4375,
+            -0.40625
+          ],
+          [
+            0.34375,
+            0.375
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          55356,
+          55357
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub03356",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub03356",
+          "subvolume_id": 3356
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 27737
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          8960,
+          9280,
+          1280,
+          1600,
+          3840,
+          4160
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5166155099868774,
+          "deltaB": 0.3094031810760498,
+          "dens_mean": 1.0784813165664673,
+          "mom1_sigma": 0.1059366762638092,
+          "mom2_sigma": 0.1883123517036438,
+          "mom3_sigma": 0.09899971634149551,
+          "rho_sigma_over_mean": 0.09143027663230896
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.4137164354324341,
+          "B_mean_sq_over_B2_mean": 0.6413138508796692,
+          "B_rms": 0.5166155099868774,
+          "dBB": 0.7478629350662231,
+          "deltaB": 0.3094031810760498,
+          "deltaB_sq_over_B2_mean": 0.3586861491203308
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 1582
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub12444",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.052745938301086426,
+          "reference_parent_cube_id": "L640_sub01582",
+          "reference_parent_dBB": 0.6951169967651367,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.375,
+            0.40625
+          ],
+          [
+            -0.375,
+            -0.34375
+          ],
+          [
+            -0.125,
+            -0.09375
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          39808,
+          39809
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub01582",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub01582",
+          "subvolume_id": 1582
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 12444
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          1920,
+          2240,
+          2560,
+          2880,
+          1600,
+          1920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.37354931235313416,
+          "deltaB": 0.2847840487957001,
+          "dens_mean": 1.2531331777572632,
+          "mom1_sigma": 0.10878398269414902,
+          "mom2_sigma": 0.12847448885440826,
+          "mom3_sigma": 0.1298549324274063,
+          "rho_sigma_over_mean": 0.04929715767502785
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.2417377382516861,
+          "B_mean_sq_over_B2_mean": 0.418786883354187,
+          "B_rms": 0.37354931235313416,
+          "dBB": 1.1780701875686646,
+          "deltaB": 0.2847840487957001,
+          "deltaB_sq_over_B2_mean": 0.581213116645813
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 579
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub05382",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.5366270542144775,
+          "reference_parent_cube_id": "L640_sub00579",
+          "reference_parent_dBB": 1.714697241783142,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.3125,
+            -0.28125
+          ],
+          [
+            -0.25,
+            -0.21875
+          ],
+          [
+            -0.34375,
+            -0.3125
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          1860,
+          1861
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:high_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00579",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub00579",
+          "subvolume_id": 579
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "high_dBB",
+        "subvolume_id": 5382
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          3840,
+          4160,
+          4800,
+          5120,
+          2240,
+          2560
+        ],
+        "catalog_controls": {
+          "B_rms": 0.889336109161377,
+          "deltaB": 0.7568414807319641,
+          "dens_mean": 1.037300944328308,
+          "mom1_sigma": 0.1666678786277771,
+          "mom2_sigma": 0.36261501908302307,
+          "mom3_sigma": 0.12705574929714203,
+          "rho_sigma_over_mean": 0.17190049588680267
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.4670221507549286,
+          "B_mean_sq_over_B2_mean": 0.2757675349712372,
+          "B_rms": 0.889336109161377,
+          "dBB": 1.6205686330795288,
+          "deltaB": 0.7568414807319641,
+          "deltaB_sq_over_B2_mean": 0.7242324948310852
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 886
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub07660",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.09227478504180908,
+          "reference_parent_cube_id": "L640_sub00886",
+          "reference_parent_dBB": 1.712843418121338,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.09375
+          ],
+          [
+            -0.03125,
+            0.0
+          ],
+          [
+            -0.28125,
+            -0.25
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          6070,
+          6071
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub00886",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub00886",
+          "subvolume_id": 886
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 7660
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          320,
+          640,
+          1280,
+          1600,
+          0,
+          320
+        ],
+        "catalog_controls": {
+          "B_rms": 0.42408716678619385,
+          "deltaB": 0.33029255270957947,
+          "dens_mean": 1.104178547859192,
+          "mom1_sigma": 0.11138628423213959,
+          "mom2_sigma": 0.10445687174797058,
+          "mom3_sigma": 0.12080705165863037,
+          "rho_sigma_over_mean": 0.09273711591959
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.266001433134079,
+          "B_mean_sq_over_B2_mean": 0.39342108368873596,
+          "B_rms": 0.42408716678619385,
+          "dBB": 1.241694688796997,
+          "deltaB": 0.33029255270957947,
+          "deltaB_sq_over_B2_mean": 0.6065788865089417
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 32
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub00129",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.4737766981124878,
+          "reference_parent_cube_id": "L640_sub00032",
+          "reference_parent_dBB": 1.7154713869094849,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.46875,
+            -0.4375
+          ],
+          [
+            -0.375,
+            -0.34375
+          ],
+          [
+            -0.5,
+            -0.46875
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          136,
+          137
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub00032",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub00032",
+          "subvolume_id": 32
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 129
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          4800,
+          5120,
+          8960,
+          9280,
+          5120,
+          5440
+        ],
+        "catalog_controls": {
+          "B_rms": 0.6149700284004211,
+          "deltaB": 0.52201247215271,
+          "dens_mean": 1.1301711797714233,
+          "mom1_sigma": 0.14197568595409393,
+          "mom2_sigma": 0.238034188747406,
+          "mom3_sigma": 0.16474014520645142,
+          "rho_sigma_over_mean": 0.09479308873414993
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.32510167360305786,
+          "B_mean_sq_over_B2_mean": 0.27946698665618896,
+          "B_rms": 0.6149700284004211,
+          "dBB": 1.6056898832321167,
+          "deltaB": 0.52201247215271,
+          "deltaB_sq_over_B2_mean": 0.720533013343811
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 2279
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub17295",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.10996925830841064,
+          "reference_parent_cube_id": "L640_sub02279",
+          "reference_parent_dBB": 1.7156591415405273,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.03125,
+            0.0
+          ],
+          [
+            0.375,
+            0.40625
+          ],
+          [
+            0.0,
+            0.03125
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          30408,
+          30409
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub02279",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub02279",
+          "subvolume_id": 2279
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 17295
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          0,
+          320,
+          2560,
+          2880,
+          2560,
+          2880
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5085176229476929,
+          "deltaB": 0.19184167683124542,
+          "dens_mean": 1.0285460948944092,
+          "mom1_sigma": 0.10003648698329926,
+          "mom2_sigma": 0.12414197623729706,
+          "mom3_sigma": 0.09111448377370834,
+          "rho_sigma_over_mean": 0.04580504074692726
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.4709426164627075,
+          "B_mean_sq_over_B2_mean": 0.8576774001121521,
+          "B_rms": 0.5085176229476929,
+          "dBB": 0.40735679864883423,
+          "deltaB": 0.19184167683124542,
+          "deltaB_sq_over_B2_mean": 0.1423226147890091
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 1088
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub08448",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.016565799713134766,
+          "reference_parent_cube_id": "L640_sub01088",
+          "reference_parent_dBB": 0.423922598361969,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.5,
+            -0.46875
+          ],
+          [
+            -0.25,
+            -0.21875
+          ],
+          [
+            -0.25,
+            -0.21875
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          3072,
+          3073
+        ],
+        "roles": [
+          "phase1_parent_role:matched:1:low",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub01088",
+        "root_phase1_role": "matched:1:low",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub01088",
+          "subvolume_id": 1088
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 8448
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          6080,
+          6400,
+          9600,
+          9920,
+          5120,
+          5440
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4280106723308563,
+          "deltaB": 0.31309086084365845,
+          "dens_mean": 1.03854238986969,
+          "mom1_sigma": 0.07215005904436111,
+          "mom2_sigma": 0.09893389791250229,
+          "mom3_sigma": 0.07702904939651489,
+          "rho_sigma_over_mean": 0.04957844316959381
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.2918342649936676,
+          "B_mean_sq_over_B2_mean": 0.46490412950515747,
+          "B_rms": 0.4280106723308563,
+          "dBB": 1.0728378295898438,
+          "deltaB": 0.31309086084365845,
+          "deltaB_sq_over_B2_mean": 0.5350958704948425
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 2297
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub17363",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.1378023624420166,
+          "reference_parent_cube_id": "L640_sub02297",
+          "reference_parent_dBB": 1.2106401920318604,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.09375,
+            0.125
+          ],
+          [
+            0.4375,
+            0.46875
+          ],
+          [
+            0.0,
+            0.03125
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          58584,
+          58585
+        ],
+        "roles": [
+          "phase1_parent_role:matched:1:high",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub02297",
+        "root_phase1_role": "matched:1:high",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub02297",
+          "subvolume_id": 2297
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 17363
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          8000,
+          8320,
+          8640,
+          8960,
+          1600,
+          1920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.543459415435791,
+          "deltaB": 0.20593152940273285,
+          "dens_mean": 1.0284957885742188,
+          "mom1_sigma": 0.20117251574993134,
+          "mom2_sigma": 0.1028219610452652,
+          "mom3_sigma": 0.22415658831596375,
+          "rho_sigma_over_mean": 0.055420488119125366
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.5029317736625671,
+          "B_mean_sq_over_B2_mean": 0.8564141988754272,
+          "B_rms": 0.543459415435791,
+          "dBB": 0.4094621539115906,
+          "deltaB": 0.20593152940273285,
+          "deltaB_sq_over_B2_mean": 0.14358577132225037
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 732
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub06009",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.0054115355014801025,
+          "reference_parent_cube_id": "L640_sub00732",
+          "reference_parent_dBB": 0.4040506184101105,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.28125,
+            0.3125
+          ],
+          [
+            0.34375,
+            0.375
+          ],
+          [
+            -0.34375,
+            -0.3125
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          46366,
+          46367
+        ],
+        "roles": [
+          "phase1_parent_role:matched:2:low",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub00732",
+        "root_phase1_role": "matched:2:low",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub00732",
+          "subvolume_id": 732
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 6009
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          320,
+          640,
+          8640,
+          8960,
+          4800,
+          5120
+        ],
+        "catalog_controls": {
+          "B_rms": 0.22129292786121368,
+          "deltaB": 0.18156461417675018,
+          "dens_mean": 1.032251238822937,
+          "mom1_sigma": 0.11508306860923767,
+          "mom2_sigma": 0.08534880727529526,
+          "mom3_sigma": 0.11685333400964737,
+          "rho_sigma_over_mean": 0.030909579247236252
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.12651026248931885,
+          "B_mean_sq_over_B2_mean": 0.326825886964798,
+          "B_rms": 0.22129292786121368,
+          "dBB": 1.4351770877838135,
+          "deltaB": 0.18156461417675018,
+          "deltaB_sq_over_B2_mean": 0.6731740832328796
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 2000
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub16225",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.078125,
+          "reference_parent_cube_id": "L640_sub02000",
+          "reference_parent_dBB": 1.3570520877838135,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.46875,
+            -0.4375
+          ],
+          [
+            0.34375,
+            0.375
+          ],
+          [
+            -0.03125,
+            0.0
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          11582,
+          11583
+        ],
+        "roles": [
+          "phase1_parent_role:matched:2:high",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub02000",
+        "root_phase1_role": "matched:2:high",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub02000",
+          "subvolume_id": 2000
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 16225
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          6400,
+          6720,
+          1600,
+          1920,
+          6400,
+          6720
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5652137398719788,
+          "deltaB": 0.21536768972873688,
+          "dens_mean": 1.0490026473999023,
+          "mom1_sigma": 0.0395931713283062,
+          "mom2_sigma": 0.21354401111602783,
+          "mom3_sigma": 0.12019259482622147,
+          "rho_sigma_over_mean": 0.041961297392845154
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.5225737690925598,
+          "B_mean_sq_over_B2_mean": 0.854810357093811,
+          "B_rms": 0.5652137398719788,
+          "dBB": 0.4121287763118744,
+          "deltaB": 0.21536768972873688,
+          "deltaB_sq_over_B2_mean": 0.14518964290618896
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 2602
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub20660",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.029372721910476685,
+          "reference_parent_cube_id": "L640_sub02602",
+          "reference_parent_dBB": 0.4415014982223511,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.125,
+            0.15625
+          ],
+          [
+            -0.34375,
+            -0.3125
+          ],
+          [
+            0.125,
+            0.15625
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          50050,
+          50051
+        ],
+        "roles": [
+          "phase1_parent_role:matched:3:low",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub02602",
+        "root_phase1_role": "matched:3:low",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub02602",
+          "subvolume_id": 2602
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 20660
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          6080,
+          6400,
+          7680,
+          8000,
+          5440,
+          5760
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4477357864379883,
+          "deltaB": 0.33664679527282715,
+          "dens_mean": 1.0863107442855835,
+          "mom1_sigma": 0.13135847449302673,
+          "mom2_sigma": 0.18401364982128143,
+          "mom3_sigma": 0.12759889662265778,
+          "rho_sigma_over_mean": 0.04875118285417557
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.2951885461807251,
+          "B_mean_sq_over_B2_mean": 0.4346656799316406,
+          "B_rms": 0.4477357864379883,
+          "dBB": 1.1404467821121216,
+          "deltaB": 0.33664679527282715,
+          "deltaB_sq_over_B2_mean": 0.5653343200683594
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 2249
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub18195",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.08980441093444824,
+          "reference_parent_cube_id": "L640_sub02249",
+          "reference_parent_dBB": 1.2302511930465698,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.09375,
+            0.125
+          ],
+          [
+            0.25,
+            0.28125
+          ],
+          [
+            0.03125,
+            0.0625
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          58444,
+          58445
+        ],
+        "roles": [
+          "phase1_parent_role:matched:3:high",
+          "phase5_nearest_dBB_child"
+        ],
+        "root_L640_cube_id": "L640_sub02249",
+        "root_phase1_role": "matched:3:high",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub02249",
+          "subvolume_id": 2249
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 18195
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          1600,
+          1920,
+          9280,
+          9600,
+          1280,
+          1600
+        ],
+        "catalog_controls": {
+          "B_rms": 0.8389021158218384,
+          "deltaB": 0.8295419812202454,
+          "dens_mean": 1.0270205736160278,
+          "mom1_sigma": 0.24852488934993744,
+          "mom2_sigma": 0.1881992667913437,
+          "mom3_sigma": 0.28504377603530884,
+          "rho_sigma_over_mean": 0.20250220596790314
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.12496750056743622,
+          "B_mean_sq_over_B2_mean": 0.022190729156136513,
+          "B_rms": 0.8389021158218384,
+          "dBB": 6.6380615234375,
+          "deltaB": 0.8295419812202454,
+          "deltaB_sq_over_B2_mean": 0.9778092503547668
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 738
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub05029",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 38.08767318725586,
+          "reference_parent_cube_id": "L640_sub00738",
+          "reference_parent_dBB": 44.72573471069336,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.34375,
+            -0.3125
+          ],
+          [
+            0.40625,
+            0.4375
+          ],
+          [
+            -0.375,
+            -0.34375
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          10122,
+          10123
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:small_B_mean",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:small_B_mean_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub00738",
+        "root_phase1_role": "outlier:small_B_mean",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub00738",
+          "subvolume_id": 738
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "small_B_mean_outlier",
+        "subvolume_id": 5029
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          4480,
+          4800,
+          1920,
+          2240,
+          3840,
+          4160
+        ],
+        "catalog_controls": {
+          "B_rms": 1.0584261417388916,
+          "deltaB": 0.9815719723701477,
+          "dens_mean": 1.1610263586044312,
+          "mom1_sigma": 0.3203202486038208,
+          "mom2_sigma": 0.33337393403053284,
+          "mom3_sigma": 0.15232950448989868,
+          "rho_sigma_over_mean": 0.28553640842437744
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.395957350730896,
+          "B_mean_sq_over_B2_mean": 0.1399509161710739,
+          "B_rms": 1.0584261417388916,
+          "dBB": 2.4789841175079346,
+          "deltaB": 0.9815719723701477,
+          "deltaB_sq_over_B2_mean": 0.8600490689277649
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 1591
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub12494",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.48295342922210693,
+          "reference_parent_cube_id": "L640_sub01591",
+          "reference_parent_dBB": 1.9960306882858276,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.0625,
+            -0.03125
+          ],
+          [
+            -0.3125,
+            -0.28125
+          ],
+          [
+            -0.125,
+            -0.09375
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          7120,
+          7121
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_deltaB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:large_deltaB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01591",
+        "root_phase1_role": "outlier:large_deltaB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub01591",
+          "subvolume_id": 1591
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_deltaB_outlier",
+        "subvolume_id": 12494
+      },
+      {
+        "L_sub": 320,
+        "bounds_ijk_half_open": [
+          1920,
+          2240,
+          4480,
+          4800,
+          4160,
+          4480
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5378048419952393,
+          "deltaB": 0.5374999642372131,
+          "dens_mean": 1.0146313905715942,
+          "mom1_sigma": 0.1546938121318817,
+          "mom2_sigma": 0.2474895566701889,
+          "mom3_sigma": 0.2560942471027374,
+          "rho_sigma_over_mean": 0.12914979457855225
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.01810574345290661,
+          "B_mean_sq_over_B2_mean": 0.0011334004811942577,
+          "B_rms": 0.5378048419952393,
+          "dBB": 29.686708450317383,
+          "deltaB": 0.5374999642372131,
+          "deltaB_sq_over_B2_mean": 0.998866617679596
+        },
+        "catalog_parent_link": {
+          "L_sub": 640,
+          "subvolume_id": 1651
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L320_sub13766",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 10.799095153808594,
+          "reference_parent_cube_id": "L640_sub01651",
+          "reference_parent_dBB": 18.88761329650879,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.3125,
+            -0.28125
+          ],
+          [
+            -0.0625,
+            -0.03125
+          ],
+          [
+            -0.09375,
+            -0.0625
+          ]
+        ],
+        "required_rank_count": 2,
+        "required_rank_ids": [
+          4052,
+          4053
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:large_dBB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01651",
+        "root_phase1_role": "outlier:large_dBB",
+        "selected_parent_link": {
+          "L_sub": 640,
+          "cube_id": "L640_sub01651",
+          "subvolume_id": 1651
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          320,
+          320,
+          320
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_dBB_outlier",
+        "subvolume_id": 13766
+      }
+    ],
+    "640": [
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          1280,
+          1920,
+          4480,
+          5120,
+          640,
+          1280
+        ],
+        "catalog_controls": {
+          "B_rms": 0.9811071157455444,
+          "deltaB": 0.34195560216903687,
+          "dens_mean": 0.9365850687026978,
+          "mom1_sigma": 0.18022432923316956,
+          "mom2_sigma": 0.13022592663764954,
+          "mom3_sigma": 0.18045547604560852,
+          "rho_sigma_over_mean": 0.16438300907611847
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.9195855259895325,
+          "B_mean_sq_over_B2_mean": 0.8785194754600525,
+          "B_rms": 0.9811071157455444,
+          "dBB": 0.3718584179878235,
+          "deltaB": 0.34195560216903687,
+          "deltaB_sq_over_B2_mean": 0.12148050963878632
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 25
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub00370",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.375,
+            -0.3125
+          ],
+          [
+            -0.0625,
+            0.0
+          ],
+          [
+            -0.4375,
+            -0.375
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          1712,
+          1713,
+          1714,
+          1715,
+          1716,
+          1717,
+          1718,
+          1719,
+          1720,
+          1721,
+          1722,
+          1723,
+          1724,
+          1725,
+          1726,
+          1727
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_l640_parent",
+          "phase5_smoke_anchor:low_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00370",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "low_dBB",
+        "subvolume_id": 370
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          3840,
+          4480,
+          0,
+          640,
+          7040,
+          7680
+        ],
+        "catalog_controls": {
+          "B_rms": 0.9393259882926941,
+          "deltaB": 0.3275754153728485,
+          "dens_mean": 1.050700068473816,
+          "mom1_sigma": 0.10846377909183502,
+          "mom2_sigma": 0.16634361445903778,
+          "mom3_sigma": 0.1480109989643097,
+          "rho_sigma_over_mean": 0.12780240178108215
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.8803566098213196,
+          "B_mean_sq_over_B2_mean": 0.8783842325210571,
+          "B_rms": 0.9393259882926941,
+          "dBB": 0.3720940053462982,
+          "deltaB": 0.3275754153728485,
+          "deltaB_sq_over_B2_mean": 0.12161577492952347
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 323
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub02822",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.0625
+          ],
+          [
+            -0.5,
+            -0.4375
+          ],
+          [
+            0.1875,
+            0.25
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          21280,
+          21281,
+          21282,
+          21283,
+          21284,
+          21285,
+          21286,
+          21287,
+          21288,
+          21289,
+          21290,
+          21291,
+          21292,
+          21293,
+          21294,
+          21295
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub02822",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 2822
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          1280,
+          1920,
+          8320,
+          8960,
+          7040,
+          7680
+        ],
+        "catalog_controls": {
+          "B_rms": 0.8049283027648926,
+          "deltaB": 0.28071674704551697,
+          "dens_mean": 0.8908341526985168,
+          "mom1_sigma": 0.10334846377372742,
+          "mom2_sigma": 0.09865115582942963,
+          "mom3_sigma": 0.24313366413116455,
+          "rho_sigma_over_mean": 0.18465198576450348
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.7543922662734985,
+          "B_mean_sq_over_B2_mean": 0.8783751726150513,
+          "B_rms": 0.8049283027648926,
+          "dBB": 0.3721097707748413,
+          "deltaB": 0.28071674704551697,
+          "deltaB_sq_over_B2_mean": 0.12162481993436813
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 369
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub03026",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.375,
+            -0.3125
+          ],
+          [
+            0.3125,
+            0.375
+          ],
+          [
+            0.1875,
+            0.25
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          26416,
+          26417,
+          26418,
+          26419,
+          26420,
+          26421,
+          26422,
+          26423,
+          26424,
+          26425,
+          26426,
+          26427,
+          26428,
+          26429,
+          26430,
+          26431
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub03026",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 3026
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          4480,
+          5120,
+          1920,
+          2560,
+          6400,
+          7040
+        ],
+        "catalog_controls": {
+          "B_rms": 0.9567976593971252,
+          "deltaB": 0.3332359492778778,
+          "dens_mean": 1.0075206756591797,
+          "mom1_sigma": 0.1913989782333374,
+          "mom2_sigma": 0.10423581302165985,
+          "mom3_sigma": 0.17464305460453033,
+          "rho_sigma_over_mean": 0.13164053857326508
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.8968921303749084,
+          "B_mean_sq_over_B2_mean": 0.8786992430686951,
+          "B_rms": 0.9567976593971252,
+          "dBB": 0.3715451955795288,
+          "deltaB": 0.3332359492778778,
+          "deltaB_sq_over_B2_mean": 0.12130076438188553
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 331
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub02615",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.0625,
+            0.0
+          ],
+          [
+            -0.3125,
+            -0.25
+          ],
+          [
+            0.125,
+            0.1875
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          21456,
+          21457,
+          21458,
+          21459,
+          21460,
+          21461,
+          21462,
+          21463,
+          21464,
+          21465,
+          21466,
+          21467,
+          21468,
+          21469,
+          21470,
+          21471
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub02615",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 2615
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          3840,
+          4480,
+          3840,
+          4480,
+          9600,
+          10240
+        ],
+        "catalog_controls": {
+          "B_rms": 0.9101175665855408,
+          "deltaB": 0.5198662877082825,
+          "dens_mean": 1.0640382766723633,
+          "mom1_sigma": 0.2230682522058487,
+          "mom2_sigma": 0.14466166496276855,
+          "mom3_sigma": 0.1534462422132492,
+          "rho_sigma_over_mean": 0.23235443234443665
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.7470294833183289,
+          "B_mean_sq_over_B2_mean": 0.6737216114997864,
+          "B_rms": 0.9101175665855408,
+          "dBB": 0.6959112882614136,
+          "deltaB": 0.5198662877082825,
+          "deltaB_sq_over_B2_mean": 0.32627835869789124
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 475
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub03942",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.0625
+          ],
+          [
+            -0.125,
+            -0.0625
+          ],
+          [
+            0.4375,
+            0.5
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          24480,
+          24481,
+          24482,
+          24483,
+          24484,
+          24485,
+          24486,
+          24487,
+          24488,
+          24489,
+          24490,
+          24491,
+          24492,
+          24493,
+          24494,
+          24495
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_l640_parent",
+          "phase5_smoke_anchor:median_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub03942",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "median_dBB",
+        "subvolume_id": 3942
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          8320,
+          8960,
+          7040,
+          7680,
+          1920,
+          2560
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5912054181098938,
+          "deltaB": 0.33775627613067627,
+          "dens_mean": 1.133244276046753,
+          "mom1_sigma": 0.23066763579845428,
+          "mom2_sigma": 0.2056780904531479,
+          "mom3_sigma": 0.21709735691547394,
+          "rho_sigma_over_mean": 0.09844134747982025
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.4852263033390045,
+          "B_mean_sq_over_B2_mean": 0.6736151576042175,
+          "B_rms": 0.5912054181098938,
+          "dBB": 0.6960799098014832,
+          "deltaB": 0.33775627613067627,
+          "deltaB_sq_over_B2_mean": 0.32638487219810486
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 110
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub00957",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.3125,
+            0.375
+          ],
+          [
+            0.1875,
+            0.25
+          ],
+          [
+            -0.3125,
+            -0.25
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          45552,
+          45553,
+          45554,
+          45555,
+          45556,
+          45557,
+          45558,
+          45559,
+          45560,
+          45561,
+          45562,
+          45563,
+          45564,
+          45565,
+          45566,
+          45567
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub00957",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 957
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          7680,
+          8320,
+          640,
+          1280,
+          8320,
+          8960
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5758237242698669,
+          "deltaB": 0.32917991280555725,
+          "dens_mean": 1.1236618757247925,
+          "mom1_sigma": 0.25006625056266785,
+          "mom2_sigma": 0.1410924196243286,
+          "mom3_sigma": 0.17700131237506866,
+          "rho_sigma_over_mean": 0.10483154654502869
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.4724547863006592,
+          "B_mean_sq_over_B2_mean": 0.6731958389282227,
+          "B_rms": 0.5758237242698669,
+          "dBB": 0.6967437267303467,
+          "deltaB": 0.32917991280555725,
+          "deltaB_sq_over_B2_mean": 0.32680416107177734
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 390
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub03356",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.25,
+            0.3125
+          ],
+          [
+            -0.4375,
+            -0.375
+          ],
+          [
+            0.3125,
+            0.375
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          55344,
+          55345,
+          55346,
+          55347,
+          55348,
+          55349,
+          55350,
+          55351,
+          55352,
+          55353,
+          55354,
+          55355,
+          55356,
+          55357,
+          55358,
+          55359
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub03356",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 3356
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          8960,
+          9600,
+          1280,
+          1920,
+          3840,
+          4480
+        ],
+        "catalog_controls": {
+          "B_rms": 0.6645848751068115,
+          "deltaB": 0.3793240189552307,
+          "dens_mean": 1.0144845247268677,
+          "mom1_sigma": 0.16921137273311615,
+          "mom2_sigma": 0.21397092938423157,
+          "mom3_sigma": 0.1442583203315735,
+          "rho_sigma_over_mean": 0.12990304827690125
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.5456980466842651,
+          "B_mean_sq_over_B2_mean": 0.6742235422134399,
+          "B_rms": 0.6645848751068115,
+          "dBB": 0.6951169967651367,
+          "deltaB": 0.3793240189552307,
+          "deltaB_sq_over_B2_mean": 0.32577648758888245
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 207
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub01582",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.375,
+            0.4375
+          ],
+          [
+            -0.375,
+            -0.3125
+          ],
+          [
+            -0.125,
+            -0.0625
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          39808,
+          39809,
+          39810,
+          39811,
+          39812,
+          39813,
+          39814,
+          39815,
+          39816,
+          39817,
+          39818,
+          39819,
+          39820,
+          39821,
+          39822,
+          39823
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub01582",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 1582
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          1920,
+          2560,
+          2560,
+          3200,
+          1280,
+          1920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.49475541710853577,
+          "deltaB": 0.4273853302001953,
+          "dens_mean": 1.2022169828414917,
+          "mom1_sigma": 0.18858025968074799,
+          "mom2_sigma": 0.19520974159240723,
+          "mom3_sigma": 0.18306908011436462,
+          "rho_sigma_over_mean": 0.07937686890363693
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.24924826622009277,
+          "B_mean_sq_over_B2_mean": 0.2537950873374939,
+          "B_rms": 0.49475541710853577,
+          "dBB": 1.714697241783142,
+          "deltaB": 0.4273853302001953,
+          "deltaB_sq_over_B2_mean": 0.7462049126625061
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 81
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub00579",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.3125,
+            -0.25
+          ],
+          [
+            -0.25,
+            -0.1875
+          ],
+          [
+            -0.375,
+            -0.3125
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          1856,
+          1857,
+          1858,
+          1859,
+          1860,
+          1861,
+          1862,
+          1863,
+          1864,
+          1865,
+          1866,
+          1867,
+          1868,
+          1869,
+          1870,
+          1871
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_l640_parent",
+          "phase5_smoke_anchor:high_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00579",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "high_dBB",
+        "subvolume_id": 579
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          3840,
+          4480,
+          4480,
+          5120,
+          1920,
+          2560
+        ],
+        "catalog_controls": {
+          "B_rms": 0.719606339931488,
+          "deltaB": 0.6214479207992554,
+          "dens_mean": 1.0975251197814941,
+          "mom1_sigma": 0.18859577178955078,
+          "mom2_sigma": 0.38082143664360046,
+          "mom3_sigma": 0.15190888941287994,
+          "rho_sigma_over_mean": 0.15052080154418945
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.36281654238700867,
+          "B_mean_sq_over_B2_mean": 0.25420501828193665,
+          "B_rms": 0.719606339931488,
+          "dBB": 1.712843418121338,
+          "deltaB": 0.6214479207992554,
+          "deltaB_sq_over_B2_mean": 0.745794951915741
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 91
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub00886",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.0625
+          ],
+          [
+            -0.0625,
+            0.0
+          ],
+          [
+            -0.3125,
+            -0.25
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          6064,
+          6065,
+          6066,
+          6067,
+          6068,
+          6069,
+          6070,
+          6071,
+          6072,
+          6073,
+          6074,
+          6075,
+          6076,
+          6077,
+          6078,
+          6079
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub00886",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 886
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          0,
+          640,
+          1280,
+          1920,
+          0,
+          640
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4589252173900604,
+          "deltaB": 0.39647945761680603,
+          "dens_mean": 1.0895254611968994,
+          "mom1_sigma": 0.17433974146842957,
+          "mom2_sigma": 0.19199949502944946,
+          "mom3_sigma": 0.22078479826450348,
+          "rho_sigma_over_mean": 0.10745801031589508
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.23111984133720398,
+          "B_mean_sq_over_B2_mean": 0.2536241412162781,
+          "B_rms": 0.4589252173900604,
+          "dBB": 1.7154713869094849,
+          "deltaB": 0.39647945761680603,
+          "deltaB_sq_over_B2_mean": 0.7463758587837219
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 8
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub00032",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.5,
+            -0.4375
+          ],
+          [
+            -0.375,
+            -0.3125
+          ],
+          [
+            -0.5,
+            -0.4375
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          128,
+          129,
+          130,
+          131,
+          132,
+          133,
+          134,
+          135,
+          136,
+          137,
+          138,
+          139,
+          140,
+          141,
+          142,
+          143
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub00032",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 32
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          4480,
+          5120,
+          8960,
+          9600,
+          5120,
+          5760
+        ],
+        "catalog_controls": {
+          "B_rms": 0.6457625031471252,
+          "deltaB": 0.557909369468689,
+          "dens_mean": 1.1011723279953003,
+          "mom1_sigma": 0.1450219303369522,
+          "mom2_sigma": 0.24548837542533875,
+          "mom3_sigma": 0.1975690871477127,
+          "rho_sigma_over_mean": 0.09416734427213669
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.3251866102218628,
+          "B_mean_sq_over_B2_mean": 0.25358274579048157,
+          "B_rms": 0.6457625031471252,
+          "dBB": 1.7156591415405273,
+          "deltaB": 0.557909369468689,
+          "deltaB_sq_over_B2_mean": 0.7464172840118408
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 315
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub02279",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.0625,
+            0.0
+          ],
+          [
+            0.375,
+            0.4375
+          ],
+          [
+            0.0,
+            0.0625
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          30400,
+          30401,
+          30402,
+          30403,
+          30404,
+          30405,
+          30406,
+          30407,
+          30408,
+          30409,
+          30410,
+          30411,
+          30412,
+          30413,
+          30414,
+          30415
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub02279",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 2279
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          0,
+          640,
+          2560,
+          3200,
+          2560,
+          3200
+        ],
+        "catalog_controls": {
+          "B_rms": 0.516252338886261,
+          "deltaB": 0.20149342715740204,
+          "dens_mean": 1.0136463642120361,
+          "mom1_sigma": 0.12288971245288849,
+          "mom2_sigma": 0.12105054408311844,
+          "mom3_sigma": 0.09981642663478851,
+          "rho_sigma_over_mean": 0.051315732300281525
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.4753071069717407,
+          "B_mean_sq_over_B2_mean": 0.8476656675338745,
+          "B_rms": 0.516252338886261,
+          "dBB": 0.423922598361969,
+          "deltaB": 0.20149342715740204,
+          "deltaB_sq_over_B2_mean": 0.1523343026638031
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 144
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub01088",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.5,
+            -0.4375
+          ],
+          [
+            -0.25,
+            -0.1875
+          ],
+          [
+            -0.25,
+            -0.1875
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          3072,
+          3073,
+          3074,
+          3075,
+          3076,
+          3077,
+          3078,
+          3079,
+          3080,
+          3081,
+          3082,
+          3083,
+          3084,
+          3085,
+          3086,
+          3087
+        ],
+        "roles": [
+          "phase1_parent_role:matched:1:low",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub01088",
+        "root_phase1_role": "matched:1:low",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 1088
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          5760,
+          6400,
+          9600,
+          10240,
+          5120,
+          5760
+        ],
+        "catalog_controls": {
+          "B_rms": 0.3707890510559082,
+          "deltaB": 0.2858750820159912,
+          "dens_mean": 1.0693241357803345,
+          "mom1_sigma": 0.13184219598770142,
+          "mom2_sigma": 0.12057802826166153,
+          "mom3_sigma": 0.08774210512638092,
+          "rho_sigma_over_mean": 0.05235033109784126
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.23613546788692474,
+          "B_mean_sq_over_B2_mean": 0.4055726230144501,
+          "B_rms": 0.3707890510559082,
+          "dBB": 1.2106401920318604,
+          "deltaB": 0.2858750820159912,
+          "deltaB_sq_over_B2_mean": 0.5944273471832275
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 316
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub02297",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.0625,
+            0.125
+          ],
+          [
+            0.4375,
+            0.5
+          ],
+          [
+            0.0,
+            0.0625
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          58576,
+          58577,
+          58578,
+          58579,
+          58580,
+          58581,
+          58582,
+          58583,
+          58584,
+          58585,
+          58586,
+          58587,
+          58588,
+          58589,
+          58590,
+          58591
+        ],
+        "roles": [
+          "phase1_parent_role:matched:1:high",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub02297",
+        "root_phase1_role": "matched:1:high",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 2297
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          7680,
+          8320,
+          8320,
+          8960,
+          1280,
+          1920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5131464004516602,
+          "deltaB": 0.1922380030155182,
+          "dens_mean": 1.0675715208053589,
+          "mom1_sigma": 0.1538366675376892,
+          "mom2_sigma": 0.10113564133644104,
+          "mom3_sigma": 0.1748834252357483,
+          "rho_sigma_over_mean": 0.0555640310049057
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.4757770597934723,
+          "B_mean_sq_over_B2_mean": 0.8596553206443787,
+          "B_rms": 0.5131464004516602,
+          "dBB": 0.4040506184101105,
+          "deltaB": 0.1922380030155182,
+          "deltaB_sq_over_B2_mean": 0.14034466445446014
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 118
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub00732",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.25,
+            0.3125
+          ],
+          [
+            0.3125,
+            0.375
+          ],
+          [
+            -0.375,
+            -0.3125
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          46352,
+          46353,
+          46354,
+          46355,
+          46356,
+          46357,
+          46358,
+          46359,
+          46360,
+          46361,
+          46362,
+          46363,
+          46364,
+          46365,
+          46366,
+          46367
+        ],
+        "roles": [
+          "phase1_parent_role:matched:2:low",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub00732",
+        "root_phase1_role": "matched:2:low",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 732
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          0,
+          640,
+          8320,
+          8960,
+          4480,
+          5120
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4228363335132599,
+          "deltaB": 0.3403988480567932,
+          "dens_mean": 1.0046762228012085,
+          "mom1_sigma": 0.14183646440505981,
+          "mom2_sigma": 0.09079992771148682,
+          "mom3_sigma": 0.17973671853542328,
+          "rho_sigma_over_mean": 0.06382565200328827
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.2508369982242584,
+          "B_mean_sq_over_B2_mean": 0.3519156277179718,
+          "B_rms": 0.4228363335132599,
+          "dBB": 1.3570520877838135,
+          "deltaB": 0.3403988480567932,
+          "deltaB_sq_over_B2_mean": 0.6480844020843506
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 240
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub02000",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.5,
+            -0.4375
+          ],
+          [
+            0.3125,
+            0.375
+          ],
+          [
+            -0.0625,
+            0.0
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          11568,
+          11569,
+          11570,
+          11571,
+          11572,
+          11573,
+          11574,
+          11575,
+          11576,
+          11577,
+          11578,
+          11579,
+          11580,
+          11581,
+          11582,
+          11583
+        ],
+        "roles": [
+          "phase1_parent_role:matched:2:high",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub02000",
+        "root_phase1_role": "matched:2:high",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 2000
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          6400,
+          7040,
+          1280,
+          1920,
+          6400,
+          7040
+        ],
+        "catalog_controls": {
+          "B_rms": 0.6151124835014343,
+          "deltaB": 0.24843721091747284,
+          "dens_mean": 0.9962776303291321,
+          "mom1_sigma": 0.1538342535495758,
+          "mom2_sigma": 0.16953197121620178,
+          "mom3_sigma": 0.1363881677389145,
+          "rho_sigma_over_mean": 0.09922432899475098
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.5627098083496094,
+          "B_mean_sq_over_B2_mean": 0.8368735909461975,
+          "B_rms": 0.6151124835014343,
+          "dBB": 0.4415014982223511,
+          "deltaB": 0.24843721091747284,
+          "deltaB_sq_over_B2_mean": 0.1631263941526413
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 333
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub02602",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.125,
+            0.1875
+          ],
+          [
+            -0.375,
+            -0.3125
+          ],
+          [
+            0.125,
+            0.1875
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          50048,
+          50049,
+          50050,
+          50051,
+          50052,
+          50053,
+          50054,
+          50055,
+          50056,
+          50057,
+          50058,
+          50059,
+          50060,
+          50061,
+          50062,
+          50063
+        ],
+        "roles": [
+          "phase1_parent_role:matched:3:low",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub02602",
+        "root_phase1_role": "matched:3:low",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 2602
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          5760,
+          6400,
+          7680,
+          8320,
+          5120,
+          5760
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5272516012191772,
+          "deltaB": 0.40913882851600647,
+          "dens_mean": 1.0418331623077393,
+          "mom1_sigma": 0.1467917263507843,
+          "mom2_sigma": 0.15534083545207977,
+          "mom3_sigma": 0.14035743474960327,
+          "rho_sigma_over_mean": 0.10609234869480133
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.3325652480125427,
+          "B_mean_sq_over_B2_mean": 0.3978487253189087,
+          "B_rms": 0.5272516012191772,
+          "dBB": 1.2302511930465698,
+          "deltaB": 0.40913882851600647,
+          "deltaB_sq_over_B2_mean": 0.6021512746810913
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 308
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub02249",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            0.0625,
+            0.125
+          ],
+          [
+            0.25,
+            0.3125
+          ],
+          [
+            0.0,
+            0.0625
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          58432,
+          58433,
+          58434,
+          58435,
+          58436,
+          58437,
+          58438,
+          58439,
+          58440,
+          58441,
+          58442,
+          58443,
+          58444,
+          58445,
+          58446,
+          58447
+        ],
+        "roles": [
+          "phase1_parent_role:matched:3:high",
+          "phase5_l640_parent"
+        ],
+        "root_L640_cube_id": "L640_sub02249",
+        "root_phase1_role": "matched:3:high",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": false,
+        "smoke_anchor_role": null,
+        "subvolume_id": 2249
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          1280,
+          1920,
+          8960,
+          9600,
+          1280,
+          1920
+        ],
+        "catalog_controls": {
+          "B_rms": 0.847902238368988,
+          "deltaB": 0.8476903438568115,
+          "dens_mean": 0.986526608467102,
+          "mom1_sigma": 0.28525468707084656,
+          "mom2_sigma": 0.1960805058479309,
+          "mom3_sigma": 0.2711223065853119,
+          "rho_sigma_over_mean": 0.20623400807380676
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.018953079357743263,
+          "B_mean_sq_over_B2_mean": 0.0004996524075977504,
+          "B_rms": 0.847902238368988,
+          "dBB": 44.72573471069336,
+          "deltaB": 0.8476903438568115,
+          "deltaB_sq_over_B2_mean": 0.9995003342628479
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 121
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub00738",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.375,
+            -0.3125
+          ],
+          [
+            0.375,
+            0.4375
+          ],
+          [
+            -0.375,
+            -0.3125
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          10112,
+          10113,
+          10114,
+          10115,
+          10116,
+          10117,
+          10118,
+          10119,
+          10120,
+          10121,
+          10122,
+          10123,
+          10124,
+          10125,
+          10126,
+          10127
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:small_B_mean",
+          "phase5_l640_parent",
+          "phase5_smoke_anchor:small_B_mean_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub00738",
+        "root_phase1_role": "outlier:small_B_mean",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "small_B_mean_outlier",
+        "subvolume_id": 738
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          4480,
+          5120,
+          1920,
+          2560,
+          3840,
+          4480
+        ],
+        "catalog_controls": {
+          "B_rms": 1.3618056774139404,
+          "deltaB": 1.217551350593567,
+          "dens_mean": 0.9607545733451843,
+          "mom1_sigma": 0.38622385263442993,
+          "mom2_sigma": 0.36903929710388184,
+          "mom3_sigma": 0.22403116524219513,
+          "rho_sigma_over_mean": 0.32241153717041016
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.6099863052368164,
+          "B_mean_sq_over_B2_mean": 0.20063647627830505,
+          "B_rms": 1.3618056774139404,
+          "dBB": 1.9960306882858276,
+          "deltaB": 1.217551350593567,
+          "deltaB_sq_over_B2_mean": 0.7993635535240173
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 203
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub01591",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.0625,
+            0.0
+          ],
+          [
+            -0.3125,
+            -0.25
+          ],
+          [
+            -0.125,
+            -0.0625
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          7120,
+          7121,
+          7122,
+          7123,
+          7124,
+          7125,
+          7126,
+          7127,
+          7128,
+          7129,
+          7130,
+          7131,
+          7132,
+          7133,
+          7134,
+          7135
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_deltaB",
+          "phase5_l640_parent",
+          "phase5_smoke_anchor:large_deltaB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01591",
+        "root_phase1_role": "outlier:large_deltaB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_deltaB_outlier",
+        "subvolume_id": 1591
+      },
+      {
+        "L_sub": 640,
+        "bounds_ijk_half_open": [
+          1920,
+          2560,
+          4480,
+          5120,
+          3840,
+          4480
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5909275412559509,
+          "deltaB": 0.5901010632514954,
+          "dens_mean": 1.0078614950180054,
+          "mom1_sigma": 0.18184863030910492,
+          "mom2_sigma": 0.3364558815956116,
+          "mom3_sigma": 0.27549079060554504,
+          "rho_sigma_over_mean": 0.12726522982120514
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.03124275617301464,
+          "B_mean_sq_over_B2_mean": 0.002795311389490962,
+          "B_rms": 0.5909275412559509,
+          "dBB": 18.88761329650879,
+          "deltaB": 0.5901010632514954,
+          "deltaB_sq_over_B2_mean": 0.9972046613693237
+        },
+        "catalog_parent_link": {
+          "L_sub": 1280,
+          "subvolume_id": 217
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L640_sub01651",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": null,
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.3125,
+            -0.25
+          ],
+          [
+            -0.0625,
+            0.0
+          ],
+          [
+            -0.125,
+            -0.0625
+          ]
+        ],
+        "required_rank_count": 16,
+        "required_rank_ids": [
+          4048,
+          4049,
+          4050,
+          4051,
+          4052,
+          4053,
+          4054,
+          4055,
+          4056,
+          4057,
+          4058,
+          4059,
+          4060,
+          4061,
+          4062,
+          4063
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_dBB",
+          "phase5_l640_parent",
+          "phase5_smoke_anchor:large_dBB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01651",
+        "root_phase1_role": "outlier:large_dBB",
+        "selected_parent_link": null,
+        "selection_method": "trusted_phase1_frozen_L640_parent",
+        "shape_kji": [
+          640,
+          640,
+          640
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_dBB_outlier",
+        "subvolume_id": 1651
+      }
+    ],
+    "80": [
+      {
+        "L_sub": 80,
+        "bounds_ijk_half_open": [
+          1280,
+          1360,
+          5040,
+          5120,
+          1120,
+          1200
+        ],
+        "catalog_controls": {
+          "B_rms": 0.82621830701828,
+          "deltaB": 0.23553603887557983,
+          "dens_mean": 1.057493805885315,
+          "mom1_sigma": 0.08923796564340591,
+          "mom2_sigma": 0.048020120710134506,
+          "mom3_sigma": 0.07979951053857803,
+          "rho_sigma_over_mean": 0.09942639619112015
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.7919340133666992,
+          "B_mean_sq_over_B2_mean": 0.9187309741973877,
+          "B_rms": 0.82621830701828,
+          "dBB": 0.2974187731742859,
+          "deltaB": 0.23553603887557983,
+          "deltaB_sq_over_B2_mean": 0.0812690332531929
+        },
+        "catalog_parent_link": {
+          "L_sub": 160,
+          "subvolume_id": 30664
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L80_sub237456",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.006221175193786621,
+          "reference_parent_cube_id": "L160_sub30664",
+          "reference_parent_dBB": 0.3036399483680725,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.375,
+            -0.3671875
+          ],
+          [
+            -0.0078125,
+            0.0
+          ],
+          [
+            -0.390625,
+            -0.3828125
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          1718
+        ],
+        "roles": [
+          "phase1_parent_role:representative:low_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:low_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00370",
+        "root_phase1_role": "representative:low_dBB",
+        "selected_parent_link": {
+          "L_sub": 160,
+          "cube_id": "L160_sub30664",
+          "subvolume_id": 30664
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          80,
+          80,
+          80
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "low_dBB",
+        "subvolume_id": 237456
+      },
+      {
+        "L_sub": 80,
+        "bounds_ijk_half_open": [
+          3840,
+          3920,
+          4240,
+          4320,
+          9760,
+          9840
+        ],
+        "catalog_controls": {
+          "B_rms": 0.744330883026123,
+          "deltaB": 0.3674260675907135,
+          "dens_mean": 1.3160191774368286,
+          "mom1_sigma": 0.1306460052728653,
+          "mom2_sigma": 0.1462441235780716,
+          "mom3_sigma": 0.163152813911438,
+          "rho_sigma_over_mean": 0.11307636648416519
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.6473225951194763,
+          "B_mean_sq_over_B2_mean": 0.7563267946243286,
+          "B_rms": 0.744330883026123,
+          "dBB": 0.5676088333129883,
+          "deltaB": 0.3674260675907135,
+          "deltaB_sq_over_B2_mean": 0.24367322027683258
+        },
+        "catalog_parent_link": {
+          "L_sub": 160,
+          "subvolume_id": 251544
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L80_sub2005680",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.01738196611404419,
+          "reference_parent_cube_id": "L160_sub251544",
+          "reference_parent_dBB": 0.5849907994270325,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.125,
+            -0.1171875
+          ],
+          [
+            -0.0859375,
+            -0.078125
+          ],
+          [
+            0.453125,
+            0.4609375
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          24482
+        ],
+        "roles": [
+          "phase1_parent_role:representative:near_median_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:median_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub03942",
+        "root_phase1_role": "representative:near_median_dBB",
+        "selected_parent_link": {
+          "L_sub": 160,
+          "cube_id": "L160_sub251544",
+          "subvolume_id": 251544
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          80,
+          80,
+          80
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "median_dBB",
+        "subvolume_id": 2005680
+      },
+      {
+        "L_sub": 80,
+        "bounds_ijk_half_open": [
+          2160,
+          2240,
+          2640,
+          2720,
+          1760,
+          1840
+        ],
+        "catalog_controls": {
+          "B_rms": 0.5725839734077454,
+          "deltaB": 0.42440560460090637,
+          "dens_mean": 1.1774673461914062,
+          "mom1_sigma": 0.12325084954500198,
+          "mom2_sigma": 0.11197640746831894,
+          "mom3_sigma": 0.21746140718460083,
+          "rho_sigma_over_mean": 0.08496325463056564
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.38435953855514526,
+          "B_mean_sq_over_B2_mean": 0.45060601830482483,
+          "B_rms": 0.5725839734077454,
+          "dBB": 1.1041890382766724,
+          "deltaB": 0.42440560460090637,
+          "deltaB_sq_over_B2_mean": 0.5493939518928528
+        },
+        "catalog_parent_link": {
+          "L_sub": 160,
+          "subvolume_id": 46093
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L80_sub364699",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.05828404426574707,
+          "reference_parent_cube_id": "L160_sub46093",
+          "reference_parent_dBB": 1.0459049940109253,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.2890625,
+            -0.28125
+          ],
+          [
+            -0.2421875,
+            -0.234375
+          ],
+          [
+            -0.328125,
+            -0.3203125
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          1861
+        ],
+        "roles": [
+          "phase1_parent_role:representative:high_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:high_dBB"
+        ],
+        "root_L640_cube_id": "L640_sub00579",
+        "root_phase1_role": "representative:high_dBB",
+        "selected_parent_link": {
+          "L_sub": 160,
+          "cube_id": "L160_sub46093",
+          "subvolume_id": 46093
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          80,
+          80,
+          80
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "high_dBB",
+        "subvolume_id": 364699
+      },
+      {
+        "L_sub": 80,
+        "bounds_ijk_half_open": [
+          1680,
+          1760,
+          9360,
+          9440,
+          1440,
+          1520
+        ],
+        "catalog_controls": {
+          "B_rms": 0.6892151236534119,
+          "deltaB": 0.626134991645813,
+          "dens_mean": 1.1393308639526367,
+          "mom1_sigma": 0.18940995633602142,
+          "mom2_sigma": 0.12401432543992996,
+          "mom3_sigma": 0.252162367105484,
+          "rho_sigma_over_mean": 0.12274809181690216
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.2880493998527527,
+          "B_mean_sq_over_B2_mean": 0.1746724247932434,
+          "B_rms": 0.6892151236534119,
+          "dBB": 2.1737070083618164,
+          "deltaB": 0.626134991645813,
+          "deltaB_sq_over_B2_mean": 0.8253275752067566
+        },
+        "catalog_parent_link": {
+          "L_sub": 160,
+          "subvolume_id": 40586
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L80_sub309909",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 5.82570743560791,
+          "reference_parent_cube_id": "L160_sub40586",
+          "reference_parent_dBB": 7.999414443969727,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.3359375,
+            -0.328125
+          ],
+          [
+            0.4140625,
+            0.421875
+          ],
+          [
+            -0.359375,
+            -0.3515625
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          10122
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:small_B_mean",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:small_B_mean_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub00738",
+        "root_phase1_role": "outlier:small_B_mean",
+        "selected_parent_link": {
+          "L_sub": 160,
+          "cube_id": "L160_sub40586",
+          "subvolume_id": 40586
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          80,
+          80,
+          80
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "small_B_mean_outlier",
+        "subvolume_id": 309909
+      },
+      {
+        "L_sub": 80,
+        "bounds_ijk_half_open": [
+          4560,
+          4640,
+          2080,
+          2160,
+          4000,
+          4080
+        ],
+        "catalog_controls": {
+          "B_rms": 0.6103348135948181,
+          "deltaB": 0.5091508626937866,
+          "dens_mean": 1.4192942380905151,
+          "mom1_sigma": 0.4127378761768341,
+          "mom2_sigma": 0.47710081934928894,
+          "mom3_sigma": 0.15138791501522064,
+          "rho_sigma_over_mean": 0.08317460119724274
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.33656203746795654,
+          "B_mean_sq_over_B2_mean": 0.30408427119255066,
+          "B_rms": 0.6103348135948181,
+          "dBB": 1.5127995014190674,
+          "deltaB": 0.5091508626937866,
+          "deltaB_sq_over_B2_mean": 0.6959157586097717
+        },
+        "catalog_parent_link": {
+          "L_sub": 160,
+          "subvolume_id": 103260
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L80_sub822585",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 0.13985693454742432,
+          "reference_parent_cube_id": "L160_sub103260",
+          "reference_parent_dBB": 1.6526564359664917,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.0546875,
+            -0.046875
+          ],
+          [
+            -0.296875,
+            -0.2890625
+          ],
+          [
+            -0.109375,
+            -0.1015625
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          7120
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_deltaB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:large_deltaB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01591",
+        "root_phase1_role": "outlier:large_deltaB",
+        "selected_parent_link": {
+          "L_sub": 160,
+          "cube_id": "L160_sub103260",
+          "subvolume_id": 103260
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          80,
+          80,
+          80
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_deltaB_outlier",
+        "subvolume_id": 822585
+      },
+      {
+        "L_sub": 80,
+        "bounds_ijk_half_open": [
+          2000,
+          2080,
+          4720,
+          4800,
+          4240,
+          4320
+        ],
+        "catalog_controls": {
+          "B_rms": 0.4909156262874603,
+          "deltaB": 0.4886082112789154,
+          "dens_mean": 1.0274171829223633,
+          "mom1_sigma": 0.12174389511346817,
+          "mom2_sigma": 0.11184602230787277,
+          "mom3_sigma": 0.16037017107009888,
+          "rho_sigma_over_mean": 0.06493943929672241
+        },
+        "catalog_magnetic_flags": {
+          "B_mean_fraction_flags": 0,
+          "dBB_flags": 0,
+          "deltaB_flags": 0,
+          "deltaB_fraction_flags": 0
+        },
+        "catalog_magnetic_values": {
+          "B_mean": 0.04754112660884857,
+          "B_mean_sq_over_B2_mean": 0.009378323331475258,
+          "B_rms": 0.4909156262874603,
+          "dBB": 10.27759075164795,
+          "deltaB": 0.4886082112789154,
+          "deltaB_sq_over_B2_mean": 0.9906216859817505
+        },
+        "catalog_parent_link": {
+          "L_sub": 160,
+          "subvolume_id": 108364
+        },
+        "catalog_validity_flags": 0,
+        "cube_id": "L80_sub875929",
+        "magnetic_selection_valid": true,
+        "nearest_dBB_selection": {
+          "absolute_dBB_difference": 7.2191362380981445,
+          "reference_parent_cube_id": "L160_sub108364",
+          "reference_parent_dBB": 17.496726989746094,
+          "tie_break": "minimum (absolute_dBB_difference, child_subvolume_id)"
+        },
+        "physical_bounds_x1_x2_x3": [
+          [
+            -0.3046875,
+            -0.296875
+          ],
+          [
+            -0.0390625,
+            -0.03125
+          ],
+          [
+            -0.0859375,
+            -0.078125
+          ]
+        ],
+        "required_rank_count": 1,
+        "required_rank_ids": [
+          4052
+        ],
+        "roles": [
+          "phase1_parent_role:outlier:large_dBB",
+          "phase5_nearest_dBB_child",
+          "phase5_smoke_anchor:large_dBB_outlier"
+        ],
+        "root_L640_cube_id": "L640_sub01651",
+        "root_phase1_role": "outlier:large_dBB",
+        "selected_parent_link": {
+          "L_sub": 160,
+          "cube_id": "L160_sub108364",
+          "subvolume_id": 108364
+        },
+        "selection_method": "nearest_dBB_magnetic_valid_catalog_child",
+        "shape_kji": [
+          80,
+          80,
+          80
+        ],
+        "smoke_anchor": true,
+        "smoke_anchor_role": "large_dBB_outlier",
+        "subvolume_id": 875929
+      }
+    ]
+  },
+  "sgs_channels_authorized": false,
+  "smoke_anchor_L640_cube_ids": [
+    "L640_sub00370",
+    "L640_sub03942",
+    "L640_sub00579",
+    "L640_sub00738",
+    "L640_sub01591",
+    "L640_sub01651"
+  ],
+  "smoke_anchor_roles": {
+    "L640_sub00370": "low_dBB",
+    "L640_sub00579": "high_dBB",
+    "L640_sub00738": "small_B_mean_outlier",
+    "L640_sub01591": "large_deltaB_outlier",
+    "L640_sub01651": "large_dBB_outlier",
+    "L640_sub03942": "median_dBB"
+  },
+  "source_artifacts": {
+    "catalogs": {
+      "160": {
+        "catalog": {
+          "relative_path": "catalogs/catalog_L160.npz",
+          "sha256": "9c6a2fd27c99cc224d0d7411df0500f86ded371b2733b81bd45321f8d297dad0"
+        },
+        "complete": {
+          "relative_path": "catalogs/catalog_L160.complete",
+          "sha256": "d32597a1cabf6f21a081cda18669060be385d75b8cec6d55dbfc4afaa3e62717"
+        },
+        "manifest": {
+          "relative_path": "catalogs/catalog_L160_manifest.json",
+          "sha256": "338375b8cf173253d8e379020029295421cc370915fa879d4aa71ce80c431b9a"
+        }
+      },
+      "320": {
+        "catalog": {
+          "relative_path": "catalogs/catalog_L320.npz",
+          "sha256": "ee38a9b494423df8c53d01e2b2cf6e5e0b0eae66f44334909aaf6ce8c526306f"
+        },
+        "complete": {
+          "relative_path": "catalogs/catalog_L320.complete",
+          "sha256": "c863c51486a300cc6d8bcb4d0d724f205764c6a789fcd437ca3e0f483c8ce33d"
+        },
+        "manifest": {
+          "relative_path": "catalogs/catalog_L320_manifest.json",
+          "sha256": "5b0ebd3415b760df698041e4bdd94de525830a4685439cd684a7f512e9384074"
+        }
+      },
+      "640": {
+        "catalog": {
+          "relative_path": "catalogs/catalog_L640.npz",
+          "sha256": "52e86e4bf3260dd76f48f5ec6f1d76338fbdfb1995f3be5d86300faa323eb758"
+        },
+        "complete": {
+          "relative_path": "catalogs/catalog_L640.complete",
+          "sha256": "f1230122e5f3cda5952b37bd2e8c9dbb4964ba2c6813b9015cfdfc28e86d8ff7"
+        },
+        "manifest": {
+          "relative_path": "catalogs/catalog_L640_manifest.json",
+          "sha256": "7c45e121221ef48b293403392eec644bd3f4f43ab48e5e3a4a1ddd570db818e3"
+        }
+      },
+      "80": {
+        "catalog": {
+          "relative_path": "catalogs/catalog_L80.npz",
+          "sha256": "cbaa9337e7e31ea22f29c7e43de517349feca4b75677864c2cc76a89ff9ff53d"
+        },
+        "complete": {
+          "relative_path": "catalogs/catalog_L80.complete",
+          "sha256": "31824577cd2b22450a4bb25b59a7fcd8645cb0588ddc2bef8bb4349bc1e6e9bd"
+        },
+        "manifest": {
+          "relative_path": "catalogs/catalog_L80_manifest.json",
+          "sha256": "fe17772062f623fe1070ede4a61f862e210b1f021f0d7587326d98fea2e5ad0b"
+        }
+      }
+    },
+    "pilot_sample": {
+      "relative_path": "analysis/pilot_sample.csv",
+      "sha256": "c9eef98d0319bfbc9e63ce2c0721979f2d519b09e59287f81349e0cf0e54904c"
+    },
+    "pilot_sample_metadata": {
+      "relative_path": "analysis/pilot_sample_metadata.json",
+      "sha256": "fdf9183819c1c028e2438387b8cccef0313bc23c1333d039e55e57fcca1a315a"
+    },
+    "rank_map": {
+      "relative_path": "cache/rank_map.npy",
+      "sha256": "91734332da679b3e40bea40ff8bc3b851341cea074c66999b68509ffb0ed98d3"
+    }
+  },
+  "source_version": {
+    "implementation_sha256": "72a3a6fb7ad2910c9edc218835beaf1291c3e7a1a9929be5d5cb085271d4c5be",
+    "implementation_source_hashes": {
+      "scripts/phase5/build_phase5_campaign_config.py": "786719d641f808f8048b1ebc37b4283a06705133f27cbcb61b516a5cefc1ec35"
+    }
+  },
+  "status": "frozen",
+  "trusted_phase1_artifacts": {
+    "analysis_manifest_sha256": "c1859656b0084204abc75def2504d01ca6c4a660a6c221042dad125b1b782148",
+    "artifact_graph_sha256": "0504464a4fa967bb5fb037c4283fa38dde533638bdd80c2e0e79182c2a7f0742",
+    "build_complete_sha256": "baac802bf387e80f43320f744e624b7bba571ab9fefafef4021d07906a9c9c5f",
+    "pilot_sample_metadata_sha256": "fdf9183819c1c028e2438387b8cccef0313bc23c1333d039e55e57fcca1a315a",
+    "pilot_sample_sha256": "c9eef98d0319bfbc9e63ce2c0721979f2d519b09e59287f81349e0cf0e54904c",
+    "rank_map_sha256": "91734332da679b3e40bea40ff8bc3b851341cea074c66999b68509ffb0ed98d3",
+    "trusted_run": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/prompt1_catalog/t6_final_primary_20260530",
+    "validation_token_sha256": "70f476df8191d30fa53afe7e1887f9db7d75640bd8910b9415479eba9d268b6d",
+    "verification_marker_sha256": "f6f79722c33a98ccbaf4d731bac36672ea2aa93caf4898c750004ae42f52fc1c"
+  },
+  "trusted_run": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/prompt1_catalog/t6_final_primary_20260530",
+  "trusted_snapshot_identity": {
+    "data_root": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/data/data_Turb_10240_beta25_dedt025_plm",
+    "full_resolution_basename": "Turb.full_mhd_w_bcc.00024.bin",
+    "full_snapshot_identity": {
+      "basename": "Turb.full_mhd_w_bcc.00024.bin",
+      "coarse_block_cells": [
+        160,
+        320,
+        320
+      ],
+      "coarse_grid_cells": [
+        10240,
+        10240,
+        10240
+      ],
+      "coarsen_factor": 1,
+      "cycle": 799945,
+      "full_grid_cells": [
+        10240,
+        10240,
+        10240
+      ],
+      "location_dtype": "<f8",
+      "mesh_block_cells": [
+        160,
+        320,
+        320
+      ],
+      "number_of_moments": 1,
+      "rank0_file_size": 524352934,
+      "time": 6.0,
+      "var_names": [
+        "dens",
+        "velx",
+        "vely",
+        "velz",
+        "eint",
+        "bcc1",
+        "bcc2",
+        "bcc3"
+      ],
+      "variable_dtype": "<f4"
+    },
+    "primary_cbin_basename": "Turb.mhd_u_bcc.00024.cbin",
+    "primary_cbin_identity": {
+      "basename": "Turb.mhd_u_bcc.00024.cbin",
+      "coarse_block_cells": [
+        4,
+        8,
+        8
+      ],
+      "coarse_grid_cells": [
+        256,
+        256,
+        256
+      ],
+      "coarsen_factor": 40,
+      "cycle": 799945,
+      "full_grid_cells": [
+        10240,
+        10240,
+        10240
+      ],
+      "location_dtype": "<f8",
+      "mesh_block_cells": [
+        160,
+        320,
+        320
+      ],
+      "number_of_moments": 4,
+      "rank0_file_size": 98020,
+      "time": 6.0,
+      "var_names": [
+        "dens_1st",
+        "dens_2nd",
+        "dens_3rd",
+        "dens_4th",
+        "mom1_1st",
+        "mom1_2nd",
+        "mom1_3rd",
+        "mom1_4th",
+        "mom2_1st",
+        "mom2_2nd",
+        "mom2_3rd",
+        "mom2_4th",
+        "mom3_1st",
+        "mom3_2nd",
+        "mom3_3rd",
+        "mom3_4th",
+        "ener_1st",
+        "ener_2nd",
+        "ener_3rd",
+        "ener_4th",
+        "bcc1_1st",
+        "bcc1_2nd",
+        "bcc1_3rd",
+        "bcc1_4th",
+        "bcc2_1st",
+        "bcc2_2nd",
+        "bcc2_3rd",
+        "bcc2_4th",
+        "bcc3_1st",
+        "bcc3_2nd",
+        "bcc3_3rd",
+        "bcc3_4th"
+      ],
+      "variable_dtype": "<f4"
+    },
+    "primary_cbin_scale": 40,
+    "target_cycle": 799945,
+    "target_time": 6.0
+  }
+}
