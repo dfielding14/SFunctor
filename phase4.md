@@ -280,16 +280,42 @@ validated 2-point products cover `B,u`, both support policies, and
 `p = 1,2,3,4,5,6`. The retained review is documented in
 `PHASE4_BATCH_B_REPRESENTATIVE_STATUS_UPDATE.md`.
 
-Do not expand Batch B to all 21 cubes yet. The representative review found
-supported large-scale high-order tail sensitivity between
-`all_valid_origins` and `shell_local`. Before reconsidering expansion, run a
-bounded matched-origin comparison and a bounded origin-seed sensitivity sweep
-on the retained priority cases. Decompose common interior origins,
-intrinsic-valid exterior origins, and their population-weighted recomposition.
-Repeat selected $p = 2,4,6$ cases across deterministic seeds at increased
-sample depth, and inspect cumulative $p = 6$ contributions or top
-contributors. Review the complete $p = 6$ tails and sixth-root amplitude
-factors. Keep the 5-point product bounded.
+The representative review found supported large-scale high-order tail
+sensitivity between `all_valid_origins` and `shell_local`. Before
+reconsidering expansion, run a bounded matched-origin comparison and a
+bounded origin-seed sensitivity sweep on the retained priority cases.
+Decompose common interior origins, intrinsic-valid exterior origins, and
+their exact direct-estimator partition. Repeat selected $p = 2,4,6$ cases
+across deterministic seeds at increased sample depth, and inspect cumulative
+$p = 6$ contributions or top contributors. Review the complete $p = 6$ tails
+and sixth-root amplitude factors. Keep the 5-point product bounded.
+
+### Batch B corrected tail checkpoint: proceed with all-21 acquisition
+
+The first bounded tail diagnostic changed the estimand by population-weighting
+offsets during recomposition. Retain it only as a discarded exploratory
+attempt. The corrected matched-origin diagnostic completed on 2026-06-01 and
+uses the production-equivalent equal-displacement direct partition, an
+independently scheduled `shell_local` interior diagnostic, and an exterior
+overlay diagnostic. It confirms that the typical sixth-root amplitude ratio
+is near unity while sparse high-order tails remain sensitive to support policy
+and sampled origins. These are sensitivity diagnostics, not correction
+factors or convergence claims.
+
+The user explicitly authorized the guarded all-21 2-point Batch B extension
+despite imperfect $p = 6$ tails. Execute and review:
+
+```text
+q = B, u
+p = 1, 2, 3, 4, 5, 6
+stencil = 2-point
+primary curve-level policy = all_valid_origins
+directional robustness overlay = shell_local
+```
+
+Require strict reproduction of the earlier Batch A `p = 2` slice before
+recommending Phase 5. Keep fitted slopes, scaling exponents, and the 5-point
+product bounded or withheld unless separately justified.
 
 ## Batch C: compressible-MHD variable comparisons
 

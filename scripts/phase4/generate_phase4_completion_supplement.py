@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import json
 import math
 import shutil
@@ -35,6 +35,7 @@ from scripts.phase4 import generate_phase4_batch_a_status_figures as batch_a_rep
 from scripts.phase4 import generate_phase4_batch_a2_review as batch_a2_review
 from scripts.phase4 import generate_phase4_batch_b_representative_review as batch_b_review
 from sfunctor.analysis import finite_domain as finite_domain_analysis
+from sfunctor.core.finite_domain import FiniteDomainResult
 
 
 DEFAULT_OUTPUT_DIR = Path("figures/phase4_completion_supplement")
@@ -105,6 +106,57 @@ FIGURE_FILENAMES = (
     STENCIL_FIGURE_FILENAME,
     RUNTIME_FIGURE_FILENAME,
 )
+
+REPRODUCTION_RESULT_P_AXIS_ARRAY_NAMES = (
+    "counts",
+    "sums",
+    "sums_sq",
+    "block_counts",
+    "block_sums",
+    "block_sums_sq",
+    "moments",
+    "standard_error",
+)
+REPRODUCTION_RESULT_EXCLUDED_NAMES = (
+    "p_values",
+    "elapsed_seconds",
+    "elapsed_seconds_per_ell_bin",
+)
+REPRODUCTION_RESULT_FULL_VALUE_NAMES = tuple(
+    field.name
+    for field in fields(FiniteDomainResult)
+    if field.name
+    not in {
+        *REPRODUCTION_RESULT_P_AXIS_ARRAY_NAMES,
+        *REPRODUCTION_RESULT_EXCLUDED_NAMES,
+    }
+)
+REPRODUCTION_UNCERTAINTY_P_AXIS_ARRAY_NAMES = (
+    "moments",
+    "pair_sampling_standard_error",
+    "block_jackknife_standard_error",
+    "block_bootstrap_standard_error",
+    "block_bootstrap_interval_low",
+    "block_bootstrap_interval_high",
+    "accepted_contributing_blocks",
+    "accepted_effective_blocks",
+    "valid_bootstrap_resamples",
+    "local_log_slope",
+    "local_log_slope_support_mask",
+    "local_log_slope_bootstrap_standard_error",
+    "local_log_slope_bootstrap_interval_low",
+    "local_log_slope_bootstrap_interval_high",
+    "local_log_slope_valid_bootstrap_resamples",
+)
+REPRODUCTION_UNCERTAINTY_FULL_ARRAY_NAMES = (
+    "sampled_blocks_per_shell",
+    "eligible_blocks_per_shell",
+)
+REPRODUCTION_UNCERTAINTY_NAMES = {
+    "metadata_json",
+    *REPRODUCTION_UNCERTAINTY_P_AXIS_ARRAY_NAMES,
+    *REPRODUCTION_UNCERTAINTY_FULL_ARRAY_NAMES,
+}
 
 
 @dataclass(frozen=True)
@@ -576,6 +628,175 @@ def _verify_dependency_bindings(
         != extension_root.resolve()
     ):
         raise RuntimeError("completion supplement inputs are not one bound staged release chain")
+
+
+def _raise_reproduction_mismatch(label: str) -> None:
+    raise RuntimeError(
+        f"strict Batch-A to all21-Batch-B p=2 reproduction mismatch: {label}"
+    )
+
+
+def _exact_equal(left: Any, right: Any) -> bool:
+    """Return exact equality while treating paired NaNs as equal."""
+
+    if isinstance(left, np.ndarray) or isinstance(right, np.ndarray):
+        left_array = np.asarray(left)
+        right_array = np.asarray(right)
+        if left_array.shape != right_array.shape:
+            return False
+        if left_array.dtype.kind in "fc" or right_array.dtype.kind in "fc":
+            return bool(np.array_equal(left_array, right_array, equal_nan=True))
+        return bool(np.array_equal(left_array, right_array))
+    if isinstance(left, Mapping) and isinstance(right, Mapping):
+        return left.keys() == right.keys() and all(
+            _exact_equal(left[name], right[name]) for name in left
+        )
+    if isinstance(left, (tuple, list)) and isinstance(right, (tuple, list)):
+        return len(left) == len(right) and all(
+            _exact_equal(left_value, right_value)
+            for left_value, right_value in zip(left, right)
+        )
+    if isinstance(left, (float, np.floating)) and isinstance(
+        right, (float, np.floating)
+    ):
+        return bool(left == right or (np.isnan(left) and np.isnan(right)))
+    return bool(left == right)
+
+
+def _p_slice(
+    value: Any,
+    *,
+    p_index: int,
+    p_count: int,
+    label: str,
+) -> np.ndarray:
+    array = np.asarray(value)
+    if array.ndim < 2 or array.shape[-2] != p_count:
+        _raise_reproduction_mismatch(f"{label} has no canonical p axis")
+    return np.take(array, (p_index,), axis=-2)
+
+
+def _uncertainty_metadata(
+    uncertainty: Mapping[str, np.ndarray],
+    *,
+    expected_p_values: tuple[float, ...],
+    label: str,
+) -> dict[str, Any]:
+    raw = np.asarray(uncertainty["metadata_json"])
+    if raw.shape != () or raw.dtype.kind not in "SU":
+        _raise_reproduction_mismatch(f"{label} uncertainty metadata scalar")
+    try:
+        metadata = json.loads(str(raw.item()))
+    except json.JSONDecodeError:
+        _raise_reproduction_mismatch(f"{label} uncertainty metadata JSON")
+    if (
+        not isinstance(metadata, dict)
+        or tuple(metadata.get("p_values", ())) != expected_p_values
+    ):
+        _raise_reproduction_mismatch(f"{label} uncertainty metadata p-values")
+    return {**metadata, "p_values": (P2,)}
+
+
+def _verify_batch_a_to_all21_batch_b_p2_reproduction(
+    *,
+    cube_ids: tuple[str, ...],
+    batch_a_groups: Mapping[tuple[str, str], Any],
+    batch_b_groups: Mapping[tuple[str, str], Any],
+) -> dict[str, Any]:
+    """Require exact Batch-B p=2 reproduction of every retained Batch-A group."""
+
+    if cube_ids != tuple(batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS):
+        _raise_reproduction_mismatch("cube census is not the frozen all-21 inventory")
+    expected_keys = {
+        (cube_id, support_mode)
+        for cube_id in cube_ids
+        for support_mode in SUPPORT_MODES
+    }
+    if set(batch_a_groups) != expected_keys or set(batch_b_groups) != expected_keys:
+        _raise_reproduction_mismatch("group inventory")
+
+    batch_a_p_values = (P2,)
+    batch_b_p_values = tuple(BATCH_B_P_VALUES)
+    batch_b_p2_index = batch_b_p_values.index(P2)
+    for cube_id in cube_ids:
+        for support_mode in SUPPORT_MODES:
+            label = f"{cube_id}/{support_mode}"
+            batch_a = batch_a_groups[(cube_id, support_mode)]
+            batch_b = batch_b_groups[(cube_id, support_mode)]
+            if tuple(batch_a.result.p_values) != batch_a_p_values:
+                _raise_reproduction_mismatch(f"{label} Batch A p-values")
+            if tuple(batch_b.result.p_values) != batch_b_p_values:
+                _raise_reproduction_mismatch(f"{label} Batch B p-values")
+
+            for name in REPRODUCTION_RESULT_FULL_VALUE_NAMES:
+                if not _exact_equal(
+                    getattr(batch_a.result, name), getattr(batch_b.result, name)
+                ):
+                    _raise_reproduction_mismatch(f"{label} result.{name}")
+            for name in REPRODUCTION_RESULT_P_AXIS_ARRAY_NAMES:
+                if not _exact_equal(
+                    _p_slice(
+                        getattr(batch_a.result, name),
+                        p_index=0,
+                        p_count=len(batch_a_p_values),
+                        label=f"{label} Batch A result.{name}",
+                    ),
+                    _p_slice(
+                        getattr(batch_b.result, name),
+                        p_index=batch_b_p2_index,
+                        p_count=len(batch_b_p_values),
+                        label=f"{label} Batch B result.{name}",
+                    ),
+                ):
+                    _raise_reproduction_mismatch(f"{label} result.{name}")
+
+            if (
+                set(batch_a.uncertainty) != REPRODUCTION_UNCERTAINTY_NAMES
+                or set(batch_b.uncertainty) != REPRODUCTION_UNCERTAINTY_NAMES
+            ):
+                _raise_reproduction_mismatch(f"{label} uncertainty inventory")
+            if not _exact_equal(
+                _uncertainty_metadata(
+                    batch_a.uncertainty,
+                    expected_p_values=batch_a_p_values,
+                    label=f"{label} Batch A",
+                ),
+                _uncertainty_metadata(
+                    batch_b.uncertainty,
+                    expected_p_values=batch_b_p_values,
+                    label=f"{label} Batch B",
+                ),
+            ):
+                _raise_reproduction_mismatch(f"{label} uncertainty metadata")
+            for name in REPRODUCTION_UNCERTAINTY_FULL_ARRAY_NAMES:
+                if not _exact_equal(
+                    batch_a.uncertainty[name], batch_b.uncertainty[name]
+                ):
+                    _raise_reproduction_mismatch(f"{label} uncertainty.{name}")
+            for name in REPRODUCTION_UNCERTAINTY_P_AXIS_ARRAY_NAMES:
+                if not _exact_equal(
+                    _p_slice(
+                        batch_a.uncertainty[name],
+                        p_index=0,
+                        p_count=len(batch_a_p_values),
+                        label=f"{label} Batch A uncertainty.{name}",
+                    ),
+                    _p_slice(
+                        batch_b.uncertainty[name],
+                        p_index=batch_b_p2_index,
+                        p_count=len(batch_b_p_values),
+                        label=f"{label} Batch B uncertainty.{name}",
+                    ),
+                ):
+                    _raise_reproduction_mismatch(f"{label} uncertainty.{name}")
+
+    return {
+        "status": "passed",
+        "verification_mode": "exact_arrays_equal_nan",
+        "p_value": P2,
+        "verified_group_count": len(expected_keys),
+        "excluded_metadata": "timing_and_staging_only",
+    }
 
 
 def _catalog_values(
@@ -1762,6 +1983,13 @@ def main() -> None:
         extension_root=args.all21_3point_extension_root,
         cube_ids=cube_ids,
     )
+    batch_a_to_batch_b_p2_reproduction = (
+        _verify_batch_a_to_all21_batch_b_p2_reproduction(
+            cube_ids=cube_ids,
+            batch_a_groups=batch_a_groups,
+            batch_b_groups=batch_b.groups,
+        )
+    )
 
     conditioning_rows = _conditioning_rows(cube_ids, batch_a_groups)
     target_definitions, aspect_quality_census, aspect_rows = _equal_sf_aspect_rows(
@@ -2027,6 +2255,9 @@ def main() -> None:
                 "all21_3point_extension": extension.verification,
                 "all21_batch_b": batch_b.verification,
                 "staged_dependency_bindings": "passed",
+                "batch_a_to_all21_batch_b_p2_reproduction": (
+                    batch_a_to_batch_b_p2_reproduction
+                ),
             },
             "phase1_catalog_metadata": catalog_metadata,
             "directional_fit_policy": _directional_fit_policy(),

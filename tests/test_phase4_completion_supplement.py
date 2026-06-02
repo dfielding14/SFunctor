@@ -1,6 +1,7 @@
 """Focused tests for the future Phase 4 completion-supplement generator."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -83,6 +84,131 @@ def _environment_group() -> SimpleNamespace:
     for name, values in tuple(group.uncertainty.items()):
         group.uncertainty[name] = np.repeat(values, p_count, axis=4)
     return group
+
+
+def _reproduction_group(
+    p_values: tuple[float, ...],
+    *,
+    elapsed_seconds: float = 1.0,
+    staging_logical_bytes: int = 100,
+) -> SimpleNamespace:
+    p_count = len(p_values)
+
+    def expanded(values: np.ndarray) -> np.ndarray:
+        return np.repeat(np.asarray(values), p_count, axis=-2)
+
+    moment_values = np.asarray([[[[[[1.0, np.nan, 3.0]]]]]])
+    count_values = np.asarray([[[[[[2, 0, 3]]]]]], dtype=np.int64)
+    sum_values = np.asarray([[[[[[2.0, 0.0, 9.0]]]]]])
+    sum_sq_values = np.asarray([[[[[[2.0, 0.0, 27.0]]]]]])
+    block_values = np.asarray(
+        [
+            [[[[[[1.0, 0.0, 4.0]]]]]],
+            [[[[[[1.0, 0.0, 5.0]]]]]],
+        ]
+    )
+    result = SimpleNamespace(
+        q_names=("B",),
+        density_conventions=("not applicable",),
+        geometry_names=("pair_local",),
+        measurement_names=("total",),
+        direction_names=("parallel",),
+        exclusion_names=("invalid_q",),
+        ell_bin_edges=np.asarray((1.0, 2.0, 4.0, 8.0)),
+        p_values=p_values,
+        counts=expanded(count_values),
+        sums=expanded(sum_values),
+        sums_sq=expanded(sum_sq_values),
+        moments=expanded(moment_values),
+        standard_error=expanded(np.asarray([[[[[[0.0, np.nan, 0.0]]]]]])),
+        exclusions=np.asarray([[[[0, 1, 2]]]], dtype=np.int64),
+        sampled_pairs=np.asarray((2, 2, 3), dtype=np.int64),
+        eligible_pairs=np.asarray((10, 20, 30), dtype=np.int64),
+        cube_candidate_pairs=np.asarray((12, 24, 36), dtype=np.int64),
+        excluded_boundary_pairs=np.asarray((2, 4, 6), dtype=np.int64),
+        displacements_per_bin=np.asarray((1, 1, 1), dtype=np.int64),
+        displacements_ijk=np.asarray(((0, 0, 1), (0, 1, 0), (1, 0, 0))),
+        ell_bin_index_per_displacement=np.asarray((0, 1, 2), dtype=np.int64),
+        sampled_pairs_per_displacement=np.asarray((2, 2, 3), dtype=np.int64),
+        eligible_pairs_per_displacement=np.asarray((10, 20, 30), dtype=np.int64),
+        cube_candidate_pairs_per_displacement=np.asarray(
+            (12, 24, 36), dtype=np.int64
+        ),
+        excluded_boundary_pairs_per_displacement=np.asarray(
+            (2, 4, 6), dtype=np.int64
+        ),
+        out_of_range_displacements=0,
+        pair_mode="all_valid_origins",
+        cube_shape_kji=(640, 640, 640),
+        nested_core_bounds_kji=None,
+        rho0=float("nan"),
+        rho0_provenance="not applicable for requested q variants",
+        cell_sizes=(1.0, 1.0, 1.0),
+        angle_limits={"parallel": 0.25},
+        sample_count=2048,
+        pair_batch_size=1024,
+        seed=20260530,
+        elapsed_seconds=elapsed_seconds,
+        elapsed_seconds_per_ell_bin=np.asarray((0.1, 0.2, 0.3)),
+        stencil_width=2,
+        shell_core_bounds_kji=None,
+        block_shape_kji=(80, 80, 80),
+        block_counts=expanded(block_values.astype(np.int64)),
+        block_sums=expanded(block_values),
+        block_sums_sq=expanded(block_values),
+        support_displacements_sha256="0" * 64,
+        support_displacement_count=3,
+        block_assignment="stencil_midpoint",
+        block_sampled_origins=np.asarray(((1, 1, 1), (1, 1, 2)), dtype=np.int64),
+        block_eligible_origins=np.asarray(((5, 10, 15), (5, 10, 15)), dtype=np.int64),
+        block_exclusions=np.asarray([[[[[0, 1, 2]]]], [[[[0, 0, 0]]]]]),
+        intrinsic_eligible_origins=np.asarray((10, 20, 30), dtype=np.int64),
+        boundary_excluded_origins=np.asarray((2, 4, 6), dtype=np.int64),
+        support_policy_excluded_origins=np.asarray((0, 0, 0), dtype=np.int64),
+        intrinsic_eligible_origins_per_displacement=np.asarray(
+            (10, 20, 30), dtype=np.int64
+        ),
+        boundary_excluded_origins_per_displacement=np.asarray(
+            (2, 4, 6), dtype=np.int64
+        ),
+        support_policy_excluded_origins_per_displacement=np.asarray(
+            (0, 0, 0), dtype=np.int64
+        ),
+    )
+    uncertainty = {
+        name: expanded(moment_values)
+        for name in supplement.REPRODUCTION_UNCERTAINTY_P_AXIS_ARRAY_NAMES
+    }
+    uncertainty["metadata_json"] = np.asarray(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "p_values": p_values,
+                "bootstrap_seed": 20260531,
+            },
+            sort_keys=True,
+        )
+    )
+    uncertainty["sampled_blocks_per_shell"] = np.asarray((2, 2, 2), dtype=np.int64)
+    uncertainty["eligible_blocks_per_shell"] = np.asarray((2, 2, 2), dtype=np.int64)
+    uncertainty["local_log_slope_support_mask"] = expanded(
+        np.asarray([[[[[[True, False, True]]]]]])
+    )
+    return SimpleNamespace(
+        result=result,
+        uncertainty=uncertainty,
+        staging_logical_bytes_before_marker=staging_logical_bytes,
+    )
+
+
+def _reproduction_groups(
+    p_values: tuple[float, ...],
+) -> dict[tuple[str, str], SimpleNamespace]:
+    return {
+        (cube_id, support_mode): _reproduction_group(p_values)
+        for cube_id in supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+        for support_mode in supplement.SUPPORT_MODES
+    }
 
 
 def test_common_equal_sf_targets_use_supported_directional_overlap() -> None:
@@ -396,6 +522,107 @@ def test_staged_dependency_binding_rejects_wrong_extension_root(tmp_path: Path) 
             batch_a_root=batch_a_root,
             extension_root=extension_root,
             cube_ids=cube_ids,
+        )
+
+
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_passes() -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+
+    verification = supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+        cube_ids=cube_ids,
+        batch_a_groups=_reproduction_groups((2.0,)),
+        batch_b_groups=_reproduction_groups(supplement.BATCH_B_P_VALUES),
+    )
+
+    assert verification == {
+        "status": "passed",
+        "verification_mode": "exact_arrays_equal_nan",
+        "p_value": 2.0,
+        "verified_group_count": 42,
+        "excluded_metadata": "timing_and_staging_only",
+    }
+
+
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_rejects_result_mismatch() -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+    batch_b_groups = _reproduction_groups(supplement.BATCH_B_P_VALUES)
+    first = batch_b_groups[(cube_ids[0], supplement.SUPPORT_MODES[0])]
+    first.result.sums[..., 1, 0] += 1.0
+
+    with pytest.raises(RuntimeError, match=r"result\.sums"):
+        supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+            cube_ids=cube_ids,
+            batch_a_groups=_reproduction_groups((2.0,)),
+            batch_b_groups=batch_b_groups,
+        )
+
+
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_rejects_per_displacement_support_mismatch() -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+    batch_b_groups = _reproduction_groups(supplement.BATCH_B_P_VALUES)
+    first = batch_b_groups[(cube_ids[0], supplement.SUPPORT_MODES[0])]
+    first.result.support_policy_excluded_origins_per_displacement[0] += 1
+
+    with pytest.raises(
+        RuntimeError, match="result.support_policy_excluded_origins_per_displacement"
+    ):
+        supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+            cube_ids=cube_ids,
+            batch_a_groups=_reproduction_groups((2.0,)),
+            batch_b_groups=batch_b_groups,
+        )
+
+
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_rejects_uncertainty_mismatch() -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+    batch_b_groups = _reproduction_groups(supplement.BATCH_B_P_VALUES)
+    first = batch_b_groups[(cube_ids[0], supplement.SUPPORT_MODES[0])]
+    first.uncertainty["block_bootstrap_interval_low"][..., 1, 0] += 1.0
+
+    with pytest.raises(RuntimeError, match=r"uncertainty\.block_bootstrap_interval_low"):
+        supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+            cube_ids=cube_ids,
+            batch_a_groups=_reproduction_groups((2.0,)),
+            batch_b_groups=batch_b_groups,
+        )
+
+
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_allows_timing_differences() -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+    batch_b_groups = _reproduction_groups(supplement.BATCH_B_P_VALUES)
+    first = batch_b_groups[(cube_ids[0], supplement.SUPPORT_MODES[0])]
+    first.result.elapsed_seconds = 999.0
+    first.result.elapsed_seconds_per_ell_bin[:] = 999.0
+    first.staging_logical_bytes_before_marker = 999
+
+    verification = supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+        cube_ids=cube_ids,
+        batch_a_groups=_reproduction_groups((2.0,)),
+        batch_b_groups=batch_b_groups,
+    )
+
+    assert verification["status"] == "passed"
+
+
+@pytest.mark.parametrize(
+    "p_values",
+    (
+        (1.0, 2.0, 3.0, 4.0, 5.0),
+        (1.0, 2.0, 2.0, 4.0, 5.0, 6.0),
+        (2.0, 1.0, 3.0, 4.0, 5.0, 6.0),
+    ),
+    ids=("missing", "duplicate", "reordered"),
+)
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_rejects_noncanonical_batch_b_p_values(
+    p_values: tuple[float, ...],
+) -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+
+    with pytest.raises(RuntimeError, match="Batch B p-values"):
+        supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+            cube_ids=cube_ids,
+            batch_a_groups=_reproduction_groups((2.0,)),
+            batch_b_groups=_reproduction_groups(p_values),
         )
 
 

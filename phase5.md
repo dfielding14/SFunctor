@@ -51,6 +51,8 @@ Retain all durable prior operational and data-provenance hard stops:
 - register every nontrivial allocation before submission;
 - write Slurm stdout and stderr under `logs/`;
 - do not add Slurm email-notification directives;
+- require every new wrapper to reject an existing `RUN_DIR` before writing
+  allocation logs or artifacts;
 - keep at most one debug job queued or running at a time;
 - use unique restartable output directories;
 - stop before any unapproved campaign expansion;
@@ -98,6 +100,15 @@ Before submitting production jobs, propose a staged plan that states:
 - stopping rules.
 
 Wait for explicit human approval of that plan.
+
+Before recommending or launching that bounded plan, require the retained
+Phase 4 all-21 Batch B 2-point `p = 2` slice to reproduce the earlier Batch A
+baseline exactly for both support policies. Treat an unexplained mismatch as
+a stop condition. Start any approved cross-scale campaign with a 2-point
+`p = 2` smoke product, then add higher orders only after reviewing support,
+block uncertainty, and high-order tails. Keep 3-point products as separately
+labeled comparisons and require a separate reviewed decision before any
+5-point expansion.
 
 ==================================================
 TASK 2: PRIORITIZE SCALES CONSERVATIVELY
@@ -216,8 +227,8 @@ For each approved batch:
 - inspect scale-range, local-slope, and fit-interval sensitivity;
 - inspect explicitly labeled 2-point, 3-point, and 5-point comparisons where
   included in the approved batch;
-- compare the retained primary finite-support policy and all-valid-origin
-  results;
+- compare the primary `all_valid_origins` curves and the retained
+  `shell_local` robustness overlays;
 - verify deterministic displacement-shard reduction and restartability;
 - inspect representative cubes and plots;
 - stop if scientific value or numerical quality degrades.
