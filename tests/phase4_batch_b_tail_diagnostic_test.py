@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from scripts.phase4 import run_phase4_batch_b_tail_diagnostic as diagnostic
 from sfunctor.core.directional import QField
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_exterior_sampler_is_deterministic_and_excludes_interior() -> None:
@@ -82,3 +87,16 @@ def test_source_version_binds_directional_kernel_and_wrapper() -> None:
 
     assert "sfunctor/core/directional.py" in hashes
     assert "job_scripts/phase4/run_phase4_batch_b_tail_diagnostic_andes.sh" in hashes
+
+
+def test_wrapper_has_lock_logs_one_cpu_and_no_email_policy() -> None:
+    text = (
+        REPO_ROOT / "job_scripts" / "phase4" / "run_phase4_batch_b_tail_diagnostic_andes.sh"
+    ).read_text()
+
+    assert "#SBATCH -o logs/" in text
+    assert "#SBATCH -e logs/" in text
+    assert "#SBATCH --cpus-per-task=1" in text
+    assert "phase4_batch_b_tail_diagnostic_action_lock" in text
+    assert "recover_stale_lock" in text
+    assert "mail" not in text.lower()

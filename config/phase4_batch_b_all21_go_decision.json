@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "status": "post_diagnostic_user_authorized_all21_batch_b_extension",
+  "decision_date": "2026-06-02",
+  "authorization_source": "explicit_user_request",
+  "decision_scope": "exact all-21 L640 2-point Batch B p=1..6 extension only",
+  "representative_review_status": "hold_all21_batch_b_expansion_pending_tail_diagnostic",
+  "representative_review_hold_acknowledged": true,
+  "representative_probe_release": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase4/batch_b_representative_primary_20260601T185131Z",
+  "representative_review_decision": "config/phase4_batch_b_representative_review_decision.json",
+  "representative_review_decision_sha256": "4fbcc662ea02da72dceb316cd4a2dc6bd8f37c48515309a4f553cb20f90f2701",
+  "representative_status_evidence": "PHASE4_BATCH_B_REPRESENTATIVE_STATUS_UPDATE.md",
+  "representative_status_evidence_sha256": "f765359039880bd5ed2ae0a953743742a15d0583f64fde7a8a1882ccd86981b0",
+  "representative_review_summary": "figures/phase4_batch_b_representative_review/phase4_batch_b_representative_review_summary.json",
+  "representative_review_summary_sha256": "46517e4f082249c4c7fb59638374b547bb8b68b33dec424e6ec9d61ab193d8f9",
+  "representative_figure_manifest": "figures/phase4_batch_b_representative_review/figure_manifest.json",
+  "representative_figure_manifest_sha256": "ebec0a33d15fb420d340fe24cfb29e3663b88b0756e4aa672c9923878681ed0e",
+  "tail_diagnostic_root": "/lustre/orion/ast207/proj-shared/dfielding/Production_plm/phase4/batch_b_tail_diagnostic_v2_primary_20260602T003701Z",
+  "tail_diagnostic_summary": "phase4_batch_b_tail_diagnostic_summary.json",
+  "tail_diagnostic_summary_sha256": "db620f99b2262a14e82697b0afd4db3540b7cfba233f048f89ce00b125e9d487",
+  "tail_diagnostic_marker": "PHASE4_BATCH_B_TAIL_DIAGNOSTIC_COMPLETE.json",
+  "tail_diagnostic_marker_sha256": "1ee1268e681343671b639be058507b8d87ed1401190e20bb76e1ef0ecb260a85",
+  "tail_diagnostic_status": "complete_review_acquisition_authorized",
+  "tail_diagnostic_interpretation": "tail sensitivity remains real and imperfect; acquire all-21 review evidence without treating p=6 as converged",
+  "cube_ids": [
+    "L640_sub00370",
+    "L640_sub02822",
+    "L640_sub03026",
+    "L640_sub02615",
+    "L640_sub03942",
+    "L640_sub00957",
+    "L640_sub03356",
+    "L640_sub01582",
+    "L640_sub00579",
+    "L640_sub00886",
+    "L640_sub00032",
+    "L640_sub02279",
+    "L640_sub01088",
+    "L640_sub02297",
+    "L640_sub00732",
+    "L640_sub02000",
+    "L640_sub02602",
+    "L640_sub02249",
+    "L640_sub00738",
+    "L640_sub01591",
+    "L640_sub01651"
+  ],
+  "q_names": [
+    "B",
+    "u"
+  ],
+  "p_values": [
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0
+  ],
+  "stencils": {
+    "2": {
+      "label": "2-point",
+      "ell_max": 320,
+      "bin_count": 64,
+      "directions_per_bin": 24
+    }
+  },
+  "support_modes": [
+    "all_valid_origins",
+    "shell_local"
+  ],
+  "density_conventions": [
+    "not applicable",
+    "not applicable"
+  ],
+  "all21_batch_b_expansion_authorized": true,
+  "density_weighting_authorized": false,
+  "five_point_expansion_authorized": false,
+  "fitted_directional_exponents_authorized": false,
+  "batch_c_authorized": false,
+  "sgs_channels_authorized": false,
+  "lsub1280_authorized": false
+}

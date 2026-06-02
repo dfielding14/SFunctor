@@ -868,6 +868,23 @@ def test_batch_a_verify_rejects_orphaned_phase4_summary(tmp_path, monkeypatch):
                 "RUN_DIR",
             ),
         ),
+        (
+            "job_scripts/phase4/run_phase4_batch_b_all21_extension_andes.sh",
+            (
+                "PHASE2_ROOT",
+                "BATCH_A_ROOT",
+                "REPRESENTATIVE_A2_ROOT",
+                "ALL21_3POINT_EXTENSION_ROOT",
+                "REPRESENTATIVE_BATCH_B_ROOT",
+                "TAIL_DIAGNOSTIC_ROOT",
+                "OUTPUT_ROOT",
+                "RUN_DIR",
+            ),
+        ),
+        (
+            "job_scripts/phase4/run_phase4_batch_b_tail_diagnostic_andes.sh",
+            ("PHASE2_ROOT", "REPRESENTATIVE_RELEASE_ROOT", "OUTPUT_ROOT", "RUN_DIR"),
+        ),
     ],
 )
 def test_andes_wrappers_are_cpu_batch_policy_compliant(relative_path, required_roots):
@@ -922,4 +939,56 @@ def test_batch_b_review_wrapper_is_cpu_batch_policy_compliant():
     assert "sacct -j" in text
     assert "generate_phase4_batch_b_representative_review.py" in text
     for root_name in ("RELEASE_ROOT", "LEDGER_SUMMARY", "OUTPUT_DIR", "RUN_DIR"):
+        assert f': "${{{root_name}:?' in text
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "required_roots", "generator"),
+    [
+        (
+            "job_scripts/phase4/run_phase4_batch_b_tail_diagnostic_review_andes.sh",
+            ("DIAGNOSTIC_ROOT", "OUTPUT_DIR", "RUN_DIR"),
+            "generate_phase4_batch_b_tail_diagnostic_review.py",
+        ),
+        (
+            "job_scripts/phase4/run_phase4_batch_b_all21_review_andes.sh",
+            ("PHASE1_ROOT", "RELEASE_ROOT", "LEDGER_SUMMARY", "OUTPUT_DIR", "RUN_DIR"),
+            "generate_phase4_batch_b_all21_review.py",
+        ),
+        (
+            "job_scripts/phase4/run_phase4_completion_supplement_andes.sh",
+            (
+                "PHASE1_ROOT",
+                "EXTRACTION_ROOT",
+                "BATCH_A_ROOT",
+                "ALL21_3POINT_EXTENSION_ROOT",
+                "ALL21_BATCH_B_ROOT",
+                "LEDGER_SUMMARY",
+                "OUTPUT_DIR",
+                "RUN_DIR",
+            ),
+            "generate_phase4_completion_supplement.py",
+        ),
+    ],
+)
+def test_phase4_completion_report_wrappers_are_cpu_batch_policy_compliant(
+    relative_path, required_roots, generator
+):
+    root = Path(__file__).resolve().parents[1]
+    path = root / relative_path
+    text = path.read_text()
+
+    subprocess.run(("bash", "-n", str(path)), check=True)
+    assert "#SBATCH -A AST207" in text
+    assert "#SBATCH -p batch" in text
+    assert "#SBATCH -o logs/" in text
+    assert "#SBATCH -e logs/" in text
+    assert "#SBATCH --cpus-per-task=" in text
+    assert "--mail" not in text
+    assert "sgs" not in text.lower()
+    assert "sbatch " not in text
+    assert "archive_slurm_resources" in text
+    assert "sacct -j" in text
+    assert generator in text
+    for root_name in required_roots:
         assert f': "${{{root_name}:?' in text

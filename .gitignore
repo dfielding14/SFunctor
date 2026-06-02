@@ -40,6 +40,9 @@ Thumbs.db
 
 # Test and debugging artifacts
 test_*.py
+!tests/test_phase4_batch_b_all21_review.py
+!tests/test_phase4_batch_b_tail_diagnostic_review.py
+!tests/test_phase4_completion_supplement.py
 !tests/test_directional.py
 !tests/test_histogram_results.py
 !tests/test_plotting_reducers.py
