@@ -215,6 +215,26 @@ def _reproduction_groups(
     }
 
 
+def _strict_result_matrix_fixture() -> tuple[SimpleNamespace, dict[str, object], dict[str, object]]:
+    result = _reproduction_group((2.0,)).result
+    result.geometry_names = supplement.FINITE_DOMAIN_GEOMETRY_NAMES
+    result.measurement_names = supplement.MEASUREMENT_NAMES
+    result.direction_names = supplement.RESULT_DIRECTION_NAMES
+    result.exclusion_names = supplement.EXCLUSION_NAMES
+    configuration = {
+        "sample_count_per_displacement": result.sample_count,
+        "pair_batch_size": result.pair_batch_size,
+        "production_seed": result.seed,
+        "block_shape_kji": result.block_shape_kji,
+        "block_assignment": result.block_assignment,
+    }
+    displacement_metadata = {
+        "offsets_sha256": result.support_displacements_sha256,
+        "realized_offset_count": result.support_displacement_count,
+    }
+    return result, configuration, displacement_metadata
+
+
 def test_common_equal_sf_targets_use_supported_directional_overlap() -> None:
     curves = {
         "parallel": np.asarray((1.0, 4.0, 16.0)),
@@ -596,6 +616,113 @@ def test_strict_batch_a_to_all21_batch_b_p2_reproduction_passes() -> None:
         "verified_group_count": 42,
         "excluded_metadata": "timing_and_staging_only",
     }
+
+
+def test_historical_result_matrix_requires_exact_geometry_metadata() -> None:
+    result, configuration, displacement_metadata = _strict_result_matrix_fixture()
+
+    supplement._validate_result_matrix(
+        result,
+        label="fixture",
+        stencil_width=result.stencil_width,
+        support_mode=result.pair_mode,
+        q_names=result.q_names,
+        p_values=result.p_values,
+        density_conventions=result.density_conventions,
+        configuration=configuration,
+        displacement_metadata=displacement_metadata,
+        expected_displacements=result.displacements_ijk,
+        expected_ell_bin_edges=result.ell_bin_edges,
+    )
+
+    result.geometry_names = (*result.geometry_names, "unexpected")
+    with pytest.raises(RuntimeError, match="result matrix mismatch"):
+        supplement._validate_result_matrix(
+            result,
+            label="fixture",
+            stencil_width=result.stencil_width,
+            support_mode=result.pair_mode,
+            q_names=result.q_names,
+            p_values=result.p_values,
+            density_conventions=result.density_conventions,
+            configuration=configuration,
+            displacement_metadata=displacement_metadata,
+            expected_displacements=result.displacements_ijk,
+            expected_ell_bin_edges=result.ell_bin_edges,
+        )
+
+
+def test_historical_result_matrix_rejects_wrong_cube_shape() -> None:
+    result, configuration, displacement_metadata = _strict_result_matrix_fixture()
+    result.cube_shape_kji = (639, 640, 640)
+
+    with pytest.raises(RuntimeError, match="result matrix mismatch"):
+        supplement._validate_result_matrix(
+            result,
+            label="fixture",
+            stencil_width=result.stencil_width,
+            support_mode=result.pair_mode,
+            q_names=result.q_names,
+            p_values=result.p_values,
+            density_conventions=result.density_conventions,
+            configuration=configuration,
+            displacement_metadata=displacement_metadata,
+            expected_displacements=result.displacements_ijk,
+            expected_ell_bin_edges=result.ell_bin_edges,
+        )
+
+
+def test_historical_result_matrix_rejects_wrong_displacements() -> None:
+    result, configuration, displacement_metadata = _strict_result_matrix_fixture()
+    expected_displacements = result.displacements_ijk.copy()
+    expected_displacements[0, 0] += 1
+
+    with pytest.raises(RuntimeError, match="result matrix mismatch"):
+        supplement._validate_result_matrix(
+            result,
+            label="fixture",
+            stencil_width=result.stencil_width,
+            support_mode=result.pair_mode,
+            q_names=result.q_names,
+            p_values=result.p_values,
+            density_conventions=result.density_conventions,
+            configuration=configuration,
+            displacement_metadata=displacement_metadata,
+            expected_displacements=expected_displacements,
+            expected_ell_bin_edges=result.ell_bin_edges,
+        )
+
+
+def test_historical_implementation_source_binding_recomputes_retained_map() -> None:
+    hashes = {"source.py": "a" * 64}
+    sha256 = supplement.runner._mapping_sha256(hashes)
+
+    assert supplement._historical_implementation_source_binding(
+        {
+            "implementation_source_hashes": hashes,
+            "implementation_sha256": sha256,
+        },
+        sha256,
+    )
+    assert not supplement._historical_implementation_source_binding(
+        {
+            "implementation_source_hashes": {"source.py": "b" * 64},
+            "implementation_sha256": sha256,
+        },
+        sha256,
+    )
+
+
+def test_exact_equal_rejects_dtype_and_signed_zero_differences() -> None:
+    assert supplement._exact_equal(
+        np.asarray([1], dtype=np.int64), np.asarray([1], dtype=np.int64)
+    )
+    assert not supplement._exact_equal(
+        np.asarray([1], dtype=np.int64), np.asarray([1.0], dtype=np.float64)
+    )
+    assert not supplement._exact_equal(
+        np.asarray([0.0], dtype=np.float64), np.asarray([-0.0], dtype=np.float64)
+    )
 
 
 def test_strict_batch_a_to_all21_batch_b_p2_reproduction_allows_legacy_batch_a_uncertainty_metadata() -> None:

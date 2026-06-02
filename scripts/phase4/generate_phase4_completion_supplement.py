@@ -35,7 +35,16 @@ from scripts.phase4 import generate_phase4_batch_a_status_figures as batch_a_rep
 from scripts.phase4 import generate_phase4_batch_a2_review as batch_a2_review
 from scripts.phase4 import generate_phase4_batch_b_representative_review as batch_b_review
 from sfunctor.analysis import finite_domain as finite_domain_analysis
-from sfunctor.core.finite_domain import FiniteDomainResult
+from sfunctor.analysis.phase3a import load_finite_domain_partial_npz
+from sfunctor.core.directional import (
+    DIRECTION_NAMES as RESULT_DIRECTION_NAMES,
+    EXCLUSION_NAMES,
+)
+from sfunctor.core.finite_domain import (
+    FINITE_DOMAIN_GEOMETRY_NAMES,
+    MEASUREMENT_NAMES,
+    FiniteDomainResult,
+)
 
 
 DEFAULT_OUTPUT_DIR = Path("figures/phase4_completion_supplement")
@@ -344,6 +353,28 @@ def _campaign_density_conventions_binding(
     return None
 
 
+def _historical_implementation_source_binding(
+    source_version: Mapping[str, Any],
+    expected_sha256: str,
+) -> bool:
+    """Recompute one retained source-map digest without requiring live sources."""
+
+    hashes = source_version.get("implementation_source_hashes")
+    return (
+        isinstance(hashes, dict)
+        and source_version.get("implementation_sha256") == expected_sha256
+        and runner._mapping_sha256(hashes) == expected_sha256
+    )
+
+
+def _sorted_displacements(displacements: np.ndarray) -> np.ndarray:
+    displacements = np.asarray(displacements)
+    order = np.lexsort(
+        (displacements[:, 2], displacements[:, 1], displacements[:, 0])
+    )
+    return displacements[order]
+
+
 def _validate_result_matrix(
     result: Any,
     *,
@@ -355,6 +386,8 @@ def _validate_result_matrix(
     density_conventions: Sequence[str],
     configuration: Mapping[str, Any],
     displacement_metadata: Mapping[str, Any],
+    expected_displacements: np.ndarray,
+    expected_ell_bin_edges: np.ndarray,
 ) -> None:
     if (
         result.stencil_width != stencil_width
@@ -362,8 +395,19 @@ def _validate_result_matrix(
         or tuple(result.q_names) != tuple(q_names)
         or tuple(result.p_values) != tuple(p_values)
         or tuple(result.density_conventions) != tuple(density_conventions)
-        or not {"pair_local", "subvolume_mean"}.issubset(result.geometry_names)
-        or not set(DIRECTIONS).issubset(result.direction_names)
+        or tuple(result.geometry_names) != FINITE_DOMAIN_GEOMETRY_NAMES
+        or tuple(result.measurement_names) != MEASUREMENT_NAMES
+        or tuple(result.direction_names) != RESULT_DIRECTION_NAMES
+        or tuple(result.exclusion_names) != EXCLUSION_NAMES
+        or not np.array_equal(
+            result.displacements_ijk, _sorted_displacements(expected_displacements)
+        )
+        or not np.array_equal(result.ell_bin_edges, expected_ell_bin_edges)
+        or tuple(result.cube_shape_kji) != (640, 640, 640)
+        or not np.isnan(result.rho0)
+        or result.rho0_provenance
+        != "not applicable for requested q variants"
+        or tuple(result.cell_sizes) != (1.0, 1.0, 1.0)
         or result.sample_count != configuration["sample_count_per_displacement"]
         or result.pair_batch_size != configuration["pair_batch_size"]
         or result.seed != configuration["production_seed"]
@@ -373,6 +417,8 @@ def _validate_result_matrix(
         != displacement_metadata["offsets_sha256"]
         or result.support_displacement_count
         != displacement_metadata["realized_offset_count"]
+        or not np.isfinite(result.elapsed_seconds)
+        or result.elapsed_seconds < 0.0
     ):
         raise RuntimeError(f"retained release result matrix mismatch: {label}")
 
@@ -456,14 +502,19 @@ def _verify_marker_bound_release(
         or inherited_marker.get("status") != "release_aggregation_complete"
         or inherited_marker.get("summary_sha256") != file_sha256(inherited_summary_path)
         or inherited_marker.get("implementation_sha256") != implementation_sha256
-        or inherited_summary.get("source_version", {}).get("implementation_sha256")
-        != implementation_sha256
-        or summary.get("source_version", {}).get("implementation_sha256")
-        != implementation_sha256
+        or not _historical_implementation_source_binding(
+            campaign.get("source_version", {}), implementation_sha256
+        )
+        or not _historical_implementation_source_binding(
+            inherited_summary.get("source_version", {}), implementation_sha256
+        )
+        or not _historical_implementation_source_binding(
+            summary.get("source_version", {}), implementation_sha256
+        )
     ):
         raise RuntimeError(f"invalid or stale marker-bound retained release: {root}")
 
-    displacement_metadata, displacements, _ = runner._load_displacement_manifest(
+    displacement_metadata, displacements, ell_bin_edges = runner._load_displacement_manifest(
         root, stencil_width
     )
     displacement_json, displacement_npz = runner._manifest_paths(root, stencil_width)
@@ -532,6 +583,22 @@ def _verify_marker_bound_release(
             partial_path, str(shard_marker.get("partial_sha256", ""))
         )
         input_hashes.add(shard_marker_path)
+        partial = load_finite_domain_partial_npz(partial_path)
+        _validate_result_matrix(
+            partial,
+            label=row["shard_id"],
+            stencil_width=stencil_width,
+            support_mode=row["support_mode"],
+            q_names=q_names,
+            p_values=p_values,
+            density_conventions=density_conventions,
+            configuration=configuration,
+            displacement_metadata=displacement_metadata,
+            expected_displacements=displacements[
+                int(row["offset_start"]) : int(row["offset_stop"])
+            ],
+            expected_ell_bin_edges=ell_bin_edges,
+        )
         shard_marker_sha256[row["shard_id"]] = file_sha256(shard_marker_path)
 
     loaded_groups = dict(groups or {})
@@ -560,8 +627,17 @@ def _verify_marker_bound_release(
             )
             reduction_manifest_path = group_root / "reduction_manifest.json"
             uncertainty_path = group_root / "uncertainty.npz"
+            reduction_marker_path = group_root / "COMPLETE.json"
             reduction_manifest = _load_json(reduction_manifest_path)
+            reduction_marker = _load_json(reduction_marker_path)
             ordered_shard_ids = tuple(row["shard_id"] for row in rows_by_group[group_id])
+            timing_names = (
+                "reduction_elapsed_seconds",
+                "jackknife_elapsed_seconds",
+                "bootstrap_elapsed_seconds",
+                "staging_logical_bytes_before_marker",
+                "staging_allocated_bytes_before_marker",
+            )
             if (
                 reduction_manifest.get("group_id") != group_id
                 or tuple(reduction_manifest.get("ordered_shard_ids", ()))
@@ -573,6 +649,12 @@ def _verify_marker_bound_release(
                 }
                 or reduction_manifest.get("implementation_sha256")
                 != implementation_sha256
+                or any(
+                    not isinstance(reduction_marker.get(name), (int, float))
+                    or not np.isfinite(reduction_marker[name])
+                    or reduction_marker[name] < 0
+                    for name in timing_names
+                )
             ):
                 raise RuntimeError(f"invalid retained reduction manifest: {group_id}")
             _validate_result_matrix(
@@ -585,6 +667,8 @@ def _verify_marker_bound_release(
                 density_conventions=density_conventions,
                 configuration=configuration,
                 displacement_metadata=displacement_metadata,
+                expected_displacements=displacements,
+                expected_ell_bin_edges=ell_bin_edges,
             )
             batch_a_report._verify_uncertainty_payload(
                 uncertainty_path, group.result, configuration
@@ -684,10 +768,23 @@ def _exact_equal(left: Any, right: Any) -> bool:
     if isinstance(left, np.ndarray) or isinstance(right, np.ndarray):
         left_array = np.asarray(left)
         right_array = np.asarray(right)
-        if left_array.shape != right_array.shape:
+        if (
+            left_array.shape != right_array.shape
+            or left_array.dtype != right_array.dtype
+        ):
             return False
         if left_array.dtype.kind in "fc" or right_array.dtype.kind in "fc":
-            return bool(np.array_equal(left_array, right_array, equal_nan=True))
+            if not np.array_equal(left_array, right_array, equal_nan=True):
+                return False
+            if left_array.dtype.kind == "f":
+                paired_zero = (left_array == 0.0) & (right_array == 0.0)
+                return bool(
+                    np.array_equal(
+                        np.signbit(left_array[paired_zero]),
+                        np.signbit(right_array[paired_zero]),
+                    )
+                )
+            return True
         return bool(np.array_equal(left_array, right_array))
     if isinstance(left, Mapping) and isinstance(right, Mapping):
         return left.keys() == right.keys() and all(
@@ -701,7 +798,11 @@ def _exact_equal(left: Any, right: Any) -> bool:
     if isinstance(left, (float, np.floating)) and isinstance(
         right, (float, np.floating)
     ):
-        return bool(left == right or (np.isnan(left) and np.isnan(right)))
+        if np.isnan(left) and np.isnan(right):
+            return True
+        if left != right:
+            return False
+        return bool(left != 0.0 or np.signbit(left) == np.signbit(right))
     return bool(left == right)
 
 
