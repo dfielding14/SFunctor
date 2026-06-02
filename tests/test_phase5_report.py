@@ -47,6 +47,19 @@ Updated: `2026-06-02T12:00:00Z`
     )
 
 
+def _decision_record(path: Path, campaign_config: Path, labels: tuple[str, ...]) -> None:
+    _write_json(
+        path,
+        {
+            "schema_version": 1,
+            "phase": "phase5_execution_decision",
+            "status": "retained_closeout_acquisition_scope",
+            "campaign_config_sha256": report.file_sha256(campaign_config),
+            "retained_report_release_labels": list(labels),
+        },
+    )
+
+
 def _result(
     *,
     stencil_width: int,
@@ -494,10 +507,12 @@ def test_report_package_publishes_quantitative_tables_figures_and_manifest(
     phase1_root.mkdir()
     config_path = tmp_path / "campaign.json"
     ledger_path = tmp_path / "ledger.md"
+    decision_path = tmp_path / "decision.json"
     output_dir = tmp_path / "report"
     output_dir.mkdir()
     _campaign_config(config_path, phase1_root)
     _ledger(ledger_path)
+    _decision_record(decision_path, config_path, ("L320",))
     synthetic = _verified_release()
     monkeypatch.setattr(report, "_verify_release", lambda *args, **kwargs: synthetic)
 
@@ -505,6 +520,7 @@ def test_report_package_publishes_quantitative_tables_figures_and_manifest(
         campaign_config=config_path,
         phase1_root=phase1_root,
         release_paths={"L320": tmp_path / "retained"},
+        decision_record_path=decision_path,
         ledger_summary_path=ledger_path,
         output_dir=output_dir,
     )
@@ -527,6 +543,7 @@ def test_report_package_publishes_quantitative_tables_figures_and_manifest(
             campaign_config=config_path,
             phase1_root=phase1_root,
             release_paths={"L320": tmp_path / "retained"},
+            decision_record_path=decision_path,
             ledger_summary_path=ledger_path,
             output_dir=output_dir,
         )
@@ -589,6 +606,7 @@ def _run_wrapper(
             "PATH": f"{fake_bin}:{env['PATH']}",
             "SFUNCTOR_DIR": str(sfunctor_dir),
             "CAMPAIGN_CONFIG": str(tmp_path / "campaign.json"),
+            "PHASE5_DECISION_RECORD": str(tmp_path / "decision.json"),
             "PHASE1_ROOT": str(tmp_path / "phase1"),
             "PHASE5_RELEASES": "L320=/retained/L320 L160=/retained/L160",
             "LEDGER_SUMMARY": str(tmp_path / "ledger.md"),
@@ -639,6 +657,7 @@ def test_wrapper_passes_explicit_releases_optional_baseline_and_archives_sacct(
     assert result.returncode == 0, result.stderr
     arguments = (tmp_path / "python.log").read_text()
     assert "--campaign-config" in arguments
+    assert "--decision-record" in arguments
     assert "--release L320=/retained/L320" in arguments
     assert "--release L160=/retained/L160" in arguments
     assert "--phase4-batch-a-root /retained/phase4" in arguments

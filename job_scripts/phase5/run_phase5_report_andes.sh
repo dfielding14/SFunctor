@@ -13,6 +13,7 @@ set -euo pipefail
 
 SFUNCTOR_DIR="${SFUNCTOR_DIR:-/ccs/home/dfielding/SFunctor}"
 : "${CAMPAIGN_CONFIG:?CAMPAIGN_CONFIG must be the approved Phase 5 report config}"
+: "${PHASE5_DECISION_RECORD:?PHASE5_DECISION_RECORD must bind the retained Phase 5 report release matrix}"
 : "${PHASE1_ROOT:?PHASE1_ROOT must be the retained Phase 1 catalog root}"
 : "${PHASE5_RELEASES:?PHASE5_RELEASES must contain whitespace-separated label=path retained releases}"
 : "${LEDGER_SUMMARY:?LEDGER_SUMMARY must be the settled zero-pending compute-budget summary}"
@@ -81,6 +82,7 @@ fi
 
 /usr/bin/time -v srun -N 1 -n 1 --cpu-bind=cores "$PYTHON_BIN" "${CLI}" \
   --campaign-config "${CAMPAIGN_CONFIG}" \
+  --decision-record "${PHASE5_DECISION_RECORD}" \
   --phase1-root "${PHASE1_ROOT}" \
   "${release_args[@]}" \
   --ledger-summary "${LEDGER_SUMMARY}" \

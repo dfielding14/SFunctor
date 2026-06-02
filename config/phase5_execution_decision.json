@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "phase": "phase5_execution_decision",
+  "status": "retained_closeout_acquisition_scope",
+  "created_during_closeout": true,
+  "created_during_closeout_note": "This machine-readable record was retained during closeout after the human launch directive. It records the acquired bounded matrix and is not a claim that a machine-readable artifact existed before submission.",
+  "campaign_config_sha256": "e6dd8e0b9249a43b05425ae7dabdb452133f8fdd99c3fdf40765d47a81157712",
+  "human_authorization_summary": "Complete Phase 5, submit jobs, continue through non-catastrophic uncertainty, and prefer bounded acquisition now over stopping for avoidable reruns.",
+  "retained_planning_forecast_maximum_node_hours": 36.0,
+  "primary_science_release_labels": [
+    "L320_lineage_all_baseline"
+  ],
+  "exploratory_acquisition_release_labels": [
+    "L160_lineage_smoke_3point",
+    "L160_lineage_smoke_baseline",
+    "L160_lineage_smoke_orders",
+    "L320_lineage_all_orders",
+    "L320_lineage_smoke_3point",
+    "L320_lineage_smoke_5point",
+    "L320_lineage_smoke_baseline",
+    "L320_lineage_smoke_orders",
+    "L320_matched_smoke_baseline",
+    "L80_lineage_smoke_baseline",
+    "L80_lineage_smoke_orders"
+  ],
+  "retained_report_release_labels": [
+    "L160_lineage_smoke_3point",
+    "L160_lineage_smoke_baseline",
+    "L160_lineage_smoke_orders",
+    "L320_lineage_all_baseline",
+    "L320_lineage_all_orders",
+    "L320_lineage_smoke_3point",
+    "L320_lineage_smoke_5point",
+    "L320_lineage_smoke_baseline",
+    "L320_lineage_smoke_orders",
+    "L320_matched_smoke_baseline",
+    "L80_lineage_smoke_baseline",
+    "L80_lineage_smoke_orders"
+  ],
+  "interpretation_limits": [
+    "The L320 all-lineage cohort is a physical-lineage persistence cohort selected from retained L640 parents, not a balanced L320 environmental census.",
+    "Higher-order, 3-point, 5-point, L160, and L80 releases are retained exploratory acquisitions pending report-level scientific interpretation.",
+    "L80 higher-order products are narrow-window resolution diagnostics.",
+    "No fitted exponent claim is authorized by this record."
+  ],
+  "deferred_extensions": [
+    "L_sub=1280 extraction",
+    "shifted tilings",
+    "additional snapshots",
+    "SGS-derived channels",
+    "dynamo-derivative channels",
+    "all-21 3-point expansion",
+    "all-21 5-point expansion"
+  ]
+}

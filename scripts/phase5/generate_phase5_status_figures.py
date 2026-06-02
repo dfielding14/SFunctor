@@ -37,6 +37,7 @@ SCHEMA_VERSION = 1
 SUMMARY_FILENAME = "phase5_cross_scale_report_summary.json"
 HASH_MANIFEST_FILENAME = "phase5_hash_manifest.json"
 LEDGER_SNAPSHOT_FILENAME = "phase5_compute_ledger_summary_snapshot.md"
+DECISION_SNAPSHOT_FILENAME = "phase5_execution_decision_snapshot.json"
 SELECTION_JSON_FILENAME = "phase5_scale_selection_lineage_environment_census.json"
 SELECTION_CSV_FILENAME = "phase5_scale_selection_lineage_environment_census.csv"
 SHELL_JSON_FILENAME = "phase5_shell_support_effective_block_diagnostics.json"
@@ -1121,6 +1122,30 @@ def _bind_ledger_summary(path: Path, input_hashes: InputHashes) -> tuple[dict[st
     }, snapshot
 
 
+def _bind_execution_decision(
+    path: Path,
+    *,
+    campaign_config: Path,
+    release_paths: Mapping[str, Path],
+    input_hashes: InputHashes,
+) -> tuple[dict[str, Any], str]:
+    if not path.is_file():
+        raise RuntimeError(f"required Phase 5 execution decision is missing: {path}")
+    decision = _load_json(path)
+    input_hashes.add(path)
+    labels = decision.get("retained_report_release_labels")
+    if (
+        decision.get("schema_version") != SCHEMA_VERSION
+        or decision.get("phase") != "phase5_execution_decision"
+        or decision.get("status") != "retained_closeout_acquisition_scope"
+        or decision.get("campaign_config_sha256") != file_sha256(campaign_config)
+        or not isinstance(labels, list)
+        or sorted(labels) != sorted(release_paths)
+    ):
+        raise RuntimeError("Phase 5 execution decision does not bind the supplied release matrix")
+    return decision, path.read_text()
+
+
 def _selection_rows(selections: Sequence[Selection]) -> list[dict[str, Any]]:
     rows_by_key: dict[tuple[int, str, str], dict[str, Any]] = {}
     for selection in selections:
@@ -2080,6 +2105,7 @@ def generate_report(
     campaign_config: Path,
     phase1_root: Path,
     release_paths: Mapping[str, Path],
+    decision_record_path: Path,
     ledger_summary_path: Path,
     output_dir: Path,
     phase4_batch_a_root: Path | None = None,
@@ -2089,6 +2115,12 @@ def generate_report(
     input_hashes = InputHashes()
     config, release_metadata = _verify_config(
         campaign_config, phase1_root, release_paths, input_hashes
+    )
+    execution_decision, decision_snapshot = _bind_execution_decision(
+        decision_record_path,
+        campaign_config=campaign_config,
+        release_paths=release_paths,
+        input_hashes=input_hashes,
     )
     ledger_summary, ledger_snapshot = _bind_ledger_summary(
         ledger_summary_path, input_hashes
@@ -2145,6 +2177,7 @@ def generate_report(
     )
     try:
         _atomic_write_text(temporary / LEDGER_SNAPSHOT_FILENAME, ledger_snapshot.decode())
+        _atomic_write_text(temporary / DECISION_SNAPSHOT_FILENAME, decision_snapshot)
         tables = {
             "scale_selection_lineage_environment_census": _write_table_pair(
                 temporary,
@@ -2243,6 +2276,13 @@ def generate_report(
                 "source_sha256": file_sha256(campaign_config),
                 "bounded_campaign_label": config.get("campaign_label"),
             },
+            "execution_decision": {
+                "source_path": str(decision_record_path.resolve()),
+                "source_sha256": file_sha256(decision_record_path),
+                "snapshot_relative_path": DECISION_SNAPSHOT_FILENAME,
+                "snapshot_sha256": file_sha256(temporary / DECISION_SNAPSHOT_FILENAME),
+                "scope": execution_decision,
+            },
             "phase1_root": str(phase1_root.resolve()),
             "retained_release_roots": {
                 release.label: str(release.root) for release in all_releases
@@ -2314,6 +2354,7 @@ def parse_args() -> argparse.Namespace:
         description="Generate an immutable retained-artifact Phase 5 cross-scale report."
     )
     parser.add_argument("--campaign-config", type=Path, required=True)
+    parser.add_argument("--decision-record", type=Path, required=True)
     parser.add_argument("--phase1-root", type=Path, required=True)
     parser.add_argument(
         "--release",
@@ -2340,6 +2381,7 @@ def main() -> None:
         raise SystemExit(str(error)) from error
     generate_report(
         campaign_config=args.campaign_config,
+        decision_record_path=args.decision_record,
         phase1_root=args.phase1_root,
         release_paths=releases,
         ledger_summary_path=args.ledger_summary,
