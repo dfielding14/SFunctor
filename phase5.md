@@ -4,6 +4,15 @@ Read `phase0.md`, `phase2.md`, `phase3.md`, `phase3a.md`, `phase4.md`, all
 completed phase status reports, and the Phase 4 campaign recommendation before
 starting.
 
+The final Phase 4 closeout report is:
+
+    PHASE4_STATUS_UPDATE.md
+
+Treat `figures/phase4_completion_supplement_v2/` as the final Phase 4
+completion-supplement package. Preserve
+`figures/phase4_completion_supplement/` as a superseded visual artifact and
+audit checkpoint; do not overwrite it.
+
 Do not execute this phase without explicit human approval of a bounded campaign
 plan and its maximum node-hour exposure.
 
@@ -171,6 +180,12 @@ Always report:
     deltaB
     B_rms
     bounded magnetic complements
+
+where:
+
+    bounded magnetic complements =
+        B_mean^2 / <B^2>_V
+        deltaB^2 / <B^2>_V
 
 beside one another.
 

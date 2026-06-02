@@ -393,6 +393,14 @@ may be retained only as a secondary descriptive view.
 Always report `B_mean`, `deltaB`, and the bounded magnetic complements beside
 `dBB`, because extreme `dBB` can be denominator-driven.
 
+Here the bounded magnetic complements are:
+
+    B_mean^2 / <B^2>_V
+    deltaB^2 / <B^2>_V
+
+They separate the mean-field and fluctuating-field contributions while
+remaining bounded fractions of the shared magnetic-energy-like denominator.
+
 At minimum, examine:
 
     S_p(ell) curves with block-resampled uncertainty
@@ -555,3 +563,45 @@ Provide:
 16. proposed Phase 5 scope and cost if expansion is justified;
 17. list of files created or modified;
 18. unresolved ambiguities.
+
+==================================================
+PHASE 4 COMPLETION CHECKPOINT (2026-06-02)
+==================================================
+
+Phase 4 is complete as a bounded `L_sub = 640` pilot.
+
+Read the standalone closeout report:
+
+    PHASE4_STATUS_UPDATE.md
+
+Use the final versioned completion supplement:
+
+    figures/phase4_completion_supplement_v2/
+
+The exact retained all-21 Batch B matrix is complete for:
+
+```text
+q = B, u
+p = 1, 2, 3, 4, 5, 6
+stencil = labeled 2-point
+ell_max = 320 cells
+separation bins = 64
+directions per bin = 24
+support policies = all_valid_origins, shell_local
+```
+
+The all-21 labeled 3-point comparison is also complete. The 5-point product
+remains bounded to representative cases. Batch C, SGS-derived channels,
+dynamo-derivative channels, fitted directional exponents, cross-scale
+production, and `L_sub = 1280` extraction remain deferred.
+
+The hardened completion replay passed the exact all-21 Batch A to Batch B
+`p = 2` reproduction gate for all `42` cube-policy groups. High-order tails,
+especially `p = 6`, remain real but imperfect sensitivity diagnostics. Do not
+reinterpret support-policy ratios as corrections or call those tails
+converged.
+
+Phase 4 supports presenting a staged Phase 5 proposal for human review. It
+does not authorize Phase 5 execution. Obtain explicit approval of a bounded
+campaign plan and maximum node-hour exposure before submitting any Phase 5
+production job.
