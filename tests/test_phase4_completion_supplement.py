@@ -184,6 +184,10 @@ def _reproduction_group(
             {
                 "schema_version": 1,
                 "p_values": p_values,
+                "q_names": result.q_names,
+                "density_conventions": result.density_conventions,
+                "rho0": result.rho0,
+                "rho0_provenance": result.rho0_provenance,
                 "bootstrap_seed": 20260531,
             },
             sort_keys=True,
@@ -592,6 +596,50 @@ def test_strict_batch_a_to_all21_batch_b_p2_reproduction_passes() -> None:
         "verified_group_count": 42,
         "excluded_metadata": "timing_and_staging_only",
     }
+
+
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_allows_legacy_batch_a_uncertainty_metadata() -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+    batch_a_groups = _reproduction_groups((2.0,))
+    for group in batch_a_groups.values():
+        metadata = json.loads(str(group.uncertainty["metadata_json"].item()))
+        for name in (
+            "p_values",
+            "q_names",
+            "density_conventions",
+            "rho0",
+            "rho0_provenance",
+        ):
+            metadata.pop(name)
+        group.uncertainty["metadata_json"] = np.asarray(
+            json.dumps(metadata, sort_keys=True)
+        )
+
+    verification = supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+        cube_ids=cube_ids,
+        batch_a_groups=batch_a_groups,
+        batch_b_groups=_reproduction_groups(supplement.BATCH_B_P_VALUES),
+    )
+
+    assert verification["status"] == "passed"
+
+
+def test_strict_batch_a_to_all21_batch_b_p2_reproduction_rejects_modern_batch_b_uncertainty_metadata_omission() -> None:
+    cube_ids = supplement.batch_a_report.FROZEN_PHASE4_PILOT_CUBE_IDS
+    batch_b_groups = _reproduction_groups(supplement.BATCH_B_P_VALUES)
+    first = batch_b_groups[(cube_ids[0], supplement.SUPPORT_MODES[0])]
+    metadata = json.loads(str(first.uncertainty["metadata_json"].item()))
+    metadata.pop("p_values")
+    first.uncertainty["metadata_json"] = np.asarray(
+        json.dumps(metadata, sort_keys=True)
+    )
+
+    with pytest.raises(RuntimeError, match="quantity-axis inventory"):
+        supplement._verify_batch_a_to_all21_batch_b_p2_reproduction(
+            cube_ids=cube_ids,
+            batch_a_groups=_reproduction_groups((2.0,)),
+            batch_b_groups=batch_b_groups,
+        )
 
 
 def test_strict_batch_a_to_all21_batch_b_p2_reproduction_rejects_result_mismatch() -> None:

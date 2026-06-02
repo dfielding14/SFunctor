@@ -722,6 +722,8 @@ def _uncertainty_metadata(
     uncertainty: Mapping[str, np.ndarray],
     *,
     expected_p_values: tuple[float, ...],
+    result: Any,
+    allow_legacy_quantity_axis_omission: bool,
     label: str,
 ) -> dict[str, Any]:
     raw = np.asarray(uncertainty["metadata_json"])
@@ -731,11 +733,37 @@ def _uncertainty_metadata(
         metadata = json.loads(str(raw.item()))
     except json.JSONDecodeError:
         _raise_reproduction_mismatch(f"{label} uncertainty metadata JSON")
-    if (
-        not isinstance(metadata, dict)
-        or tuple(metadata.get("p_values", ())) != expected_p_values
+    if not isinstance(metadata, dict):
+        _raise_reproduction_mismatch(f"{label} uncertainty metadata JSON object")
+    expected_quantity_axis_metadata = {
+        "p_values": expected_p_values,
+        "q_names": tuple(result.q_names),
+        "density_conventions": tuple(result.density_conventions),
+        "rho0": result.rho0,
+        "rho0_provenance": result.rho0_provenance,
+    }
+    present_quantity_axis_names = {
+        name for name in expected_quantity_axis_metadata if name in metadata
+    }
+    if present_quantity_axis_names != set(expected_quantity_axis_metadata):
+        if not (
+            allow_legacy_quantity_axis_omission
+            and not present_quantity_axis_names
+            and expected_p_values == (P2,)
+            and all(
+                convention == "not applicable"
+                for convention in result.density_conventions
+            )
+        ):
+            _raise_reproduction_mismatch(
+                f"{label} uncertainty metadata quantity-axis inventory"
+            )
+        metadata.update(expected_quantity_axis_metadata)
+    if not all(
+        _exact_equal(metadata[name], expected)
+        for name, expected in expected_quantity_axis_metadata.items()
     ):
-        _raise_reproduction_mismatch(f"{label} uncertainty metadata p-values")
+        _raise_reproduction_mismatch(f"{label} uncertainty metadata quantity-axis values")
     return {**metadata, "p_values": (P2,)}
 
 
@@ -801,11 +829,15 @@ def _verify_batch_a_to_all21_batch_b_p2_reproduction(
                 _uncertainty_metadata(
                     batch_a.uncertainty,
                     expected_p_values=batch_a_p_values,
+                    result=batch_a.result,
+                    allow_legacy_quantity_axis_omission=True,
                     label=f"{label} Batch A",
                 ),
                 _uncertainty_metadata(
                     batch_b.uncertainty,
                     expected_p_values=batch_b_p_values,
+                    result=batch_b.result,
+                    allow_legacy_quantity_axis_omission=False,
                     label=f"{label} Batch B",
                 ),
             ):
