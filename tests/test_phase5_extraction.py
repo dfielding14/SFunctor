@@ -423,6 +423,10 @@ def test_plan_is_single_scope_hash_bound_and_refuses_nonempty_roots(
         )
     with pytest.raises(CubeExtractionError, match="does not configure"):
         extraction._selected_config_rows(config, scale=1280, subset="all")
+    with pytest.raises(CubeExtractionError, match="does not configure"):
+        extraction._selected_config_rows(config, scale=640, subset="all")
+    with pytest.raises(CubeExtractionError, match="invalid configured"):
+        extraction._selection_from_config_row(config["selections_by_scale"]["640"][0])
 
     matched_output_root = tmp_path / "matched_plan"
     matched_payload = extraction.plan(

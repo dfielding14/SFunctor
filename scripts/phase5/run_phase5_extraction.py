@@ -27,6 +27,7 @@ from sfunctor.io.cube_extract import (
 )
 
 DOMAIN_BOUNDS = ((-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5))
+EXTRACTABLE_SCALES = (320, 160, 80)
 PLAN_FILENAME = "phase5_extraction_plan.json"
 PLAN_MARKER_FILENAME = "PHASE5_EXTRACTION_PLAN_COMPLETE.json"
 MATERIALIZATION_ROOT = "phase5_materialization_records"
@@ -95,7 +96,7 @@ def _selection_from_config_row(row: Mapping[str, Any]) -> CubeSelection:
     except (KeyError, TypeError, ValueError) as error:
         raise CubeExtractionError("malformed Phase 5 campaign selection") from error
     if (
-        scale not in campaign.CONFIGURED_SCALES
+        scale not in EXTRACTABLE_SCALES
         or scale in campaign.PROHIBITED_EXTRACTION_SCALES
         or len(bounds) != 6
         or tuple(row.get("shape_kji", ())) != (scale, scale, scale)
@@ -119,7 +120,7 @@ def _selected_config_rows(
     scale: int,
     subset: str,
 ) -> tuple[dict[str, Any], ...]:
-    if scale not in campaign.CONFIGURED_SCALES or scale in campaign.PROHIBITED_EXTRACTION_SCALES:
+    if scale not in EXTRACTABLE_SCALES or scale in campaign.PROHIBITED_EXTRACTION_SCALES:
         raise CubeExtractionError(f"Phase 5 extraction does not configure L_sub={scale}")
     if subset not in ("all", "smoke", "matched_smoke"):
         raise CubeExtractionError(f"unsupported Phase 5 subset: {subset}")
@@ -548,7 +549,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--campaign-config", type=Path, required=True)
-    parser.add_argument("--scale", type=int, choices=campaign.CONFIGURED_SCALES, required=True)
+    parser.add_argument("--scale", type=int, choices=EXTRACTABLE_SCALES, required=True)
     parser.add_argument("--subset", choices=("all", "smoke", "matched_smoke"), required=True)
     parser.add_argument("--basename")
     parser.add_argument("--clean-partial", action="store_true")

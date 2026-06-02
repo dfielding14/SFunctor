@@ -18,7 +18,7 @@ DATA_ROOT="${DATA_ROOT:-/lustre/orion/ast207/proj-shared/dfielding/Production_pl
 : "${OUTPUT_ROOT:?OUTPUT_ROOT must be an explicit unique Phase 5 scale/subset plan directory}"
 : "${RUN_DIR:?RUN_DIR must be an explicit unique allocation directory}"
 : "${ACTION:?ACTION must be plan, extract, verify, or inspect}"
-: "${SCALE:?SCALE must be one configured Phase 5 scale: 640, 320, 160, or 80}"
+: "${SCALE:?SCALE must be one extractable Phase 5 scale: 320, 160, or 80}"
 : "${SUBSET:?SUBSET must be all, smoke, or matched_smoke}"
 CLI="${SFUNCTOR_DIR}/scripts/phase5/run_phase5_extraction.py"
 PYTHON_BIN="${SFUNCTOR_DIR}/venv_sfunctor/bin/python"

@@ -383,6 +383,28 @@ def test_rejects_unapproved_scale_and_sgs_policy(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "missing_key",
+    ("q_names", "density_conventions", "sgs_channels_authorized"),
+)
+def test_rejects_missing_frozen_quantity_policy_key(
+    tmp_path: Path,
+    missing_key: str,
+) -> None:
+    campaign_config = _campaign_config(tmp_path)
+    payload = json.loads(campaign_config.read_text())
+    del payload[missing_key]
+    _write_json(campaign_config, payload)
+
+    with pytest.raises(ValueError):
+        sampler._resolve_selection(
+            campaign_config,
+            scale=320,
+            selection_set="smoke",
+            matrix="baseline",
+        )
+
+
 def test_wrapper_has_cpu_multinode_work_and_no_email_directives() -> None:
     text = WRAPPER.read_text()
 

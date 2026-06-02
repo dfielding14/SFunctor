@@ -282,14 +282,11 @@ def _selection_cube_ids(
 def _require_frozen_quantity_policy(payload: Mapping[str, Any]) -> None:
     q_names = payload.get("q_names")
     density_conventions = payload.get("density_conventions")
-    if q_names is not None and tuple(q_names) != PHASE5_Q_NAMES:
+    if not isinstance(q_names, list) or tuple(q_names) != PHASE5_Q_NAMES:
         raise ValueError("Phase 5 sampler is restricted to B and u")
-    if (
-        density_conventions is not None
-        and tuple(density_conventions) != PHASE5_DENSITY_CONVENTIONS
-    ):
+    if not isinstance(density_conventions, list) or tuple(density_conventions) != PHASE5_DENSITY_CONVENTIONS:
         raise ValueError("Phase 5 sampler density conventions must be not applicable")
-    if payload.get("sgs_channels_authorized") not in (None, False):
+    if payload.get("sgs_channels_authorized") is not False:
         raise ValueError("Phase 5 sampler does not permit SGS channels")
 
 
