@@ -102,6 +102,19 @@ ALL_RESULTS_*/
 test_*_output/
 finish_*.log
 
+# Phase 5 immutable report packages
+# The full row-level packages are archived under the Phase 5 Lustre results root.
+figures/phase5_status_update/
+figures/phase5_status_update_v2/
+figures/phase5_status_update_v3/
+figures/phase5_status_update_v4/
+figures/phase5_status_update_v5/phase5_all_valid_vs_shell_local_policy_factor.csv
+figures/phase5_status_update_v5/phase5_all_valid_vs_shell_local_policy_factor.json
+figures/phase5_status_update_v5/phase5_local_slope_uncertainty_across_scale.csv
+figures/phase5_status_update_v5/phase5_local_slope_uncertainty_across_scale.json
+figures/phase5_status_update_v5/phase5_shell_support_effective_block_diagnostics.csv
+figures/phase5_status_update_v5/phase5_shell_support_effective_block_diagnostics.json
+
 # Data files
 *.npz
 test_displacements.npz
