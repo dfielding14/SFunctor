@@ -246,7 +246,7 @@ def _atomic_write_csv(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
         delete=False,
     ) as handle:
         temporary = Path(handle.name)
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(
             {name: _csv_cell(value) for name, value in row.items()} for row in rows

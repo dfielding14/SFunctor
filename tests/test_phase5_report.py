@@ -218,6 +218,14 @@ def test_release_specs_require_stable_unique_labels() -> None:
         report._release_specs(("not-a-binding",))
 
 
+def test_atomic_csv_writer_uses_lf_line_endings(tmp_path: Path) -> None:
+    path = tmp_path / "table.csv"
+
+    report._atomic_write_csv(path, ({"name": "value"},))
+
+    assert path.read_bytes() == b"name\nvalue\n"
+
+
 def test_matched_smoke_is_not_merged_with_nearest_descendant_lineage() -> None:
     def row(cube_id: str, root: str) -> dict[str, Any]:
         return {
