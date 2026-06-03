@@ -81,6 +81,7 @@ FIGURE_FILENAMES = (
     "phase5_2point_vs_3point_comparison.png",
     "phase5_runtime_storage_summary.png",
     "phase5_outlier_panel.png",
+    "phase5_matched_control_low_high_comparison.png",
 )
 MATRIX_AVAILABILITY_BY_SCALE = {
     320: ("baseline", "orders", "3point", "5point"),
@@ -1807,7 +1808,6 @@ def support_fraction_figure(releases: Sequence[VerifiedRelease], output_dir: Pat
 
 
 def effective_block_figure(shell_rows: Sequence[Mapping[str, Any]], output_dir: Path) -> Path:
-    figure, axes = plt.subplots(1, 2, figsize=(11.8, 4.5), constrained_layout=True)
     keys = sorted(
         {
             (
@@ -1837,19 +1837,28 @@ def effective_block_figure(shell_rows: Sequence[Mapping[str, Any]], output_dir: 
             == (scale, selection_set, matrix, width, mode)
         ]
         labels.append(
-            f"L{scale}\n{selection_set}/{matrix}\n{width}pt {mode.replace('_origins', '')}"
+            f"L{scale} {selection_set}/{matrix} {width}pt "
+            f"{'all-valid' if mode == PRIMARY_SUPPORT_MODE else 'shell-local'}"
         )
         medians.append(np.median([row["accepted_effective_blocks"] for row in selected]))
         retentions.append(np.mean([row["curve_support_gate_passes"] for row in selected]))
-    x = np.arange(len(labels))
-    axes[0].bar(x, medians, color="#4c78a8")
-    axes[1].bar(x, retentions, color="#54a24b")
-    axes[0].axhline(MINIMUM_EFFECTIVE_BLOCKS, color="#e45756", linestyle="--")
-    axes[0].set_ylabel("median accepted effective blocks")
-    axes[1].set_ylabel("curve-bin retention fraction")
+    figure, axes = plt.subplots(
+        1,
+        2,
+        figsize=(12.4, max(5.2, 0.29 * len(labels))),
+        constrained_layout=True,
+        sharey=True,
+    )
+    y = np.arange(len(labels))
+    axes[0].barh(y, medians, color="#4c78a8")
+    axes[1].barh(y, retentions, color="#54a24b")
+    axes[0].axvline(MINIMUM_EFFECTIVE_BLOCKS, color="#e45756", linestyle="--")
+    axes[0].set_xlabel("median accepted effective blocks")
+    axes[1].set_xlabel("curve-bin retention fraction")
     for axis in axes:
-        axis.set_xticks(x, labels, rotation=45, ha="right", fontsize=7)
-        axis.grid(axis="y", alpha=0.22)
+        axis.set_yticks(y, labels, fontsize=7)
+        axis.grid(axis="x", alpha=0.22)
+    axes[0].invert_yaxis()
     figure.suptitle("Effective-block support and retained curve-bin diagnostics")
     return _save(figure, output_dir, FIGURE_FILENAMES[4])
 
@@ -2098,6 +2107,94 @@ def outlier_figure(
     return _save(figure, output_dir, FIGURE_FILENAMES[9])
 
 
+def matched_control_figure(
+    selections: Sequence[Selection],
+    releases: Sequence[VerifiedRelease],
+    output_dir: Path,
+) -> Path:
+    figure, axes = plt.subplots(1, 2, figsize=(11.8, 4.5), constrained_layout=True)
+    by_label = {release.label: release for release in releases}
+    matched = [
+        selection
+        for selection in selections
+        if selection.selection_set == "matched_smoke"
+        and selection.matrix == "baseline"
+        and isinstance(selection.observational_control_set, Mapping)
+    ]
+    pair_ids = sorted(
+        {
+            str(selection.observational_control_set["matched_pair_id"])
+            for selection in matched
+        }
+    )
+    colors = {
+        pair_id: plt.cm.viridis(index / max(1, len(pair_ids) - 1))
+        for index, pair_id in enumerate(pair_ids)
+    }
+    line_styles = {"low": "--", "high": "-"}
+    for selection in sorted(
+        matched,
+        key=lambda item: (
+            str(item.observational_control_set["matched_pair_id"]),
+            str(item.observational_control_set["matched_role"]),
+        ),
+    ):
+        control = selection.observational_control_set
+        pair_id = str(control["matched_pair_id"])
+        role = str(control["matched_role"])
+        release = by_label[selection.release_label]
+        key = (selection.cube_id, 2, PRIMARY_SUPPORT_MODE)
+        if key not in release.groups:
+            continue
+        group = release.groups[key]
+        result = group.result
+        if 2.0 not in result.p_values:
+            continue
+        direction = (
+            "lambda" if "lambda" in result.direction_names else _science_axes(result)[2][0]
+        )
+        ell = _centers(result.ell_bin_edges)
+        for axis, q_name in zip(axes, ("B", "u")):
+            if q_name not in result.q_names:
+                continue
+            index = _moment_index(result, q_name, direction, p_value=2.0)
+            supported = _curve_support_mask(group, index)
+            values = np.sqrt(np.where(supported, result.moments[index], np.nan))
+            axis.plot(
+                ell,
+                values,
+                color=colors[pair_id],
+                linestyle=line_styles.get(role, ":"),
+                linewidth=1.55,
+                alpha=0.86,
+            )
+    for axis, q_name in zip(axes, ("B", "u")):
+        axis.set_xscale("log")
+        axis.set_yscale("log")
+        axis.set_xlabel(r"$\ell$ [cells]")
+        axis.set_ylabel(rf"$[S_2^{{{q_name}}}]^{{1/2}}$")
+        axis.set_title(q_name)
+        axis.grid(alpha=0.22)
+    if matched:
+        for pair_id in pair_ids:
+            axes[0].plot([], [], color=colors[pair_id], label=f"matched pair {pair_id}")
+        for role in ("low", "high"):
+            axes[0].plot(
+                [],
+                [],
+                color="#555555",
+                linestyle=line_styles[role],
+                label=role,
+            )
+        axes[0].legend(fontsize=7.5, ncol=2)
+    else:
+        axes[0].text(0.5, 0.5, "No matched-control baseline supplied", ha="center")
+    figure.suptitle(
+        "L320 matched observational controls; low/high contrast, not a balance proof"
+    )
+    return _save(figure, output_dir, FIGURE_FILENAMES[10])
+
+
 def _phase4_baseline_selections(
     baseline: VerifiedRelease | None,
 ) -> tuple[Selection, ...]:
@@ -2331,6 +2428,7 @@ def generate_report(
         stencil_figure(stencil_rows, temporary)
         runtime_figure(runtime_rows, ledger_summary, temporary)
         outlier_figure(selections, releases, temporary)
+        matched_control_figure(selections, releases, temporary)
         summary = {
             "schema_version": SCHEMA_VERSION,
             "status": "phase5_cross_scale_report_package_generated",
