@@ -1578,7 +1578,7 @@ def workflow_schematic(output_dir: Path) -> Path:
     axis.set_axis_off()
     boxes = (
         (0.01, "trusted Phase 1\nscale catalogs"),
-        (0.18, "approved Phase 5\nselection lineage"),
+        (0.18, "retained bounded\nselection lineage"),
         (0.35, "retained Phase 2\nprimitive cubes"),
         (0.52, "hash-bound sampler\nreductions + blocks"),
         (0.69, "cross-scale\nreport diagnostics"),
@@ -1864,25 +1864,35 @@ def effective_block_figure(shell_rows: Sequence[Mapping[str, Any]], output_dir: 
 
 
 def policy_factor_figure(policy_rows: Sequence[Mapping[str, Any]], output_dir: Path) -> Path:
-    figure, axis = plt.subplots(figsize=(9.2, 4.8), constrained_layout=True)
+    figure, axis = plt.subplots(figsize=(11.6, 5.8), constrained_layout=True)
     retained = [row for row in policy_rows if row["supported_policy_diagnostic"]]
     cohorts = sorted({row["selection_set"] for row in retained})
-    markers = {cohort: ("s" if cohort == "matched_smoke" else "o") for cohort in cohorts}
-    for p_value, cohort in sorted(
-        {(row["p_value"], row["selection_set"]) for row in retained}
+    colors = {
+        cohort: plt.cm.tab10(index % 10)
+        for index, cohort in enumerate(cohorts)
+    }
+    markers = {2: "o", 3: "^", 5: "D"}
+    for p_value, cohort, stencil_width in sorted(
+        {
+            (row["p_value"], row["selection_set"], row["stencil_width"])
+            for row in retained
+        }
     ):
         rows = [
             row
             for row in retained
-            if row["p_value"] == p_value and row["selection_set"] == cohort
+            if row["p_value"] == p_value
+            and row["selection_set"] == cohort
+            and row["stencil_width"] == stencil_width
         ]
         axis.scatter(
             [row["L_sub_cells"] for row in rows],
             [row["policy_factor"] for row in rows],
             s=13,
             alpha=0.24,
-            marker=markers[cohort],
-            label=f"{cohort} p={p_value:g}",
+            color=colors[cohort],
+            marker=markers.get(stencil_width, "x"),
+            label=f"{cohort} {stencil_width}pt p={p_value:g}",
         )
     axis.axhline(1.0, color="#777777", linestyle="--")
     axis.set_xlabel(r"$L_{\rm sub}$ [cells]")
@@ -1890,7 +1900,7 @@ def policy_factor_figure(policy_rows: Sequence[Mapping[str, Any]], output_dir: P
     axis.set_yscale("log")
     axis.grid(alpha=0.22)
     if retained:
-        axis.legend(fontsize=8)
+        axis.legend(fontsize=7, ncol=2)
     else:
         axis.text(0.5, 0.5, "No policy-factor rows pass support gates", ha="center")
     axis.set_title("Supported finite-support policy sensitivity by scale and order")
@@ -2103,7 +2113,7 @@ def outlier_figure(
         axes[0].legend(fontsize=7.5, title=r"$L_{\rm sub}$")
     else:
         axes[0].text(0.5, 0.5, "No configured outlier selections", ha="center")
-    figure.suptitle("Explicitly labeled outlier panel; diagnostic context only")
+    figure.suptitle("Outlier context panel; diagnostic context only")
     return _save(figure, output_dir, FIGURE_FILENAMES[9])
 
 
@@ -2414,7 +2424,10 @@ def generate_report(
                 temporary,
                 json_filename=OUTLIER_JSON_FILENAME,
                 csv_filename=OUTLIER_CSV_FILENAME,
-                description="Explicitly labeled outlier selection census.",
+                description=(
+                    "Outlier selection census with cube IDs and roles retained in the "
+                    "row-level table."
+                ),
                 rows=outlier_rows,
             ),
         }
