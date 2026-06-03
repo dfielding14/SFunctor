@@ -1662,9 +1662,9 @@ def environment_census_figure(selections: Sequence[Selection], output_dir: Path)
 def _representative_groups(
     selections: Sequence[Selection],
     releases: Sequence[VerifiedRelease],
-) -> list[tuple[str, Group]]:
+) -> list[tuple[str, str, Group]]:
     by_label = {release.label: release for release in releases}
-    output: dict[tuple[str, int, str], tuple[str, Group]] = {}
+    output: dict[tuple[str, int, str], tuple[str, str, Group]] = {}
     selected = [selection for selection in selections if selection.representative]
     if not selected:
         selected = list(selections)
@@ -1678,10 +1678,10 @@ def _representative_groups(
                 selection.l_sub,
                 selection.physical_region_id,
             )
-            candidate = (f"{selection.selection_set}: {selection.role}", group)
+            candidate = (selection.selection_set, selection.role, group)
             current = output.get(group_key)
             if current is None or len(group.result.p_values) < len(
-                current[1].result.p_values
+                current[2].result.p_values
             ):
                 output[group_key] = candidate
     return [output[key] for key in sorted(output)]
@@ -1694,8 +1694,17 @@ def representative_curves_figure(
 ) -> Path:
     figure, axes = plt.subplots(1, 2, figsize=(12.2, 4.8), constrained_layout=True)
     groups = _representative_groups(selections, releases)
-    colors = plt.cm.viridis(np.linspace(0.04, 0.96, max(1, len(groups))))
-    for color, (role, group) in zip(colors, groups):
+    scales = sorted({group.scale for _, _, group in groups})
+    cohorts = sorted({selection_set for selection_set, _, _ in groups})
+    colors = {
+        scale: plt.cm.viridis(index / max(1, len(scales) - 1))
+        for index, scale in enumerate(scales)
+    }
+    line_styles = {
+        cohort: ("-", "--", ":", "-.")[index % 4]
+        for index, cohort in enumerate(cohorts)
+    }
+    for selection_set, _role, group in groups:
         result = group.result
         if 2.0 not in result.p_values:
             continue
@@ -1727,15 +1736,16 @@ def representative_curves_figure(
             axis.plot(
                 ell[valid],
                 values[valid],
-                label=f"L={group.scale} {role}: {group.cube_id}",
-                color=color,
+                color=colors[group.scale],
+                linestyle=line_styles[selection_set],
                 linewidth=1.45,
+                alpha=0.72,
             )
             axis.fill_between(
                 ell[valid],
                 low[valid],
                 high[valid],
-                color=color,
+                color=colors[group.scale],
                 alpha=0.10,
                 linewidth=0.0,
             )
@@ -1746,7 +1756,17 @@ def representative_curves_figure(
         axis.set_ylabel(rf"$[S_2^{{{q_name}}}(\ell)]^{{1/2}}$")
         axis.grid(alpha=0.22)
     if groups:
-        axes[0].legend(fontsize=6.2)
+        for scale in scales:
+            axes[0].plot([], [], color=colors[scale], label=f"L={scale}")
+        for cohort in cohorts:
+            axes[0].plot(
+                [],
+                [],
+                color="#555555",
+                linestyle=line_styles[cohort],
+                label=cohort,
+            )
+        axes[0].legend(fontsize=7.2, ncol=2)
     else:
         axes[0].text(0.5, 0.5, "No retained representative 2-point p=2 curves", ha="center")
     figure.suptitle("Representative rooted p=2 curves across retained scales; lambda direction")
@@ -1870,16 +1890,31 @@ def policy_factor_figure(policy_rows: Sequence[Mapping[str, Any]], output_dir: P
 
 def slope_figure(slope_rows: Sequence[Mapping[str, Any]], output_dir: Path) -> Path:
     figure, axes = plt.subplots(1, 2, figsize=(12.0, 4.6), constrained_layout=True, sharey=True)
+    retained = [
+        row
+        for row in slope_rows
+        if row["supported_local_slope_diagnostic"]
+        and row["support_mode"] == PRIMARY_SUPPORT_MODE
+        and row["stencil_width"] == 2
+        and row["p_value"] == 2.0
+        and row["direction"] == "lambda"
+        and row["q_name"] in {"B", "u"}
+    ]
+    scales = sorted({row["L_sub_cells"] for row in retained})
+    cohorts = sorted({row["selection_set"] for row in retained})
+    colors = {
+        scale: plt.cm.viridis(index / max(1, len(scales) - 1))
+        for index, scale in enumerate(scales)
+    }
+    line_styles = {
+        cohort: ("-", "--", ":", "-.")[index % 4]
+        for index, cohort in enumerate(cohorts)
+    }
     for axis, q_name in zip(axes, ("B", "u")):
         selected = [
             row
-            for row in slope_rows
-            if row["supported_local_slope_diagnostic"]
-            and row["support_mode"] == PRIMARY_SUPPORT_MODE
-            and row["stencil_width"] == 2
-            and row["p_value"] == 2.0
-            and row["direction"] == "lambda"
-            and row["q_name"] == q_name
+            for row in retained
+            if row["q_name"] == q_name
         ]
         for (selection_set, scale, cube_id) in sorted(
             {
@@ -1899,12 +1934,14 @@ def slope_figure(slope_rows: Sequence[Mapping[str, Any]], output_dir: Path) -> P
                 [row["local_log_slope"] for row in rows],
                 linewidth=1.0,
                 alpha=0.54,
-                label=f"{selection_set} L={scale} {cube_id}",
+                color=colors[scale],
+                linestyle=line_styles[selection_set],
             )
             axis.fill_between(
                 [row["ell_cells"] for row in rows],
                 [row["local_log_slope_bootstrap_interval_low"] for row in rows],
                 [row["local_log_slope_bootstrap_interval_high"] for row in rows],
+                color=colors[scale],
                 alpha=0.10,
             )
         axis.set_xscale("log")
@@ -1913,7 +1950,17 @@ def slope_figure(slope_rows: Sequence[Mapping[str, Any]], output_dir: Path) -> P
         axis.grid(alpha=0.22)
     axes[0].set_ylabel("centered-window local log slope")
     if axes[0].lines:
-        axes[0].legend(fontsize=5.8)
+        for scale in scales:
+            axes[0].plot([], [], color=colors[scale], label=f"L={scale}")
+        for cohort in cohorts:
+            axes[0].plot(
+                [],
+                [],
+                color="#555555",
+                linestyle=line_styles[cohort],
+                label=cohort,
+            )
+        axes[0].legend(fontsize=7.2, ncol=2)
     figure.suptitle("Local-slope uncertainty support across scale; diagnostics only, not fitted exponents")
     return _save(figure, output_dir, FIGURE_FILENAMES[6])
 
@@ -1995,12 +2042,25 @@ def outlier_figure(
     output_dir: Path,
 ) -> Path:
     figure, axes = plt.subplots(1, 3, figsize=(13.0, 4.4), constrained_layout=True)
-    outliers = [selection for selection in selections if selection.outlier]
+    outlier_by_cube: dict[tuple[str, int, str], Selection] = {}
+    for selection in selections:
+        if not selection.outlier:
+            continue
+        key = (selection.selection_set, selection.l_sub, selection.cube_id)
+        current = outlier_by_cube.get(key)
+        if current is None or selection.matrix == "baseline":
+            outlier_by_cube[key] = selection
+    outliers = [outlier_by_cube[key] for key in sorted(outlier_by_cube)]
+    scales = sorted({selection.l_sub for selection in outliers})
+    colors = {
+        scale: plt.cm.viridis(index / max(1, len(scales) - 1))
+        for index, scale in enumerate(scales)
+    }
     by_label = {release.label: release for release in releases}
     for selection in outliers:
         env = selection.environment
-        label = f"{selection.selection_set} L={selection.l_sub} {selection.cube_id}"
-        axes[0].scatter(env["dBB"], env["B_mean"], s=48, label=label)
+        color = colors[selection.l_sub]
+        axes[0].scatter(env["dBB"], env["B_mean"], color=color, s=48)
         release = by_label[selection.release_label]
         key = (selection.cube_id, 2, PRIMARY_SUPPORT_MODE)
         if key not in release.groups:
@@ -2017,7 +2077,7 @@ def outlier_figure(
             index = _moment_index(result, q_name, direction, p_value=2.0)
             supported = _curve_support_mask(group, index)
             values = np.sqrt(np.where(supported, result.moments[index], np.nan))
-            axis.plot(ell, values, linewidth=1.4, label=label)
+            axis.plot(ell, values, color=color, linewidth=1.4, alpha=0.78)
     axes[0].set_xscale("log")
     axes[0].set_xlabel("dBB")
     axes[0].set_ylabel("B_mean")
@@ -2029,7 +2089,9 @@ def outlier_figure(
     for axis in axes:
         axis.grid(alpha=0.22)
     if outliers:
-        axes[0].legend(fontsize=6.3)
+        for scale in scales:
+            axes[0].scatter([], [], color=colors[scale], label=f"L={scale}")
+        axes[0].legend(fontsize=7.5, title=r"$L_{\rm sub}$")
     else:
         axes[0].text(0.5, 0.5, "No configured outlier selections", ha="center")
     figure.suptitle("Explicitly labeled outlier panel; diagnostic context only")
